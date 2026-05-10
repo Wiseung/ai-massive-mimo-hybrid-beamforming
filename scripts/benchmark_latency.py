@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import time
 from pathlib import Path
 
@@ -23,10 +24,13 @@ from beamforming.data.dataset import load_channel_dataset
 from beamforming.data.deepmimo_loader import load_deepmimo_dataset
 from beamforming.data.splits import load_dataset_split
 from beamforming.evaluation import get_eval_subset, get_eval_subset_from_payload
+from beamforming.metrics.sum_rate import multi_user_downlink_sum_rate, noise_variance_from_snr
 from beamforming.models.factory import build_model
+from beamforming.models.constraints import power_normalization
 
 
 LEARNED_METHODS = {"cnn", "mlp", "residual_rzf", "residual_wmmse", "unfolded_rzf", "unfolded_wmmse_lite"}
+UNFOLDED_SWEEP_BEST = Path("outputs/comparisons/unfolded_wmmse_lite_sweep/best_variant.yaml")
 
 
 def parse_args() -> argparse.Namespace:
@@ -46,6 +50,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--warmup-runs", type=int, default=20)
     parser.add_argument("--timed-runs", type=int, default=100)
     parser.add_argument("--include-data-transfer", choices=["false", "true"], default="false")
+    parser.add_argument("--profile-method", default=None)
     parser.add_argument(
         "--artifact-spec",
         action="append",
@@ -132,6 +137,22 @@ def _default_artifacts(prefix: str) -> dict[str, dict[str, str]]:
     }
 
 
+def _maybe_override_best_unfolded(prefix: str, artifact_map: dict[str, dict[str, str]]) -> None:
+    if prefix != "synthetic" or not UNFOLDED_SWEEP_BEST.exists():
+        return
+    payload = yaml.safe_load(UNFOLDED_SWEEP_BEST.read_text(encoding="utf-8")) or {}
+    best_variant = payload.get("best_by_se", {})
+    config_path = str(best_variant.get("config_path", "")).strip()
+    run_dir = str(best_variant.get("run_dir", "")).strip()
+    ckpt_path = str(Path(run_dir) / "best.pt") if run_dir else ""
+    if config_path and ckpt_path and Path(config_path).exists() and Path(ckpt_path).exists():
+        artifact_map["unfolded_wmmse_lite"] = {
+            "model_name": "unfolded_wmmse_lite",
+            "config": config_path,
+            "ckpt": ckpt_path,
+        }
+
+
 def _parse_artifact_specs(specs: list[str]) -> dict[str, dict[str, str]]:
     parsed: dict[str, dict[str, str]] = {}
     for spec in specs:
@@ -211,6 +232,81 @@ def _learned_forward(model: torch.nn.Module, batch: dict[str, torch.Tensor]) -> 
         model(batch["channel_real"], snr_db=batch["snr_db"], channel_complex=batch["channel"])
 
 
+def _profile_unfolded_wmmse_lite(
+    model: torch.nn.Module,
+    batch: dict[str, torch.Tensor],
+    device: torch.device,
+    warmup_runs: int,
+    timed_runs: int,
+) -> dict[str, object]:
+    if not hasattr(model, "_init_precoder") or not hasattr(model, "_steps"):
+        raise ValueError("Profiling is only implemented for unfolded_wmmse_lite.")
+
+    channel_real = batch["channel_real"]
+    channel_complex = batch["channel"]
+    snr_db = batch["snr_db"]
+
+    for _ in range(warmup_runs):
+        with torch.no_grad():
+            model(channel_real, snr_db=snr_db, channel_complex=channel_complex)
+        _sync(device)
+
+    noise_times: list[float] = []
+    init_times: list[float] = []
+    refine_times: list[float] = []
+    norm_times: list[float] = []
+    total_times: list[float] = []
+
+    for _ in range(timed_runs):
+        _sync(device)
+        t0 = time.perf_counter()
+        noise_var = noise_variance_from_snr(snr_db).to(channel_real.device)
+        _sync(device)
+        t1 = time.perf_counter()
+        precoder = model._init_precoder(channel_complex, noise_var=noise_var)
+        _sync(device)
+        t2 = time.perf_counter()
+        norm_acc = 0.0
+        refine_start = time.perf_counter()
+        for step in model._steps():
+            with torch.enable_grad():
+                work = precoder.detach().clone().requires_grad_(True)
+                rate = multi_user_downlink_sum_rate(channel_complex, work, noise_var)
+                grad = torch.autograd.grad(rate.mean(), work, retain_graph=False, create_graph=False)[0]
+            t_norm0 = time.perf_counter()
+            precoder = power_normalization(work + step.to(channel_real.device) * grad)
+            _sync(device)
+            t_norm1 = time.perf_counter()
+            norm_acc += (t_norm1 - t_norm0) * 1000.0
+        _sync(device)
+        t3 = time.perf_counter()
+        noise_times.append((t1 - t0) * 1000.0)
+        init_times.append((t2 - t1) * 1000.0)
+        refine_times.append((t3 - refine_start) * 1000.0)
+        norm_times.append(norm_acc)
+        total_times.append((t3 - t0) * 1000.0)
+
+    noise_mean = float(pd.Series(noise_times, dtype="float64").mean())
+    init_mean = float(pd.Series(init_times, dtype="float64").mean())
+    refine_mean = float(pd.Series(refine_times, dtype="float64").mean())
+    norm_mean = float(pd.Series(norm_times, dtype="float64").mean())
+    total_mean = float(pd.Series(total_times, dtype="float64").mean())
+    return {
+        "method": "unfolded_wmmse_lite",
+        "device": str(device),
+        "warmup_runs": warmup_runs,
+        "timed_runs": timed_runs,
+        "num_layers": int(getattr(model, "num_layers", 0)),
+        "init_method": str(getattr(model, "init_method", "unknown")),
+        "noise_var_ms": noise_mean,
+        "init_computation_time_ms": init_mean,
+        "layer_refinement_time_ms": refine_mean,
+        "normalization_time_ms": norm_mean,
+        "model_forward_time_ms": total_mean,
+        "latency_hotspot": "init_computation" if init_mean >= refine_mean else "layer_refinement",
+    }
+
+
 def _benchmark_callable(
     fn,
     batch_cpu: dict[str, torch.Tensor],
@@ -255,9 +351,11 @@ def main() -> None:
     num_rf_chains = int(data_cfg["num_rf_chains"])
 
     artifact_map = _default_artifacts(prefix)
+    _maybe_override_best_unfolded(prefix, artifact_map)
     artifact_map.update(_parse_artifact_specs(args.artifact_spec))
 
     rows: list[dict[str, object]] = []
+    profile_payload: dict[str, object] | None = None
     for method in args.methods:
         if method in LEARNED_METHODS or method in artifact_map:
             artifact = artifact_map.get(method)
@@ -277,6 +375,14 @@ def main() -> None:
                 args.timed_runs,
                 include_data_transfer,
             )
+            if args.profile_method == method:
+                profile_payload = _profile_unfolded_wmmse_lite(
+                    model,
+                    batch_device,
+                    device,
+                    args.warmup_runs,
+                    args.timed_runs,
+                )
         else:
 
             def _fn(payload: dict[str, torch.Tensor]) -> None:
@@ -307,6 +413,11 @@ def main() -> None:
 
     table = pd.DataFrame(rows).sort_values("inference_latency_ms").reset_index(drop=True)
     table.to_csv(out_dir / "latency_table.csv", index=False)
+    if profile_payload is not None:
+        (out_dir / f"{args.profile_method}_profile.json").write_text(
+            json.dumps(profile_payload, indent=2),
+            encoding="utf-8",
+        )
 
     plt.figure(figsize=(8.0, 4.8))
     plt.bar(table["method"], table["inference_latency_ms"], yerr=table["latency_std_ms"], capsize=3)

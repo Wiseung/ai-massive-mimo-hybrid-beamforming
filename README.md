@@ -2,6 +2,35 @@
 
 Reproducible PyTorch-based single-GPU project for massive MIMO / mmWave beamforming and precoding. The current repository is centered on a verified synthetic CSI pipeline and fair benchmark comparison before pushing further into heavier DeepMIMO or Sionna features.
 
+## Release Snapshot
+
+### Synthetic Headline
+
+| Method | Mean SE | Notes |
+| --- | ---: | --- |
+| RZF | 5.5771 | low-latency analytic reference |
+| WMMSE | 5.8523 | strongest tested synthetic reference |
+| WMMSE iter 5 | 5.8155 | reduced-iteration reference |
+| Best unfolded WMMSE-lite | 5.8163 | `wmmse_iter_5` init, 3 layers, `distill=0.1`, `delta=1e-3` |
+| CNN | 5.0524 | warm-started black-box baseline |
+
+### DeepMIMO Headline
+
+| Split | Best method | Mean SE | Scale |
+| --- | --- | ---: | --- |
+| random | WMMSE iter 5 | 1.0884 ± 0.0484 | K=4, Nt=8, Nsc=1 |
+| contiguous | WMMSE iter 5 | 1.0664 ± 0.0000 | K=4, Nt=8, Nsc=1 |
+
+### Latency Protocol
+
+| Item | Value |
+| --- | --- |
+| device | CUDA when available |
+| batch size | 512 |
+| warmup runs | 20 |
+| timed runs | 100 |
+| include data transfer | false |
+
 ## Current Status
 
 - Synthetic pipeline is verified end-to-end.
@@ -26,6 +55,8 @@ Reproducible PyTorch-based single-GPU project for massive MIMO / mmWave beamform
 - A contiguous DeepMIMO split benchmark is now available and should be interpreted as a harder location-generalization evaluation than the random split.
 - A non-quick DeepMIMO full multi-seed benchmark has now run with `seeds=1,2,3`.
 - A DeepMIMO random-split model-family benchmark across `seeds=1,2,3` is now available for `rzf`, `wmmse_iter_5`, `cnn`, `residual_rzf`, and `unfolded_wmmse_lite`.
+- A contiguous DeepMIMO model-family benchmark across `seeds=1,2,3` is now available, together with an exported random-vs-contiguous comparison table and figure.
+- A quick unfolded-WMMSE-lite ablation sweep is now exported and identifies the current best synthetic variant as `wmmse_iter_5` initialization with `3` refinement layers.
 - Sionna remains optional and is not the mainline blocker for this repository.
 
 ## Project Structure
@@ -236,6 +267,25 @@ The unified latency artifacts are:
 
 Older latency numbers from mixed evaluation scripts are not used anymore for model-family tables or Pareto plots.
 
+Profiling of `unfolded_wmmse_lite` is now available through:
+
+```bash
+python scripts/benchmark_latency.py \
+  --data outputs/data/synthetic_narrowband.pt \
+  --methods mrt rzf wmmse_iter_1 wmmse_iter_2 wmmse_iter_5 wmmse cnn residual_rzf unfolded_rzf unfolded_wmmse_lite \
+  --batch-size 512 \
+  --warmup-runs 20 \
+  --timed-runs 100 \
+  --profile-method unfolded_wmmse_lite \
+  --out outputs/comparisons/latency_v2
+```
+
+The current hotspot report is saved to:
+
+- `outputs/comparisons/latency_v2/unfolded_wmmse_lite_profile.json`
+
+On the current run, the dominant cost is the `wmmse_iter_2` initialization step, not the learnable refinement layers.
+
 ## Synthetic Results
 
 ### Baselines
@@ -397,6 +447,35 @@ Across `seeds=1,2,3`, the current random-split summary is:
 
 This is still a filtered `K=4`, `Nt=8`, `Nsc=1` benchmark and should not be overstated as a large-scale DeepMIMO conclusion.
 
+The current contiguous-split DeepMIMO model-family benchmark output is:
+
+- `outputs/comparisons/deepmimo_model_family_contiguous/deepmimo_model_family_table.csv`
+- `outputs/comparisons/deepmimo_model_family_contiguous/deepmimo_model_family_mean_std.csv`
+
+Across `seeds=1,2,3`, the current contiguous-split summary is:
+
+- `wmmse_iter_5`: `mean_se = 1.0664 +- 0.0000`, `latency = 45.76 ms`
+- `unfolded_wmmse_lite`: `mean_se = 0.8719 +- 0.0000`, `latency = 23.95 ms`
+- `rzf`: `mean_se = 0.7642 +- 0.0000`, `latency = 0.54 ms`
+- `residual_rzf`: `mean_se = 0.7639 +- 0.0001`, `latency = 0.93 ms`
+- `cnn`: `mean_se = 0.6575 +- 0.0276`, `latency = 0.63 ms`
+
+The random-vs-contiguous comparison artifacts are:
+
+- `outputs/comparisons/deepmimo_model_family_random_vs_contiguous.csv`
+- `outputs/comparisons/deepmimo_model_family_random_vs_contiguous.md`
+- `outputs/comparisons/deepmimo_model_family_random_vs_contiguous.png`
+
+On this local filtered tensor, contiguous split does not uniformly reduce every method:
+
+- `cnn` drops by about `-7.58%`
+- `wmmse_iter_5` drops by about `-2.03%`
+- `unfolded_wmmse_lite` rises by about `+1.31%`
+- `rzf` rises by about `+7.02%`
+- `residual_rzf` rises by about `+6.28%`
+
+These are empirical outputs from the current `K=4`, `Nt=8`, `Nsc=1` tensor, not a general theorem about location generalization.
+
 ### DeepMIMO Benchmark Commands
 
 Dataset analysis:
@@ -495,7 +574,91 @@ So the current SE-latency Pareto frontier is roughly:
 
 - `mrt -> rzf -> unfolded_rzf -> unfolded_wmmse_lite -> wmmse_iter_5 -> wmmse`
 
-Under the standardized protocol, `unfolded_wmmse_lite` is not a low-latency point anymore, but it is still a meaningful intermediate Pareto point between `unfolded_rzf` and `wmmse_iter_5`.
+Under the standardized protocol, the best current `unfolded_wmmse_lite` variant is no longer a low-latency point. It nearly matches `wmmse_iter_5` in SE, but it inherits much of the structured initialization cost and therefore remains slower than `wmmse_iter_5`.
+
+Current `latency_v2` values for the user-requested method set are:
+
+- `mrt = 0.234 ms`
+- `rzf = 0.562 ms`
+- `wmmse_iter_1 = 55.85 ms`
+- `wmmse_iter_2 = 109.08 ms`
+- `unfolded_wmmse_lite = 118.86 ms`
+- `wmmse_iter_5 = 280.20 ms`
+- `wmmse = 1688.79 ms`
+
+The quick sweep shows:
+
+- best SE variant: `wmmse_iter_5` init, `3` layers, `distill_weight=0.1`, `delta_norm_weight=1e-3`
+- `mean_se = 5.8163`
+- `gap_to_wmmse = -0.43%`
+- `gap_to_wmmse_iter_5 = +0.0055%`
+- sweep-local latency = `189.21 ms`
+
+This means the current best learned WMMSE-lite variant is best interpreted as an SE-matching structured approximation to `wmmse_iter_5`, not as a lower-latency replacement.
+
+## Reproduction Commands
+
+Synthetic:
+
+```bash
+python scripts/evaluate_all.py \
+  --data outputs/data/synthetic_narrowband.pt \
+  --ckpt outputs/runs/synthetic_unfolded_wmmse_lite_iter2/best.pt \
+  --config configs/synthetic_unfolded_wmmse_lite_iter2.yaml \
+  --methods mrt zf rzf dft wmmse wmmse_iter_5 unfolded_wmmse_lite \
+  --out outputs/comparisons/synthetic_unfolded_wmmse_lite_iter2
+```
+
+DeepMIMO random:
+
+```bash
+python scripts/run_deepmimo_model_family_benchmark.py \
+  --data outputs/data/deepmimo_asu_campus_3p5_narrowband.pt \
+  --seeds 1 2 3 \
+  --split-mode random \
+  --methods rzf wmmse_iter_5 cnn residual_rzf unfolded_wmmse_lite \
+  --out outputs/comparisons/deepmimo_model_family_random
+```
+
+DeepMIMO contiguous:
+
+```bash
+python scripts/run_deepmimo_model_family_benchmark.py \
+  --data outputs/data/deepmimo_asu_campus_3p5_narrowband.pt \
+  --seeds 1 2 3 \
+  --split-mode contiguous \
+  --methods rzf wmmse_iter_5 cnn residual_rzf unfolded_wmmse_lite \
+  --out outputs/comparisons/deepmimo_model_family_contiguous
+```
+
+Latency:
+
+```bash
+python scripts/benchmark_latency.py \
+  --data outputs/data/synthetic_narrowband.pt \
+  --methods mrt rzf wmmse_iter_1 wmmse_iter_2 wmmse_iter_5 wmmse cnn residual_rzf unfolded_rzf unfolded_wmmse_lite \
+  --batch-size 512 \
+  --warmup-runs 20 \
+  --timed-runs 100 \
+  --profile-method unfolded_wmmse_lite \
+  --out outputs/comparisons/latency_v2
+```
+
+Sweep:
+
+```bash
+python scripts/sweep_unfolded_wmmse_lite.py \
+  --data outputs/data/synthetic_narrowband.pt \
+  --quick \
+  --out outputs/comparisons/unfolded_wmmse_lite_sweep
+```
+
+## Known Limitations
+
+- DeepMIMO current scale is only `K=4`, `Nt=8`, `Nsc=1`
+- no wideband DeepMIMO result exists locally
+- no Sionna end-to-end result exists locally
+- current `unfolded_wmmse_lite` remains below `wmmse_iter_5` unless a better sweep variant is found
 
 This implementation should still be treated as a practical narrowband benchmark for the current setup, not as a complete hybrid / wideband WMMSE study.
 

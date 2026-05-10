@@ -1,0 +1,14 @@
+{
+  "method": "unfolded_wmmse_lite",
+  "device": "cuda",
+  "warmup_runs": 20,
+  "timed_runs": 100,
+  "num_layers": 5,
+  "init_method": "wmmse_iter_2",
+  "noise_var_ms": 0.23998547141673043,
+  "init_computation_time_ms": 76.92578436835902,
+  "layer_refinement_time_ms": 5.894186871300917,
+  "normalization_time_ms": 1.2525539737544023,
+  "model_forward_time_ms": 83.06015558220679,
+  "latency_hotspot": "init_computation"
+}

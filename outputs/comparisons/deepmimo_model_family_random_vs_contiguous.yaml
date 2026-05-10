@@ -1,0 +1,6 @@
+K: 4
+Nsc: 1
+Nt: 8
+contiguous_num_seeds: 3
+random_num_seeds: 3
+wideband_allowed: false

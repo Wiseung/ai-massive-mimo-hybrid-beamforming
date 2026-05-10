@@ -41,3 +41,20 @@ def test_unfolded_wmmse_lite_supports_wmmse_iter_alias_init() -> None:
     outputs = model(channel_real, snr_db=snr_db, channel_complex=channel)
     assert outputs["precoder"].shape == (2, 8, 4)
     assert outputs["layer_sum_rates"].shape == (2, 2)
+
+
+def test_unfolded_wmmse_lite_supports_wmmse_iter_1_alias() -> None:
+    torch.manual_seed(2)
+    model = UnfoldedWMMSELiteBeamformer(
+        num_users=4,
+        num_bs_ant=8,
+        num_rf_chains=4,
+        num_layers=1,
+        alpha_init=0.02,
+        init_method="wmmse_iter_1",
+    )
+    channel = torch.randn(1, 4, 8, dtype=torch.complex64)
+    channel_real = torch.stack([channel.real, channel.imag], dim=1)
+    snr_db = torch.tensor([10.0], dtype=torch.float32)
+    outputs = model(channel_real, snr_db=snr_db, channel_complex=channel)
+    assert outputs["precoder"].shape == (1, 8, 4)

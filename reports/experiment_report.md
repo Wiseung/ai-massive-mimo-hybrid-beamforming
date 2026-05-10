@@ -1,5 +1,9 @@
 # Experiment Report
 
+## Problem Formulation
+
+The current repository studies reproducible single-GPU AI-assisted downlink precoding for narrowband MU-MISO channels. The practical question is not only whether a learned beamformer can improve spectral efficiency, but also whether it can do so under a fair evaluation contract and a meaningful SE-latency tradeoff relative to analytic references such as RZF and WMMSE.
+
 ## Background
 
 This project targets AI-assisted beamforming and precoding for massive MIMO and mmWave downlink systems, with engineering priorities ordered as reproducibility, benchmark fairness, and runnable single-GPU training. The current work deliberately postponed Sionna-centric end-to-end expansion until the synthetic benchmark, classical baselines, and learned-model evaluation were all on solid footing.
@@ -22,7 +26,7 @@ F = F_RF F_BB
 
 The learned models used in the verified synthetic experiments are digital-only, because that is the most stable route for fair comparison against MRT, ZF, and RZF teachers.
 
-## Dataset
+## Datasets
 
 ### Synthetic
 
@@ -114,7 +118,7 @@ Verified synthetic baseline values:
 
 Once `WMMSE` is included, `RZF` is no longer the strongest synthetic reference. `RZF` remains the key analytic low-latency baseline, while `WMMSE` is the strongest tested SE reference in the current narrowband digital-only setup.
 
-## AI Models
+## Learned Models
 
 Implemented AI models:
 
@@ -245,7 +249,32 @@ Training logs now include:
 - gradient_norm
 - learning_rate
 
-## Results
+## Evaluation Protocol
+
+All gap metrics in the current repository use the same definition:
+
+```text
+gap_to_reference = (method_se - reference_se) / reference_se
+```
+
+All cross-method latency tables and Pareto figures now use the same benchmarking protocol:
+
+- CUDA when available
+- batch size `512`
+- `20` warmup runs
+- `100` timed runs
+- `include_data_transfer = false`
+
+The current latency profile for `unfolded_wmmse_lite` shows that the dominant runtime component is the structured initialization, not the learned refinement itself. With `init_method = wmmse_iter_2`, the current measured breakdown is approximately:
+
+- init computation: `114.55 ms`
+- refinement layers: `6.54 ms`
+- normalization: `2.03 ms`
+- end-to-end forward: `121.49 ms`
+
+So the main optimization target is the initialization path.
+
+## Synthetic Results
 
 ### Fair Evaluation
 
@@ -289,6 +318,29 @@ Under this unified protocol, the main synthetic latency points are:
 - `wmmse_iter_5 = 268.41 ms`
 - `wmmse = 2048.41 ms`
 
+The refreshed `latency_v2` run requested in the current phase reports:
+
+- `mrt = 0.234 ms`
+- `rzf = 0.562 ms`
+- `wmmse_iter_1 = 55.85 ms`
+- `wmmse_iter_2 = 109.08 ms`
+- `unfolded_wmmse_lite = 118.86 ms`
+- `wmmse_iter_5 = 280.20 ms`
+- `wmmse = 1688.79 ms`
+
+The current quick ablation sweep over `unfolded_wmmse_lite` variants identifies the best synthetic configuration as:
+
+- `init_method = wmmse_iter_5`
+- `num_layers = 3`
+- `distill_weight = 0.1`
+- `delta_norm_weight = 1e-3`
+- `mean_se = 5.8163`
+- `gap_to_wmmse = -0.43%`
+- `gap_to_wmmse_iter_5 = +0.0055%`
+- sweep-local latency = `189.21 ms`
+
+So the current best unfolded-WMMSE-lite variant practically matches the `wmmse_iter_5` reference in SE, but it does not beat `wmmse_iter_5` on latency.
+
 ### SNR Conditioning
 
 An ablation between conditioned and non-conditioned warm-started CNNs shows almost no difference on the current synthetic benchmark:
@@ -312,6 +364,56 @@ The table compares:
 3. RZF warm-start + SNR conditioning
 4. high-SNR weighted fine-tuning
 5. mixed teacher fine-tuning
+
+## DeepMIMO Results
+
+The current random-split DeepMIMO model-family benchmark over `seeds = 1, 2, 3` ranks:
+
+1. `wmmse_iter_5 = 1.0884 +- 0.0484`
+2. `unfolded_wmmse_lite = 0.8606 +- 0.0426`
+3. `residual_rzf = 0.7188 +- 0.0359`
+4. `rzf = 0.7141 +- 0.0357`
+5. `cnn = 0.7114 +- 0.0148`
+
+The current contiguous-split benchmark over `seeds = 1, 2, 3` ranks:
+
+1. `wmmse_iter_5 = 1.0664 +- 0.0000`
+2. `unfolded_wmmse_lite = 0.8719 +- 0.0000`
+3. `rzf = 0.7642 +- 0.0000`
+4. `residual_rzf = 0.7639 +- 0.0001`
+5. `cnn = 0.6575 +- 0.0276`
+
+The random-vs-contiguous comparison does not support a simplistic “contiguous always hurts every method” claim on this filtered tensor. Instead:
+
+- `cnn` decreases by about `-7.58%`
+- `wmmse_iter_5` decreases by about `-2.03%`
+- `unfolded_wmmse_lite` increases by about `+1.31%`
+- `rzf` increases by about `+7.02%`
+- `residual_rzf` increases by about `+6.28%`
+
+These are real outputs from the current local benchmark and must be interpreted narrowly, because the dataset scale is still only `K=4`, `Nt=8`, `Nsc=1`.
+
+## SE-Latency Tradeoff
+
+Under the current standardized latency protocol, the model-family Pareto frontier remains roughly:
+
+1. `mrt`
+2. `rzf`
+3. `unfolded_rzf`
+4. `unfolded_wmmse_lite`
+5. `wmmse_iter_5`
+6. `wmmse`
+
+This means the structured learned family is currently useful mainly when the user explicitly values intermediate SE-latency tradeoff points. After the current quick sweep, the best unfolded-WMMSE-lite variant becomes a near-SE match to `wmmse_iter_5`, but it is still not accurate to describe it as a universally better deployment point than reduced-iteration WMMSE because the latency advantage is not preserved.
+
+## Ablations
+
+The current phase adds two new ablation axes:
+
+- random versus contiguous DeepMIMO split
+- `unfolded_wmmse_lite` init-method sweep in quick mode
+
+The DeepMIMO split ablation is complete and exported. The unfolded-WMMSE-lite quick sweep shows that stronger structured initialization does move the learned model very close to `wmmse_iter_5`, but it also carries over much of the initialization cost. In the current local results, `wmmse_iter_5` initialization is the best SE configuration, while `wmmse_iter_1` remains the better low-cost point within the swept learned variants.
 
 ## Discussion
 

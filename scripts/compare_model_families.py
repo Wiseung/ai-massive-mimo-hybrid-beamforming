@@ -22,7 +22,7 @@ HIGH_SNR_POINTS = [10.0, 15.0, 20.0]
 SYNTHETIC_CURVE_FALLBACK = Path("outputs/comparisons/synthetic_residual_wzf_missing.csv")
 
 
-MODEL_RUNS: list[dict[str, str]] = [
+DEFAULT_MODEL_RUNS: list[dict[str, str]] = [
     {
         "method": "cnn",
         "summary": "outputs/comparisons/synthetic_cnn_finetune/summary.yaml",
@@ -56,12 +56,16 @@ MODEL_RUNS: list[dict[str, str]] = [
 ]
 WMMSE_SWEEP_TABLE = Path("outputs/comparisons/wmmse_iteration_sweep/wmmse_iteration_table.csv")
 WMMSE_SWEEP_CURVES = Path("outputs/comparisons/wmmse_iteration_sweep/wmmse_iteration_curves.csv")
+UNFOLDED_SWEEP_BEST = Path("outputs/comparisons/unfolded_wmmse_lite_sweep/best_variant.yaml")
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--latency-table", required=False, default="outputs/comparisons/latency/latency_table.csv")
     parser.add_argument("--out", required=True)
+    parser.add_argument("--best-unfolded-summary", default=None)
+    parser.add_argument("--best-unfolded-curve", default=None)
+    parser.add_argument("--best-unfolded-train-summary", default=None)
     return parser.parse_args()
 
 
@@ -80,9 +84,38 @@ def _load_curve(path: Path) -> pd.DataFrame:
     return df[keep_cols].copy()
 
 
-def _merge_curves() -> pd.DataFrame:
+def _resolve_model_runs(args: argparse.Namespace) -> list[dict[str, str]]:
+    runs = [dict(item) for item in DEFAULT_MODEL_RUNS]
+    if args.best_unfolded_curve:
+        for item in runs:
+            if item["method"] == "unfolded_wmmse_lite":
+                item["curve"] = args.best_unfolded_curve
+                if args.best_unfolded_summary:
+                    item["summary"] = args.best_unfolded_summary
+                if args.best_unfolded_train_summary:
+                    item["train_summary"] = args.best_unfolded_train_summary
+                break
+        return runs
+    if UNFOLDED_SWEEP_BEST.exists():
+        best_payload = _read_yaml(UNFOLDED_SWEEP_BEST)
+        best_variant = best_payload.get("best_by_se", {})
+        summary_path = Path(str(best_variant.get("eval_dir", ""))) / "summary.yaml"
+        curve_path = Path(str(best_variant.get("eval_dir", ""))) / "synthetic_all_methods.csv"
+        train_summary_path = Path(str(best_variant.get("run_dir", ""))) / "train_summary.yaml"
+        if summary_path.exists() and curve_path.exists():
+            for item in runs:
+                if item["method"] == "unfolded_wmmse_lite":
+                    item["summary"] = str(summary_path)
+                    item["curve"] = str(curve_path)
+                    if train_summary_path.exists():
+                        item["train_summary"] = str(train_summary_path)
+                    break
+    return runs
+
+
+def _merge_curves(model_runs: list[dict[str, str]]) -> pd.DataFrame:
     frames: list[pd.DataFrame] = []
-    for entry in MODEL_RUNS:
+    for entry in model_runs:
         curve_path = Path(entry["curve"])
         if curve_path.exists():
             frames.append(_load_curve(curve_path))
@@ -182,19 +215,21 @@ def main() -> None:
         raise FileNotFoundError(f"Latency table not found: {latency_path}")
     latency_df = pd.read_csv(latency_path)
 
-    combined = _ensure_gap_columns(_merge_curves())
+    model_runs = _resolve_model_runs(args)
+    combined = _ensure_gap_columns(_merge_curves(model_runs))
     methods = list(dict.fromkeys(combined["method"].tolist()))
 
     rows = []
     for method in methods:
         train_summary = {}
-        for entry in MODEL_RUNS:
+        for entry in model_runs:
             if entry["method"] == method:
                 train_summary = _read_yaml(Path(entry["train_summary"]))
                 break
         rows.append(_summary_row(method, combined, train_summary, latency_df))
     table = pd.DataFrame(rows).sort_values("mean_se", ascending=False).reset_index(drop=True)
-    table.to_csv(out_dir / "model_family_table_v3.csv", index=False)
+    is_v4 = out_dir.name.endswith("v4")
+    table.to_csv(out_dir / ("model_family_table.csv" if is_v4 else "model_family_table_v3.csv"), index=False)
 
     plt.figure(figsize=(8.0, 4.8))
     for method, group in combined.groupby("method"):
@@ -206,7 +241,7 @@ def main() -> None:
     plt.grid(True, alpha=0.3)
     plt.legend()
     plt.tight_layout()
-    plt.savefig(out_dir / "model_family_se_vs_snr_v3.png")
+    plt.savefig(out_dir / ("model_family_se_vs_snr.png" if is_v4 else "model_family_se_vs_snr_v3.png"))
     plt.close()
 
     runtime_table = table[["method", "inference_latency_ms"]].dropna().sort_values("inference_latency_ms")
@@ -216,7 +251,7 @@ def main() -> None:
     plt.title("Model Family Runtime")
     plt.grid(True, axis="y", alpha=0.3)
     plt.tight_layout()
-    plt.savefig(out_dir / "model_family_runtime_v3.png")
+    plt.savefig(out_dir / ("model_family_runtime.png" if is_v4 else "model_family_runtime_v3.png"))
     plt.close()
 
     frontier = _pareto_frontier(table)
@@ -233,7 +268,7 @@ def main() -> None:
     plt.title("SE-Latency Pareto")
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
-    plt.savefig(out_dir / "pareto_se_latency_v3.png")
+    plt.savefig(out_dir / ("pareto_se_latency.png" if is_v4 else "pareto_se_latency_v3.png"))
     plt.close()
 
     print(f"Saved model family comparison to {out_dir}")

@@ -1,0 +1,41 @@
+selection_note: best_by_se uses highest mean_se with latency tie-break; best_pareto_like
+  uses closest gap_to_wmmse_iter_5 then lower latency.
+latency_protocol:
+  batch_size: 512
+  warmup_runs: 20
+  timed_runs: 100
+  include_data_transfer: false
+best_by_se:
+  tag: wmmse_iter_5_L3_dw0p1_delta0p001
+  config_path: outputs/comparisons/unfolded_wmmse_lite_sweep/wmmse_iter_5_L3_dw0p1_delta0p001.yaml
+  run_dir: outputs/comparisons/unfolded_wmmse_lite_sweep/wmmse_iter_5_L3_dw0p1_delta0p001
+  eval_dir: outputs/comparisons/unfolded_wmmse_lite_sweep/wmmse_iter_5_L3_dw0p1_delta0p001_eval
+  latency_dir: outputs/comparisons/unfolded_wmmse_lite_sweep/wmmse_iter_5_L3_dw0p1_delta0p001_latency
+  source: quick
+  init_method: wmmse_iter_5
+  num_layers: 3
+  distill_weight: 0.1
+  delta_norm_weight: 0.001
+  mean_se: 5.816345597926779
+  gap_to_wmmse: -0.004282004575569526
+  gap_to_wmmse_iter_5: 5.4797109310383794e-05
+  latency_ms: 189.21425400010776
+  num_params: null
+  train_time: 58.54206039899145
+best_pareto_like:
+  tag: wmmse_iter_5_L3_dw0p1_delta0p001
+  config_path: outputs/comparisons/unfolded_wmmse_lite_sweep/wmmse_iter_5_L3_dw0p1_delta0p001.yaml
+  run_dir: outputs/comparisons/unfolded_wmmse_lite_sweep/wmmse_iter_5_L3_dw0p1_delta0p001
+  eval_dir: outputs/comparisons/unfolded_wmmse_lite_sweep/wmmse_iter_5_L3_dw0p1_delta0p001_eval
+  latency_dir: outputs/comparisons/unfolded_wmmse_lite_sweep/wmmse_iter_5_L3_dw0p1_delta0p001_latency
+  source: quick
+  init_method: wmmse_iter_5
+  num_layers: 3
+  distill_weight: 0.1
+  delta_norm_weight: 0.001
+  mean_se: 5.816345597926779
+  gap_to_wmmse: -0.004282004575569526
+  gap_to_wmmse_iter_5: 5.4797109310383794e-05
+  latency_ms: 189.21425400010776
+  num_params: null
+  train_time: 58.54206039899145
