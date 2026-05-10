@@ -34,6 +34,8 @@ python scripts/sionna_phy_awgn_demo.py --out outputs/sionna_smoke/sionna_phy_awg
 python scripts/sionna_phy_beamforming_link_demo.py --out outputs/sionna_smoke/sionna_phy_beamforming_link_summary.json
 python scripts/sionna_ofdm_resource_grid_demo.py --out outputs/sionna_smoke/sionna_ofdm_resource_grid_summary.json
 python scripts/sionna_ofdm_beamforming_bridge_demo.py --out outputs/sionna_smoke/sionna_ofdm_beamforming_bridge_summary.json
+python scripts/check_differentiable_beamformer_gradients.py --out outputs/sionna_smoke/differentiable_beamformer_gradcheck.json
+python scripts/sionna_ofdm_differentiable_beamforming_demo.py --out outputs/sionna_smoke/sionna_ofdm_differentiable_beamforming_summary.json
 ```
 
 ## Current Status
@@ -45,6 +47,7 @@ python scripts/sionna_ofdm_beamforming_bridge_demo.py --out outputs/sionna_smoke
 - the beamforming link demo likewise prefers Sionna PHY AWGN and otherwise records explicit fallback
 - the OFDM ResourceGrid demo prefers real Sionna OFDM components and records an explicit fallback only if the current API path fails
 - the OFDM beamforming bridge demo prefers real Sionna OFDM grid components and Sionna PHY AWGN, while still using the current project precoders
+- the differentiable beamformer smoke demo validates that a tiny learned beamformer can backpropagate through the OFDM-style link and run a few optimization steps
 
 ## Current Limitations
 
@@ -53,6 +56,7 @@ python scripts/sionna_ofdm_beamforming_bridge_demo.py --out outputs/sionna_smoke
 - no ray tracing yet
 - no full Sionna end-to-end training yet
 - no 5G NR full-stack yet
+- not a production training pipeline
 - does not change the `v0.1.0` benchmark claims
 
 ## Future Work
@@ -60,6 +64,7 @@ python scripts/sionna_ofdm_beamforming_bridge_demo.py --out outputs/sionna_smoke
 - Sionna PHY OFDM link
 - replace torch fallback with confirmed Sionna PHY components where needed
 - Sionna-native channel/equalizer chain
+- replace the toy learned beamformer with project residual/unfolded beamformers
 - differentiable beamforming module
 - optional Sionna RT channel generation
 - compare with DeepMIMO channels

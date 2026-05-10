@@ -74,3 +74,16 @@ def test_sionna_ofdm_resource_grid_demo_runs(tmp_path: Path) -> None:
     payload = json.loads(out_path.read_text(encoding="utf-8"))
     assert payload["sionna_import_ok"] is True
     assert payload["demo_status"] == "ok"
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_sionna_ofdm_differentiable_beamforming_demo_runs(tmp_path: Path) -> None:
+    out_path = tmp_path / "sionna_ofdm_differentiable_beamforming_summary.json"
+    subprocess.run(
+        [sys.executable, "scripts/sionna_ofdm_differentiable_beamforming_demo.py", "--out", str(out_path)],
+        check=True,
+        cwd=Path(__file__).resolve().parents[1],
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["demo_status"] in {"ok", "backward_ok_but_no_clear_improvement"}
+    assert payload["grad_norm"] > 0.0
