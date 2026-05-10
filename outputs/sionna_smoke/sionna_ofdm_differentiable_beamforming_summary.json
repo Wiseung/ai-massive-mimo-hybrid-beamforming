@@ -1,0 +1,21 @@
+{
+  "sionna_import_ok": true,
+  "used_sionna_ofdm": true,
+  "used_sionna_channel": true,
+  "fallback_used": false,
+  "torch_version": "2.11.0+cu130",
+  "sionna_version": "2.0.1",
+  "device": "cuda",
+  "beamformer_type": "TinyNeuralBeamformer",
+  "steps": 5,
+  "initial_loss": 2.0943164825439453,
+  "final_loss": 0.33034399151802063,
+  "loss_decreased": true,
+  "grad_norm": 1.0686147399246693,
+  "demo_status": "ok",
+  "notes": [
+    "Used real Sionna OFDM ResourceGrid/Mapper in differentiable demo setup.",
+    "This is a differentiable beamformer smoke demo only.",
+    "It is not a full Sionna end-to-end training pipeline, not Sionna RT, and not a 5G NR full-stack system."
+  ]
+}

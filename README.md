@@ -148,6 +148,7 @@ The Sionna demo path is an optional experimental branch and is not part of the `
 - Treat the Sionna smoke scripts as coexistence checks with the current PyTorch beamforming project, not as a full Sionna end-to-end result.
 - The current branch also includes Sionna PHY introspection, a minimal AWGN PHY smoke demo, and a small beamforming link demo.
 - The current branch also includes OFDM API introspection, a ResourceGrid smoke demo, and an OFDM beamforming bridge demo.
+- The current branch also includes a tiny differentiable beamformer smoke demo to verify backward/short-step optimization through an OFDM-style link.
 - If a Sionna PHY component is unavailable or unstable for the current environment, the demo records an explicit torch fallback instead of silently pretending the path is fully Sionna-native.
 
 ## RTX 5090 24GB Recommended Config
