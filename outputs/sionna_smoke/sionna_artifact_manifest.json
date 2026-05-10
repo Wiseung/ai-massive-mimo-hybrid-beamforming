@@ -1,0 +1,86 @@
+{
+  "generated_from_commit": "4fa413bff5625f0996a238e6092c8c17bb646baf",
+  "note": "Sionna artifact manifest lists optional PHY/OFDM smoke outputs. None of these artifacts represent a full Sionna end-to-end, RT, or 5G NR full-stack benchmark.",
+  "artifacts": [
+    {
+      "path": "outputs/sionna_smoke/sionna_api_summary.json",
+      "description": "Base Sionna PHY/API environment introspection summary.",
+      "generating_command": "python scripts/inspect_sionna_api.py --out outputs/sionna_smoke/sionna_api_summary.json",
+      "generated_from_commit": "4fa413bff5625f0996a238e6092c8c17bb646baf",
+      "exists": true,
+      "uses_real_sionna_phy_or_ofdm": false,
+      "fallback_used": null,
+      "is_full_e2e": false
+    },
+    {
+      "path": "outputs/sionna_smoke/sionna_phy_awgn_summary.json",
+      "description": "Minimal Sionna PHY AWGN smoke demo summary.",
+      "generating_command": "python scripts/sionna_phy_awgn_demo.py --out outputs/sionna_smoke/sionna_phy_awgn_summary.json",
+      "generated_from_commit": "4fa413bff5625f0996a238e6092c8c17bb646baf",
+      "exists": true,
+      "uses_real_sionna_phy_or_ofdm": true,
+      "fallback_used": false,
+      "is_full_e2e": false
+    },
+    {
+      "path": "outputs/sionna_smoke/sionna_phy_beamforming_link_summary.json",
+      "description": "Sionna PHY AWGN plus PyTorch beamforming link smoke summary.",
+      "generating_command": "python scripts/sionna_phy_beamforming_link_demo.py --out outputs/sionna_smoke/sionna_phy_beamforming_link_summary.json",
+      "generated_from_commit": "4fa413bff5625f0996a238e6092c8c17bb646baf",
+      "exists": true,
+      "uses_real_sionna_phy_or_ofdm": true,
+      "fallback_used": false,
+      "is_full_e2e": false
+    },
+    {
+      "path": "outputs/sionna_smoke/sionna_ofdm_api_summary.json",
+      "description": "Sionna OFDM symbol availability introspection summary.",
+      "generating_command": "python scripts/inspect_sionna_ofdm_api.py --out outputs/sionna_smoke/sionna_ofdm_api_summary.json",
+      "generated_from_commit": "4fa413bff5625f0996a238e6092c8c17bb646baf",
+      "exists": true,
+      "uses_real_sionna_phy_or_ofdm": false,
+      "fallback_used": null,
+      "is_full_e2e": false
+    },
+    {
+      "path": "outputs/sionna_smoke/sionna_ofdm_resource_grid_summary.json",
+      "description": "Minimal Sionna OFDM ResourceGrid smoke demo summary.",
+      "generating_command": "python scripts/sionna_ofdm_resource_grid_demo.py --out outputs/sionna_smoke/sionna_ofdm_resource_grid_summary.json",
+      "generated_from_commit": "4fa413bff5625f0996a238e6092c8c17bb646baf",
+      "exists": true,
+      "uses_real_sionna_phy_or_ofdm": true,
+      "fallback_used": false,
+      "is_full_e2e": false
+    },
+    {
+      "path": "outputs/sionna_smoke/sionna_ofdm_beamforming_bridge_summary.json",
+      "description": "Sionna OFDM grid plus PyTorch beamforming bridge summary.",
+      "generating_command": "python scripts/sionna_ofdm_beamforming_bridge_demo.py --out outputs/sionna_smoke/sionna_ofdm_beamforming_bridge_summary.json",
+      "generated_from_commit": "4fa413bff5625f0996a238e6092c8c17bb646baf",
+      "exists": true,
+      "uses_real_sionna_phy_or_ofdm": true,
+      "fallback_used": false,
+      "is_full_e2e": false
+    },
+    {
+      "path": "outputs/sionna_smoke/differentiable_beamformer_gradcheck.json",
+      "description": "Gradient check output for the tiny differentiable beamformer.",
+      "generating_command": "python scripts/check_differentiable_beamformer_gradients.py --out outputs/sionna_smoke/differentiable_beamformer_gradcheck.json",
+      "generated_from_commit": "4fa413bff5625f0996a238e6092c8c17bb646baf",
+      "exists": true,
+      "uses_real_sionna_phy_or_ofdm": false,
+      "fallback_used": null,
+      "is_full_e2e": false
+    },
+    {
+      "path": "outputs/sionna_smoke/sionna_ofdm_differentiable_beamforming_summary.json",
+      "description": "Few-step differentiable OFDM beamforming smoke demo summary.",
+      "generating_command": "python scripts/sionna_ofdm_differentiable_beamforming_demo.py --out outputs/sionna_smoke/sionna_ofdm_differentiable_beamforming_summary.json",
+      "generated_from_commit": "4fa413bff5625f0996a238e6092c8c17bb646baf",
+      "exists": true,
+      "uses_real_sionna_phy_or_ofdm": true,
+      "fallback_used": false,
+      "is_full_e2e": false
+    }
+  ]
+}
