@@ -1,0 +1,19 @@
+model:
+  name: mlp
+  hybrid: false
+  hidden_dims: [512, 256]
+
+training:
+  epochs: 5
+  batch_size: 256
+  lr: 0.001
+  weight_decay: 0.0
+  seed: 42
+  num_workers: 0
+  lambda_power: 0.01
+  lambda_const: 0.01
+  amp: true
+  val_fraction: 0.1
+
+evaluation:
+  batch_size: 256

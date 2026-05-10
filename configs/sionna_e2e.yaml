@@ -1,0 +1,6 @@
+demo:
+  enabled: true
+  note: "Requires local sionna installation."
+model:
+  name: cnn
+  hybrid: false
