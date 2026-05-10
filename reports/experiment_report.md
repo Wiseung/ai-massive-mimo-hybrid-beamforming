@@ -47,7 +47,13 @@ A DeepMIMO v4 adapter and smoke path were added. The expected install command is
 pip install deepmimo
 ```
 
-DeepMIMO experiments have not been run locally in this session because the `deepmimo` package is not installed.
+DeepMIMO was installed and the `asu_campus_3p5` path was run locally in this round. The current narrowband smoke tensor uses:
+
+- raw channel shape `(131931, 1, 8, 1)`
+- grouped project shape `(22178, 4, 8)`
+- filtered invalid-group ratio `32.76%`
+
+This is a smoke-scale filtered benchmark, not yet a full DeepMIMO experiment campaign.
 
 ## Baselines
 
@@ -110,6 +116,29 @@ Per-SNR CNN values after warm-start:
 
 The improved CNN is close to MRT and RZF through low and medium SNR, but it still trails RZF at higher SNR. The repository does not claim learned superiority over RZF on this benchmark.
 
+### High-SNR Weighted Fine-Tuning
+
+Reweighting the `10/15/20 dB` training samples did not materially improve the synthetic high-SNR gap:
+
+- `gap_10db = -1.22%`
+- `gap_15db = -9.38%`
+- `gap_20db = -16.14%`
+- `high_snr_mean_gap = -8.91%`
+
+This means the weighting strategy, in its current simple form, is not enough to close the high-SNR gap.
+
+### Mixed Teacher
+
+A mixed teacher using `RZF` at lower SNR and `ZF` at higher SNR produced only a marginal improvement over the plain RZF teacher:
+
+- `mean_se = 5.05250`
+- `mean_gap_to_rzf = -2.72%`
+- `gap_10db = -1.21%`
+- `gap_15db = -9.38%`
+- `gap_20db = -16.13%`
+
+This is directionally better than the high-SNR-weighted run, but the change is still very small and does not solve the high-SNR weakness.
+
 ## Training Setup
 
 - framework: PyTorch
@@ -167,24 +196,42 @@ An ablation between conditioned and non-conditioned warm-started CNNs shows almo
 
 This suggests the dominant gain in this round came from teacher warm-start and fairer model design rather than from explicit SNR conditioning.
 
+### Ablation Table
+
+The current ablation outputs are:
+
+- `outputs/comparisons/ablation/ablation_table.csv`
+- `outputs/comparisons/ablation/ablation_se_vs_snr.png`
+
+The table compares:
+
+1. original CNN
+2. RZF warm-start
+3. RZF warm-start + SNR conditioning
+4. high-SNR weighted fine-tuning
+5. mixed teacher fine-tuning
+
 ## Discussion
 
 The most important correction in this round was methodological. The original learned result was not only weak; it was also not summarized in the same form as the baseline SE-vs-SNR benchmark. Once the evaluation contract was unified, the repository could cleanly show both the weakness of the original CNN and the effectiveness of the improved warm-start pipeline.
 
 The final warm-started CNN is now a credible baseline learner. It is no longer collapsed, and it tracks the stronger classical methods closely across much of the tested range. However, RZF still remains the stronger method at higher SNR, so any claim that the learned model has surpassed classical baselines would be false.
 
+On the synthetic benchmark, the remaining technical bottleneck is specifically the high-SNR region. Neither simple loss reweighting nor a mixed RZF/ZF teacher was enough to materially close the `15/20 dB` gap.
+
+On the DeepMIMO side, the real progress in this round was executional rather than scientific: the adapter, download path, saved tensor, baseline smoke benchmark, and learned smoke benchmark all ran locally. However, because the current tensor is filtered and small in scope, those outputs should be treated as smoke evidence rather than as a mature DeepMIMO result section.
+
 ## Limitations
 
-- DeepMIMO v4 runtime has not been validated locally because `deepmimo` is not installed here
-- no real DeepMIMO benchmark results are reported
+- the current DeepMIMO benchmark is a filtered smoke benchmark, not yet a full study
 - Sionna runtime remains optional and has not been validated in this session
 - the unfolded PGA model is still a scaffold, not a tuned unfolding baseline
 - the current AI models are still digital-only in the verified experiments
 
 ## Future Work
 
-1. Install `deepmimo` and run the `asu_campus_3p5` smoke path plus baseline benchmark.
-2. Extend teacher-guided training to stronger hybrid-output parameterizations.
-3. Investigate why the learned model still falls behind RZF at high SNR.
+1. Investigate model parameterizations that are less biased toward MRT-like behavior at high SNR.
+2. Extend teacher-guided training to stronger digital-only or hybrid-output parameterizations.
+3. Turn the current filtered DeepMIMO smoke path into a better controlled benchmark with documented scenario slicing and normalization.
 4. Add a stronger analog/digital factorized learned model after the current fair benchmark is stable.
-5. Revisit Sionna later for differentiable end-to-end links after DeepMIMO experiments are actually running.
+5. Revisit Sionna later for differentiable end-to-end links after the dataset-side benchmarks are mature.

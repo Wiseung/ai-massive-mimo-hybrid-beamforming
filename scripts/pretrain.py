@@ -26,7 +26,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
     parser.add_argument("--data", default=None)
-    parser.add_argument("--teacher", choices=["mrt", "zf", "rzf"], required=True)
+    parser.add_argument("--teacher", choices=["mrt", "zf", "rzf", "mixed_rzf_zf", "best_of_rzf_zf"], required=True)
     parser.add_argument("--out", required=True)
     parser.add_argument("--dataset-type", choices=["auto", "tensor", "deepmimo"], default="auto")
     parser.add_argument("--scenario", default=None)
@@ -101,6 +101,7 @@ def main() -> None:
         stats = {
             "loss": mse.detach(),
             "sum_rate": torch.tensor(0.0, device=batch["channel"].device),
+            "weighted_sum_rate": torch.tensor(0.0, device=batch["channel"].device),
             "power_violation": torch.mean((precoder_power - 1.0) ** 2).detach(),
             "constant_modulus_violation": torch.tensor(0.0, device=batch["channel"].device),
             "precoder_norm": torch.mean(torch.sqrt(precoder_power.clamp_min(1e-12))).detach(),

@@ -126,6 +126,20 @@ def main() -> None:
         "mean_relative_gap_to_best_baseline": float(
             combined[combined["method"] == config["model"]["name"]]["relative_gap_to_best_baseline"].mean()
         ),
+        "gap_10db": float(
+            combined[(combined["method"] == config["model"]["name"]) & (combined["snr_db"] == 10.0)]["relative_gap_to_rzf"].iloc[0]
+        ),
+        "gap_15db": float(
+            combined[(combined["method"] == config["model"]["name"]) & (combined["snr_db"] == 15.0)]["relative_gap_to_rzf"].iloc[0]
+        ),
+        "gap_20db": float(
+            combined[(combined["method"] == config["model"]["name"]) & (combined["snr_db"] == 20.0)]["relative_gap_to_rzf"].iloc[0]
+        ),
+        "mean_gap_high_snr": float(
+            combined[
+                (combined["method"] == config["model"]["name"]) & (combined["snr_db"].isin([10.0, 15.0, 20.0]))
+            ]["relative_gap_to_rzf"].mean()
+        ),
     }
     with open(out_dir / "summary.yaml", "w", encoding="utf-8") as handle:
         yaml.safe_dump(summary, handle)

@@ -9,8 +9,8 @@ model:
   residual_to_mrt: true
 
 training:
-  epochs: 8
-  batch_size: 256
+  epochs: 5
+  batch_size: 128
   lr: 0.001
   weight_decay: 0.0
   seed: 42
@@ -18,9 +18,9 @@ training:
   lambda_power: 0.0
   lambda_const: 0.0
   amp: true
-  val_fraction: 0.1
+  val_fraction: 0.2
   selection_metric: val_loss
   selection_mode: min
 
 evaluation:
-  batch_size: 256
+  batch_size: 128

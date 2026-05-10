@@ -99,6 +99,11 @@ def add_relative_gaps(df: pd.DataFrame, reference_method: str = "rzf") -> pd.Dat
     result["relative_gap_to_best_baseline"] = (
         (result["se"] - result["best_baseline_se"]) / result["best_baseline_se"].abs().clip(lower=1e-12)
     )
+    for snr_value in (10.0, 15.0, 20.0):
+        col = f"gap_{int(snr_value)}db"
+        result[col] = result["relative_gap_to_rzf"].where(result["snr_db"] == snr_value)
+    high_mask = result["snr_db"].isin([10.0, 15.0, 20.0])
+    result["mean_gap_high_snr"] = result["relative_gap_to_rzf"].where(high_mask)
     return result
 
 

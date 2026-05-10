@@ -9,18 +9,25 @@ model:
   residual_to_mrt: true
 
 training:
-  epochs: 8
+  epochs: 10
   batch_size: 256
-  lr: 0.001
+  lr: 0.0005
   weight_decay: 0.0
   seed: 42
   num_workers: 0
-  lambda_power: 0.0
+  lambda_power: 0.01
   lambda_const: 0.0
   amp: true
   val_fraction: 0.1
-  selection_metric: val_loss
-  selection_mode: min
+  selection_metric: val_weighted_sum_rate
+  selection_mode: max
+  snr_loss_weights:
+    - snr: 10
+      weight: 1.5
+    - snr: 15
+      weight: 2.0
+    - snr: 20
+      weight: 2.5
 
 evaluation:
   batch_size: 256

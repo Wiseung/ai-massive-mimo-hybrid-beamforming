@@ -51,7 +51,12 @@ def load_deepmimo_dataset(
             payload = torch.load(path, map_location="cpu", weights_only=False)
             channels = payload["channels"] if isinstance(payload, dict) and "channels" in payload else payload
             metadata = payload.get("metadata", {}) if isinstance(payload, dict) else {}
-            return ChannelDataset(_adapt_loaded_tensor(channels, num_users=num_users, narrowband=narrowband), metadata=metadata)
+            snr_db = payload.get("snr_db") if isinstance(payload, dict) else None
+            return ChannelDataset(
+                _adapt_loaded_tensor(channels, num_users=num_users, narrowband=narrowband),
+                snr_db=_expand_snr_values(snr_db, torch.as_tensor(channels).shape[0]) if snr_db is not None else None,
+                metadata=metadata,
+            )
         if path.suffix == ".npy":
             channels = np.load(path)
             return ChannelDataset(_adapt_loaded_tensor(torch.from_numpy(channels), num_users=num_users, narrowband=narrowband), metadata={})
@@ -78,16 +83,23 @@ def load_deepmimo_dataset(
             "source": "deepmimo_v4",
             "scenario": scenario,
             "bs_idx": bs_idx,
+            "raw_channel_shape": tuple(torch.as_tensor(raw).shape),
             "num_users": num_users,
             "num_bs_ant": num_bs_ant or channels.shape[-1],
             "num_rf_chains": min(num_users, 4),
             "num_subcarriers": 1 if narrowband else channels.shape[-2],
             "narrowband": narrowband,
         }
+        channels = _normalize_channel_tensor(channels)
+        snr_db = _default_deepmimo_snr(channels.size(0))
+        channels, snr_db, invalid_ratio = _filter_invalid_channel_groups(channels, snr_db)
+        metadata["invalid_group_ratio"] = invalid_ratio
+        metadata["channel_power_mean"] = float((torch.abs(channels) ** 2).sum(dim=(-2, -1)).mean().item()) if channels.numel() else 0.0
         if user_slice is not None:
             start, end = user_slice
             channels = channels[start:end]
-        return ChannelDataset(channels=channels, metadata=metadata)
+            snr_db = snr_db[start:end]
+        return ChannelDataset(channels=channels, snr_db=snr_db, metadata=metadata)
 
     if scenario_path is None:
         raise FileNotFoundError(
@@ -115,7 +127,12 @@ def load_deepmimo_dataset(
         "num_rf_chains": min(num_users, 4),
         "narrowband": narrowband,
     }
-    return ChannelDataset(channels=channels, metadata=metadata)
+    channels = _normalize_channel_tensor(channels)
+    snr_db = _default_deepmimo_snr(channels.size(0))
+    channels, snr_db, invalid_ratio = _filter_invalid_channel_groups(channels, snr_db)
+    metadata["invalid_group_ratio"] = invalid_ratio
+    metadata["channel_power_mean"] = float((torch.abs(channels) ** 2).sum(dim=(-2, -1)).mean().item()) if channels.numel() else 0.0
+    return ChannelDataset(channels=channels, snr_db=snr_db, metadata=metadata)
 
 
 def _adapt_loaded_tensor(channels: torch.Tensor, num_users: int, narrowband: bool) -> torch.Tensor:
@@ -219,3 +236,38 @@ def _extract_legacy_tensor(raw: Any) -> torch.Tensor:
     if hasattr(raw, "channel"):
         return _extract_legacy_tensor(raw.channel)
     raise RuntimeError("Unable to extract legacy DeepMIMO tensor.")
+
+
+def _normalize_channel_tensor(channels: torch.Tensor) -> torch.Tensor:
+    tensor = channels.to(torch.complex64)
+    if tensor.ndim not in {3, 4}:
+        raise RuntimeError(f"Unsupported DeepMIMO tensor rank for normalization: {tensor.ndim}")
+    power = (torch.abs(tensor) ** 2).sum(dim=tuple(range(1, tensor.ndim)), keepdim=True).clamp_min(1e-12)
+    return tensor / torch.sqrt(power)
+
+
+def _default_deepmimo_snr(num_samples: int) -> torch.Tensor:
+    snr_grid = torch.tensor([-10.0, -5.0, 0.0, 5.0, 10.0, 15.0, 20.0], dtype=torch.float32)
+    repeats = (num_samples + snr_grid.numel() - 1) // snr_grid.numel()
+    return snr_grid.repeat(repeats)[:num_samples]
+
+
+def _expand_snr_values(snr_values: Any, num_samples: int) -> torch.Tensor:
+    snr_tensor = torch.as_tensor(snr_values, dtype=torch.float32).view(-1)
+    if snr_tensor.numel() == num_samples:
+        return snr_tensor
+    repeats = (num_samples + snr_tensor.numel() - 1) // snr_tensor.numel()
+    return snr_tensor.repeat(repeats)[:num_samples]
+
+
+def _filter_invalid_channel_groups(
+    channels: torch.Tensor,
+    snr_db: torch.Tensor,
+    min_power: float = 1e-8,
+) -> tuple[torch.Tensor, torch.Tensor, float]:
+    power = (torch.abs(channels) ** 2).sum(dim=tuple(range(1, channels.ndim)))
+    valid_mask = power > min_power
+    invalid_ratio = 1.0 - float(valid_mask.float().mean().item())
+    if not torch.any(valid_mask):
+        raise RuntimeError("DeepMIMO adaptation produced no valid channel groups after filtering zero-power samples.")
+    return channels[valid_mask], snr_db[valid_mask], invalid_ratio

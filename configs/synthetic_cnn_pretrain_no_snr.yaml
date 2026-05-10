@@ -19,6 +19,8 @@ training:
   lambda_const: 0.0
   amp: true
   val_fraction: 0.1
+  selection_metric: val_loss
+  selection_mode: min
 
 evaluation:
   batch_size: 256

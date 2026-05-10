@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
@@ -29,6 +30,9 @@ class TrainerConfig:
     lambda_const: float
     amp: bool
     val_fraction: float
+    snr_loss_weights: list[dict[str, float]] | None = None
+    selection_metric: str = "val_sum_rate"
+    selection_mode: str = "max"
 
 
 def _prepare_device(device: str | None = None) -> torch.device:
@@ -61,6 +65,7 @@ def _run_epoch(
     totals: dict[str, float] = {
         "loss": 0.0,
         "sum_rate": 0.0,
+        "weighted_sum_rate": 0.0,
         "power_violation": 0.0,
         "constant_modulus_violation": 0.0,
         "precoder_norm": 0.0,
@@ -86,7 +91,7 @@ def _run_epoch(
                     loss.backward()
                     grad_norm = _gradient_norm(model)
                     optimizer.step()
-            for key in ("loss", "sum_rate", "power_violation", "constant_modulus_violation", "precoder_norm"):
+            for key in ("loss", "sum_rate", "weighted_sum_rate", "power_violation", "constant_modulus_violation", "precoder_norm"):
                 totals[key] += float(stats[key].item())
             totals["gradient_norm"] += grad_norm
             total_batches += 1
@@ -120,6 +125,9 @@ def train_model(
                 snr_db=batch["snr_db"],
                 lambda_power=config.lambda_power,
                 lambda_const=config.lambda_const,
+                snr_loss_weights={
+                    float(item["snr"]): float(item["weight"]) for item in (config.snr_loss_weights or [])
+                } if config.snr_loss_weights else None,
             )
         loss_fn = default_loss_fn
 
@@ -135,7 +143,14 @@ def train_model(
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr, weight_decay=config.weight_decay)
 
     start_epoch = 0
-    best_val = float("-inf")
+    selection_metric = config.selection_metric
+    selection_mode = config.selection_mode.lower()
+    if selection_mode not in {"max", "min"}:
+        raise ValueError(f"Unsupported selection_mode: {config.selection_mode}")
+    best_selection_value = float("-inf") if selection_mode == "max" else float("inf")
+    best_val_sum_rate = float("-inf")
+    best_epoch = -1
+    train_start = time.perf_counter()
     if init_ckpt:
         init_state = torch.load(init_ckpt, map_location=device_obj, weights_only=False)
         model.load_state_dict(init_state["model"], strict=False)
@@ -144,7 +159,10 @@ def train_model(
         model.load_state_dict(checkpoint["model"])
         optimizer.load_state_dict(checkpoint["optimizer"])
         start_epoch = int(checkpoint["epoch"]) + 1
-        best_val = float(checkpoint["best_val_sum_rate"])
+        best_selection_value = float(
+            checkpoint.get("best_selection_value", checkpoint.get("best_val_sum_rate", best_selection_value))
+        )
+        best_val_sum_rate = float(checkpoint.get("best_val_sum_rate", best_val_sum_rate))
 
     writer = SummaryWriter(log_dir=str(out_path / "tensorboard"))
     csv_path = out_path / "train_log.csv"
@@ -155,10 +173,12 @@ def train_model(
         "train_power_violation",
         "train_constant_modulus_violation",
         "train_precoder_norm",
+        "train_weighted_sum_rate",
         "train_gradient_norm",
         "train_learning_rate",
         "val_loss",
         "val_sum_rate",
+        "val_weighted_sum_rate",
         "val_power_violation",
         "val_constant_modulus_violation",
         "val_precoder_norm",
@@ -199,10 +219,12 @@ def train_model(
                 "train_power_violation": train_stats["power_violation"],
                 "train_constant_modulus_violation": train_stats["constant_modulus_violation"],
                 "train_precoder_norm": train_stats["precoder_norm"],
+                "train_weighted_sum_rate": train_stats["weighted_sum_rate"],
                 "train_gradient_norm": train_stats["gradient_norm"],
                 "train_learning_rate": train_stats["learning_rate"],
                 "val_loss": val_stats["loss"],
                 "val_sum_rate": val_stats["sum_rate"],
+                "val_weighted_sum_rate": val_stats["weighted_sum_rate"],
                 "val_power_violation": val_stats["power_violation"],
                 "val_constant_modulus_violation": val_stats["constant_modulus_violation"],
                 "val_precoder_norm": val_stats["precoder_norm"],
@@ -218,13 +240,35 @@ def train_model(
                 "epoch": epoch,
                 "model": model.state_dict(),
                 "optimizer": optimizer.state_dict(),
-                "best_val_sum_rate": best_val,
+                "best_val_sum_rate": best_val_sum_rate,
+                "best_selection_value": best_selection_value,
+                "selection_metric": selection_metric,
+                "selection_mode": selection_mode,
                 "config": config.__dict__,
             }
             torch.save(checkpoint, out_path / "last.pt")
-            if val_stats["sum_rate"] > best_val:
-                best_val = val_stats["sum_rate"]
-                checkpoint["best_val_sum_rate"] = best_val
+            current_selection_value = row[selection_metric]
+            improved = (
+                current_selection_value > best_selection_value
+                if selection_mode == "max"
+                else current_selection_value < best_selection_value
+            )
+            if improved:
+                best_selection_value = current_selection_value
+                best_val_sum_rate = row["val_sum_rate"]
+                best_epoch = epoch
+                checkpoint["best_val_sum_rate"] = best_val_sum_rate
+                checkpoint["best_selection_value"] = best_selection_value
                 torch.save(checkpoint, out_path / "best.pt")
     writer.close()
-    return {"best_val_sum_rate": best_val, "out_dir": str(out_path), "device": str(device_obj)}
+    train_time_sec = time.perf_counter() - train_start
+    return {
+        "best_val_sum_rate": best_val_sum_rate,
+        "best_selection_value": best_selection_value,
+        "selection_metric": selection_metric,
+        "selection_mode": selection_mode,
+        "best_epoch": best_epoch,
+        "train_time_sec": train_time_sec,
+        "out_dir": str(out_path),
+        "device": str(device_obj),
+    }

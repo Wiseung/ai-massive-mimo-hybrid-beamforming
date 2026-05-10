@@ -24,16 +24,24 @@ def main() -> None:
     add_src_to_path()
     print("Python version:", sys.version.replace("\n", " "))
     print("Python executable:", sys.executable)
+    print("Python version tuple:", sys.version_info[:3])
     print("Platform:", platform.platform())
+    if sys.version_info < (3, 11):
+        print("DeepMIMO note: DeepMIMO PyPI may require Python >= 3.11.")
     print("PyTorch version:", torch.__version__)
     print("CUDA available:", torch.cuda.is_available())
     print("CUDA version:", torch.version.cuda)
     if torch.cuda.is_available():
         print("GPU count:", torch.cuda.device_count())
         print("GPU name:", torch.cuda.get_device_name(0))
+    deepmimo_ok = False
     for name in ("sionna", "DeepMIMO", "deepmimo"):
         ok, detail = _module_status(name)
+        if name == "deepmimo":
+            deepmimo_ok = ok
         print(f"{name}:", "OK" if ok else "MISSING", detail)
+    if not deepmimo_ok:
+        print("Install DeepMIMO with: pip install deepmimo")
 
 
 if __name__ == "__main__":

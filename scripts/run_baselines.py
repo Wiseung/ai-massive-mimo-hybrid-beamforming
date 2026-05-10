@@ -97,6 +97,8 @@ def main() -> None:
     figures_dir.mkdir(exist_ok=True, parents=True)
     csv_path = metrics_dir / "baseline_results.csv"
     df.assign(num_users=num_users, num_rf_chains=num_rf_chains).to_csv(csv_path, index=False)
+    runtime_csv = metrics_dir / "runtime.csv"
+    df.groupby("method", as_index=False)["runtime_sec"].mean().to_csv(runtime_csv, index=False)
 
     prefix = "deepmimo" if args.dataset_type == "deepmimo" or args.scenario is not None else "synthetic"
     save_comparison_outputs(df, out_dir / "figures", prefix=prefix)

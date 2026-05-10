@@ -4,6 +4,9 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
+
+import torch
 
 from _bootstrap import add_src_to_path
 
@@ -23,6 +26,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--num-subcarriers", type=int, default=None)
     parser.add_argument("--subcarrier-idx", type=int, default=None)
     parser.add_argument("--narrowband", action="store_true")
+    parser.add_argument("--save-out", default="outputs/data/deepmimo_asu_campus_3p5_narrowband.pt")
     return parser.parse_args()
 
 
@@ -43,7 +47,22 @@ def main() -> None:
         print("Loaded DeepMIMO dataset.")
         print("Length:", len(dataset))
         print("Metadata:", dataset.metadata)
-        print("Channel shape:", tuple(dataset.channels.shape))
+        raw_shape = dataset.metadata.get("raw_channel_shape", "unknown")
+        print("Raw channel shape:", raw_shape)
+        print("Converted project channel shape:", tuple(dataset.channels.shape))
+        print("SNR grid:", torch.unique(dataset.snr_db).tolist())
+        print("Mean channel power:", float((torch.abs(dataset.channels) ** 2).sum(dim=(-2, -1)).mean().item()))
+        save_path = Path(args.save_out)
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        torch.save(
+            {
+                "channels": dataset.channels.cpu(),
+                "snr_db": dataset.snr_db.cpu(),
+                "metadata": dataset.metadata,
+            },
+            save_path,
+        )
+        print(f"Saved DeepMIMO tensor to {save_path}")
     except ImportError as exc:
         print(f"DeepMIMO inspection failed: {exc}")
     except Exception as exc:

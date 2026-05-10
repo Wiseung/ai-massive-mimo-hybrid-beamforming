@@ -130,6 +130,22 @@ def main() -> None:
     combined = add_relative_gaps(combined)
     prefix = "synthetic" if args.dataset_type != "deepmimo" and args.scenario is None else "deepmimo"
     csv_path, fig_path = save_comparison_outputs(combined, args.out, prefix=prefix)
+    summary = {}
+    if learned_methods:
+        learned_method = config["model"]["name"]
+        learned_df = combined[combined["method"] == learned_method]
+        summary = {
+            "method": learned_method,
+            "mean_se": float(learned_df["se"].mean()),
+            "mean_gap_to_rzf": float(learned_df["relative_gap_to_rzf"].mean()),
+            "mean_gap_to_best_baseline": float(learned_df["relative_gap_to_best_baseline"].mean()),
+            "gap_10db": float(learned_df.loc[learned_df["snr_db"] == 10.0, "relative_gap_to_rzf"].iloc[0]),
+            "gap_15db": float(learned_df.loc[learned_df["snr_db"] == 15.0, "relative_gap_to_rzf"].iloc[0]),
+            "gap_20db": float(learned_df.loc[learned_df["snr_db"] == 20.0, "relative_gap_to_rzf"].iloc[0]),
+            "mean_gap_high_snr": float(learned_df[learned_df["snr_db"].isin([10.0, 15.0, 20.0])]["relative_gap_to_rzf"].mean()),
+        }
+        with open(Path(args.out) / "summary.yaml", "w", encoding="utf-8") as handle:
+            yaml.safe_dump(summary, handle)
     print(f"Saved unified comparison CSV to {csv_path}")
     print(f"Saved unified comparison figure to {fig_path}")
 

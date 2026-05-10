@@ -10,17 +10,15 @@ model:
 
 training:
   epochs: 8
-  batch_size: 256
-  lr: 0.001
+  batch_size: 128
+  lr: 0.0005
   weight_decay: 0.0
   seed: 42
   num_workers: 0
-  lambda_power: 0.0
+  lambda_power: 0.01
   lambda_const: 0.0
   amp: true
-  val_fraction: 0.1
-  selection_metric: val_loss
-  selection_mode: min
+  val_fraction: 0.2
 
 evaluation:
-  batch_size: 256
+  batch_size: 128

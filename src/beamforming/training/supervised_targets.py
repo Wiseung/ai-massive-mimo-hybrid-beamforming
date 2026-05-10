@@ -31,6 +31,27 @@ def generate_rzf_target(channel: torch.Tensor, snr_db: torch.Tensor) -> torch.Te
     return torch.stack(precoders, dim=0)
 
 
+def generate_mixed_rzf_zf_target(channel: torch.Tensor, snr_db: torch.Tensor, threshold_db: float = 10.0) -> torch.Tensor:
+    """Use RZF at low SNR and ZF at high SNR."""
+    rzf = generate_rzf_target(channel, snr_db)
+    zf = generate_zf_target(channel)
+    mask = (snr_db.view(-1, 1, 1) >= threshold_db).to(zf.device)
+    return torch.where(mask, zf, rzf)
+
+
+def generate_best_baseline_target(channel: torch.Tensor, snr_db: torch.Tensor) -> torch.Tensor:
+    """Pick per-sample target between RZF and ZF using achieved sum-rate."""
+    from beamforming.metrics.sum_rate import multi_user_downlink_sum_rate
+
+    rzf = generate_rzf_target(channel, snr_db)
+    zf = generate_zf_target(channel)
+    noise_var = noise_variance_from_snr(snr_db).to(channel.device)
+    rzf_rate = multi_user_downlink_sum_rate(channel, rzf, noise_var)
+    zf_rate = multi_user_downlink_sum_rate(channel, zf, noise_var)
+    mask = (zf_rate >= rzf_rate).view(-1, 1, 1)
+    return torch.where(mask, zf, rzf)
+
+
 def get_teacher_target(channel: torch.Tensor, snr_db: torch.Tensor, teacher: str) -> torch.Tensor:
     """Dispatch teacher target generation by name."""
     if teacher == "mrt":
@@ -39,4 +60,8 @@ def get_teacher_target(channel: torch.Tensor, snr_db: torch.Tensor, teacher: str
         return generate_zf_target(channel)
     if teacher == "rzf":
         return generate_rzf_target(channel, snr_db)
+    if teacher == "mixed_rzf_zf":
+        return generate_mixed_rzf_zf_target(channel, snr_db)
+    if teacher == "best_of_rzf_zf":
+        return generate_best_baseline_target(channel, snr_db)
     raise ValueError(f"Unsupported teacher: {teacher}")
