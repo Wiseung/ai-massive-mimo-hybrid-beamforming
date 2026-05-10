@@ -1,0 +1,18 @@
+{
+  "sionna_import_ok": true,
+  "sionna_version": "2.0.1",
+  "bridge_status": "ok",
+  "channel_shape": [
+    16,
+    4,
+    16
+  ],
+  "snr_db": 10.0,
+  "noise_var": 0.10000000149011612,
+  "rzf_mean_se": 19.682958602905273,
+  "wmmse_iter_5_mean_se": 19.773635864257812,
+  "notes": [
+    "This bridge demo uses the existing PyTorch beamforming stack inside a Sionna-capable environment.",
+    "It does not yet call a Sionna channel model and should not be interpreted as a Sionna end-to-end benchmark."
+  ]
+}
