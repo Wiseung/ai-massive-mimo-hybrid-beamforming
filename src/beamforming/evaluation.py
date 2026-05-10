@@ -16,6 +16,8 @@ from beamforming.data.dataset import ChannelDataset, split_dataset
 from beamforming.data.splits import subset_from_split
 from beamforming.metrics.sum_rate import multi_user_downlink_sum_rate, noise_variance_from_snr
 
+GAP_FORMULA = "(method_se - reference_se) / reference_se"
+
 
 def get_eval_subset(dataset: ChannelDataset, val_fraction: float, seed: int) -> Subset:
     """Return the deterministic evaluation subset used across train/eval/baselines."""
@@ -107,8 +109,9 @@ def add_relative_gaps(
     result = df.copy()
     ref = result[result["method"] == reference_method][["snr_db", "se"]].rename(columns={"se": f"{reference_method}_se"})
     result = result.merge(ref, on="snr_db", how="left")
+    baseline_mask = result["method"].isin(strongest_reference_methods) | result["method"].astype(str).str.startswith("wmmse_iter_")
     baseline_best = (
-        result[result["method"].isin(strongest_reference_methods)]
+        result[baseline_mask]
         .groupby("snr_db", as_index=False)["se"]
         .max()
         .rename(columns={"se": "best_baseline_se"})
@@ -130,7 +133,7 @@ def add_relative_gaps(
     high_mask = result["snr_db"].isin(list(high_snr_points))
     result["mean_gap_high_snr"] = result["relative_gap_to_reference"].where(high_mask)
     result["reference_method"] = reference_method
-    result["gap_formula"] = "(method_se - reference_se) / reference_se"
+    result["gap_formula"] = GAP_FORMULA
     result["num_snr_points"] = result["snr_db"].nunique()
     result["high_snr_points_used"] = ",".join(str(int(point)) if float(point).is_integer() else str(point) for point in high_snr_points)
     return result

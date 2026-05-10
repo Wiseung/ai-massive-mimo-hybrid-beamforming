@@ -58,8 +58,24 @@ def generate_wmmse_target(channel: torch.Tensor, snr_db: torch.Tensor, max_iter:
     return wmmse_precoder(channel, noise_var=noise_var, max_iter=max_iter)
 
 
+def _parse_wmmse_teacher_iters(teacher: str) -> int | None:
+    if not teacher.startswith("wmmse_iter_"):
+        return None
+    suffix = teacher.removeprefix("wmmse_iter_")
+    try:
+        max_iter = int(suffix)
+    except ValueError as exc:
+        raise ValueError(f"Unsupported teacher: {teacher}") from exc
+    if max_iter <= 0:
+        raise ValueError(f"Unsupported teacher: {teacher}")
+    return max_iter
+
+
 def get_teacher_target(channel: torch.Tensor, snr_db: torch.Tensor, teacher: str) -> torch.Tensor:
     """Dispatch teacher target generation by name."""
+    wmmse_iters = _parse_wmmse_teacher_iters(teacher)
+    if wmmse_iters is not None:
+        return generate_wmmse_target(channel, snr_db, max_iter=wmmse_iters)
     if teacher == "mrt":
         return generate_mrt_target(channel)
     if teacher == "zf":

@@ -17,10 +17,15 @@ Reproducible PyTorch-based single-GPU project for massive MIMO / mmWave beamform
 - A residual refinement model around the RZF prior was added to target the remaining synthetic high-SNR gap.
 - A small-scale MU-MISO WMMSE baseline is now implemented and evaluated on the synthetic benchmark.
 - An unfolded-RZF refinement model is now implemented for structure-aware learned precoding.
+- Cross-method latency is now standardized through `scripts/benchmark_latency.py` instead of mixing runtime numbers from different scripts.
+- A previous `residual_wmmse` evaluation path had teacher leakage at inference; that path is now fixed and the fair `v2` result is documented instead of the leaked one.
+- WMMSE distillation, `residual_wmmse`, and `unfolded_wmmse_lite` are implemented, but their fair results must now be interpreted under the unified latency protocol.
 - DeepMIMO `v4` is installed locally and the `asu_campus_3p5` smoke path, baseline smoke benchmark, and a small learned smoke benchmark all ran successfully.
 - DeepMIMO quick multi-seed benchmarking is implemented, but quick mode is explicitly not treated as a full benchmark.
 - The current DeepMIMO quick `v2` benchmark still ran only `seed=1`, so its `std` entries remain `NaN` and it is not reported as a full multi-seed result.
 - A contiguous DeepMIMO split benchmark is now available and should be interpreted as a harder location-generalization evaluation than the random split.
+- A non-quick DeepMIMO full multi-seed benchmark has now run with `seeds=1,2,3`.
+- A DeepMIMO random-split model-family benchmark across `seeds=1,2,3` is now available for `rzf`, `wmmse_iter_5`, `cnn`, `residual_rzf`, and `unfolded_wmmse_lite`.
 - Sionna remains optional and is not the mainline blocker for this repository.
 
 ## Project Structure
@@ -196,6 +201,41 @@ Unified baseline + learned comparisons are written by `scripts/evaluate_all.py` 
 
 When `--methods` includes multiple learned models such as `cnn residual_rzf`, `scripts/evaluate_all.py` evaluates the checkpoint/config passed on the command line and auto-discovers the repository's default fair-evaluation artifacts for the other requested learned methods when those checkpoints already exist.
 
+All exported gaps now use the same formula:
+
+```text
+gap_to_reference = (method_se - reference_se) / reference_se
+```
+
+## Latency Benchmark Protocol
+
+Cross-method latency comparisons now come only from:
+
+```bash
+python scripts/benchmark_latency.py \
+  --data outputs/data/synthetic_narrowband.pt \
+  --methods mrt zf rzf dft wmmse wmmse_iter_5 cnn residual_rzf residual_wmmse unfolded_rzf unfolded_wmmse_lite \
+  --batch-size 512 \
+  --warmup-runs 20 \
+  --timed-runs 100 \
+  --out outputs/comparisons/latency
+```
+
+Default protocol:
+
+- `device=auto` and CUDA when available
+- `batch_size=512`
+- `warmup_runs=20`
+- `timed_runs=100`
+- `include_data_transfer=false`
+
+The unified latency artifacts are:
+
+- `outputs/comparisons/latency/latency_table.csv`
+- `outputs/comparisons/latency/latency_bar.png`
+
+Older latency numbers from mixed evaluation scripts are not used anymore for model-family tables or Pareto plots.
+
 ## Synthetic Results
 
 ### Baselines
@@ -342,6 +382,21 @@ This run now reports `num_seeds=3` with:
 
 It is still a small-scale benchmark on the currently available tensor shape `K=4`, `Nt=8`, `Nsc=1`, not a final massive-array DeepMIMO study.
 
+The current random-split DeepMIMO model-family benchmark output is:
+
+- `outputs/comparisons/deepmimo_model_family_random/deepmimo_model_family_table.csv`
+- `outputs/comparisons/deepmimo_model_family_random/deepmimo_model_family_mean_std.csv`
+
+Across `seeds=1,2,3`, the current random-split summary is:
+
+- `wmmse_iter_5`: `mean_se = 1.0884 +- 0.0484`, `latency = 76.03 ms`
+- `unfolded_wmmse_lite`: `mean_se = 0.8606 +- 0.0426`, `latency = 35.25 ms`
+- `residual_rzf`: `mean_se = 0.7188 +- 0.0359`, `latency = 1.24 ms`
+- `rzf`: `mean_se = 0.7141 +- 0.0357`, `latency = 0.90 ms`
+- `cnn`: `mean_se = 0.7114 +- 0.0148`, `latency = 0.80 ms`
+
+This is still a filtered `K=4`, `Nt=8`, `Nsc=1` benchmark and should not be overstated as a large-scale DeepMIMO conclusion.
+
 ### DeepMIMO Benchmark Commands
 
 Dataset analysis:
@@ -407,9 +462,11 @@ Current verified synthetic structured-model results:
 - `residual_rzf`: `mean_se = 5.5771`, `mean_gap_to_rzf ~= 0`
 - `unfolded_rzf`: `mean_se = 5.5858`, `mean_gap_to_rzf = +0.0816%`
 - `unfolded_wmmse_lite`: `mean_se = 5.7729`, `mean_gap_to_rzf = +9.31%`, `mean_gap_to_wmmse = -1.50%`
-- `residual_wmmse`: `mean_se = 5.8523`, effectively matching the current WMMSE teacher on the fair subset
+- `residual_wmmse` after leakage fix: `mean_se = 5.5771`, `mean_gap_to_rzf ~= 0`, `mean_gap_to_wmmse = -9.45%`
 
-This means `unfolded_rzf` slightly improves over `residual_rzf` but remains below `WMMSE`. It must not be described as outperforming `RZF` when a table shows a negative `gap_to_rzf`. The WMMSE-directed variants are the ones that move the learned family toward the strongest current reference.
+`residual_wmmse` now means an `RZF`-prior residual model distilled toward `WMMSE` during training. It does not receive a WMMSE teacher at inference. Earlier teacher-assisted inference results are not treated as fair and are no longer used in the benchmark narrative.
+
+This means `unfolded_rzf` slightly improves over `residual_rzf` and slightly exceeds `RZF`, but still remains below `WMMSE`. The stronger WMMSE-directed variant in fair synthetic evaluation is `unfolded_wmmse_lite`, not `residual_wmmse`.
 
 ## WMMSE Status
 
@@ -420,12 +477,25 @@ Current verified synthetic WMMSE result is stronger than `RZF` over the tested S
 - `mean_se = 5.9024`
 - stronger than `RZF` at `10/15/20 dB`
 
-The WMMSE iteration sweep now makes the SE-latency tradeoff explicit on the same fair synthetic subset:
+The WMMSE iteration sweep still gives a useful within-family convergence trend:
 
 - `iter=5`: `mean_se = 5.8155`, `gap_to_full_wmmse = -0.66%`, `latency = 0.436 ms`
 - `iter=50`: `mean_se = 5.8540`, `latency = 4.394 ms`
 
-So the current low-latency WMMSE reference is not the absolute best SE point, but it is a strong Pareto point.
+For cross-method comparisons, however, the repository now uses only the unified latency protocol in `outputs/comparisons/latency/latency_table.csv`. Under that protocol:
+
+- `rzf`: `1.380 ms`
+- `residual_wmmse`: `1.941 ms`
+- `unfolded_rzf`: `3.791 ms`
+- `unfolded_wmmse_lite`: `112.60 ms`
+- `wmmse_iter_5`: `268.41 ms`
+- `wmmse`: `2048.41 ms`
+
+So the current SE-latency Pareto frontier is roughly:
+
+- `mrt -> rzf -> unfolded_rzf -> unfolded_wmmse_lite -> wmmse_iter_5 -> wmmse`
+
+Under the standardized protocol, `unfolded_wmmse_lite` is not a low-latency point anymore, but it is still a meaningful intermediate Pareto point between `unfolded_rzf` and `wmmse_iter_5`.
 
 This implementation should still be treated as a practical narrowband benchmark for the current setup, not as a complete hybrid / wideband WMMSE study.
 

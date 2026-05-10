@@ -49,7 +49,7 @@ def build_model(model_cfg: dict, data_cfg: dict) -> torch.nn.Module:
         )
     if name in {"residual_rzf", "residual_wmmse"}:
         return ResidualRZFBeamformer(
-            base_method=str(model_cfg.get("base_method", "wmmse" if name == "residual_wmmse" else "rzf")),
+            base_method=str(model_cfg.get("base_method", "rzf")),
             condition_on_snr=bool(model_cfg.get("condition_on_snr", True)),
             base_channels=int(model_cfg.get("base_channels", 32)),
             pool_factor=int(model_cfg.get("pool_factor", 2)),

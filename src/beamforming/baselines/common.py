@@ -17,12 +17,31 @@ from beamforming.baselines.zf import zf_precoder
 from beamforming.metrics.sum_rate import multi_user_downlink_sum_rate, noise_variance_from_snr
 
 
+def parse_wmmse_iterations(method: str) -> int | None:
+    """Return the iteration count encoded in a ``wmmse_iter_k`` method name."""
+    if not method.startswith("wmmse_iter_"):
+        return None
+    suffix = method.removeprefix("wmmse_iter_")
+    try:
+        max_iter = int(suffix)
+    except ValueError as exc:
+        raise ValueError(f"Invalid WMMSE iteration method name: {method}") from exc
+    if max_iter <= 0:
+        raise ValueError(f"WMMSE iteration count must be positive: {method}")
+    return max_iter
+
+
 def get_digital_precoder(
     method: str,
     channel: torch.Tensor,
     noise_var: float | torch.Tensor | None = None,
 ) -> torch.Tensor:
     """Return a digital precoder for a supported baseline method."""
+    wmmse_iters = parse_wmmse_iterations(method)
+    if wmmse_iters is not None:
+        if noise_var is None:
+            raise ValueError(f"noise_var is required for {method}.")
+        return wmmse_precoder(channel, noise_var=noise_var, max_iter=wmmse_iters)
     if method == "mrt":
         return mrt_precoder(channel)
     if method == "zf":
@@ -55,7 +74,10 @@ def evaluate_baseline(
     analog = None
     digital = None
     noise_var = float(noise_variance_from_snr(snr_db).item())
-    if method == "mrt":
+    wmmse_iters = parse_wmmse_iterations(method)
+    if wmmse_iters is not None:
+        precoder = get_digital_precoder(method, channel, noise_var=noise_var)
+    elif method == "mrt":
         precoder = get_digital_precoder(method, channel)
     elif method == "zf":
         precoder = get_digital_precoder(method, channel)

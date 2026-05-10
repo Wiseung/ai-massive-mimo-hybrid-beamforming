@@ -2,8 +2,8 @@ model:
   name: unfolded_wmmse_lite
   num_layers: 5
   alpha_init: 0.03
-  init_method: wmmse_iter_2
-  init_wmmse_iters: 2
+  init_method: wmmse_iter_1
+  init_wmmse_iters: 1
 
 training:
   epochs: 8
@@ -22,3 +22,10 @@ training:
 
 evaluation:
   batch_size: 192
+
+loss:
+  rate_weight: 1.0
+  distill_weight: 0.0
+  teacher: wmmse
+  teacher_max_iter: 30
+  delta_norm_weight: 0.01

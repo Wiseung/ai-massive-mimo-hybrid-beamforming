@@ -14,7 +14,7 @@ from beamforming.utils.complex_ops import complex_to_real, real_to_complex
 
 
 class ResidualRZFBeamformer(torch.nn.Module):
-    """Predict a residual on top of a classical digital precoder."""
+    """Predict a residual on top of a cheap analytic digital precoder."""
 
     def __init__(
         self,
@@ -111,6 +111,11 @@ class ResidualRZFBeamformer(torch.nn.Module):
     def _base_precoder(self, channel_complex: torch.Tensor, noise_var: torch.Tensor) -> torch.Tensor:
         if self.base_method == "rzf":
             return rzf_precoder(channel_complex, noise_var=noise_var)
-        if self.base_method in {"wmmse", "zf", "mrt"}:
+        if self.base_method in {"zf", "mrt"}:
             return get_digital_precoder(self.base_method, channel_complex, noise_var=noise_var)
+        if self.base_method == "wmmse":
+            raise ValueError(
+                "ResidualRZFBeamformer does not allow base_method='wmmse' at inference time. "
+                "Use an analytic prior such as RZF/ZF/MRT and distill toward WMMSE during training instead."
+            )
         raise ValueError(f"Unsupported base_method for ResidualRZFBeamformer: {self.base_method}")

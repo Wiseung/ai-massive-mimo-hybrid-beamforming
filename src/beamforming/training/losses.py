@@ -15,6 +15,9 @@ def beamforming_loss(
     lambda_const: float = 1e-2,
     snr_loss_weights: dict[float, float] | None = None,
     lambda_delta: float = 0.0,
+    rate_weight: float = 1.0,
+    distill_target: torch.Tensor | None = None,
+    distill_weight: float = 0.0,
 ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
     """Negative sum-rate with soft constraint penalties."""
     precoder = outputs["precoder"]
@@ -43,7 +46,17 @@ def beamforming_loss(
         delta_norm_penalty = torch.mean((torch.abs(delta_precoder) ** 2).sum(dim=(-2, -1)))
 
     weighted_sum_rate = (sample_weights * sum_rate).sum() / sample_weights.sum().clamp_min(1e-12)
-    loss = -weighted_sum_rate + lambda_power * power_violation + lambda_const * const_violation + lambda_delta * delta_norm_penalty
+    distill_loss = torch.tensor(0.0, device=channel.device)
+    if distill_target is not None and distill_weight > 0.0:
+        distill_loss = torch.mean(torch.abs(precoder - distill_target) ** 2)
+
+    loss = (
+        -rate_weight * weighted_sum_rate
+        + lambda_power * power_violation
+        + lambda_const * const_violation
+        + lambda_delta * delta_norm_penalty
+        + distill_weight * distill_loss
+    )
     stats = {
         "loss": loss.detach(),
         "sum_rate": sum_rate.mean().detach(),
@@ -52,5 +65,6 @@ def beamforming_loss(
         "constant_modulus_violation": const_violation.detach(),
         "delta_norm_penalty": delta_norm_penalty.detach(),
         "precoder_norm": precoder_norm.detach(),
+        "distill_loss": distill_loss.detach(),
     }
     return loss, stats

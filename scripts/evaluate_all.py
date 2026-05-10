@@ -106,8 +106,8 @@ def _default_learned_artifacts(prefix: str) -> dict[str, dict[str, Path]]:
                 "ckpt": Path("outputs/runs/synthetic_unfolded_rzf/best.pt"),
             },
             "unfolded_wmmse_lite": {
-                "config": Path("configs/synthetic_unfolded_wmmse_lite.yaml"),
-                "ckpt": Path("outputs/runs/synthetic_unfolded_wmmse_lite/best.pt"),
+                "config": Path("configs/synthetic_unfolded_wmmse_lite_iter2.yaml"),
+                "ckpt": Path("outputs/runs/synthetic_unfolded_wmmse_lite_iter2/best.pt"),
             },
         }
 

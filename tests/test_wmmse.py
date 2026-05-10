@@ -1,5 +1,6 @@
 import torch
 
+from beamforming.baselines.common import get_digital_precoder
 from beamforming.baselines.mrt import mrt_precoder
 from beamforming.baselines.wmmse import wmmse_precoder
 from beamforming.metrics.sum_rate import multi_user_downlink_sum_rate
@@ -63,3 +64,11 @@ def test_wmmse_more_iterations_do_not_catastrophically_degrade() -> None:
     rate_short = multi_user_downlink_sum_rate(channel, precoder_short, noise_var=0.1).mean()
     rate_long = multi_user_downlink_sum_rate(channel, precoder_long, noise_var=0.1).mean()
     assert float(rate_long) >= float(rate_short) - 0.2
+
+
+def test_wmmse_iter_alias_matches_direct_call() -> None:
+    torch.manual_seed(6)
+    channel = torch.randn(2, 4, 8, dtype=torch.complex64)
+    direct = wmmse_precoder(channel, noise_var=0.1, max_iter=5)
+    alias = get_digital_precoder("wmmse_iter_5", channel, noise_var=0.1)
+    assert torch.allclose(alias, direct, atol=1e-5, rtol=1e-5)

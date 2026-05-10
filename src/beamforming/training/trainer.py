@@ -51,6 +51,26 @@ def _gradient_norm(model: torch.nn.Module) -> float:
     return total ** 0.5
 
 
+def _prepare_train_log(csv_path: Path, fieldnames: list[str]) -> None:
+    """Rotate an incompatible existing training log so new runs stay parseable."""
+    if not csv_path.exists() or csv_path.stat().st_size == 0:
+        return
+    with csv_path.open("r", newline="") as handle:
+        reader = csv.reader(handle)
+        try:
+            header = next(reader)
+        except StopIteration:
+            return
+    if header == fieldnames:
+        return
+    backup_path = csv_path.with_name(f"{csv_path.stem}.legacy{csv_path.suffix}")
+    counter = 1
+    while backup_path.exists():
+        backup_path = csv_path.with_name(f"{csv_path.stem}.legacy{counter}{csv_path.suffix}")
+        counter += 1
+    csv_path.replace(backup_path)
+
+
 def _run_epoch(
     model: torch.nn.Module,
     loader: DataLoader,
@@ -71,6 +91,7 @@ def _run_epoch(
         "power_violation": 0.0,
         "constant_modulus_violation": 0.0,
         "delta_norm_penalty": 0.0,
+        "distill_loss": 0.0,
         "precoder_norm": 0.0,
         "gradient_norm": 0.0,
     }
@@ -94,7 +115,16 @@ def _run_epoch(
                     loss.backward()
                     grad_norm = _gradient_norm(model)
                     optimizer.step()
-            for key in ("loss", "sum_rate", "weighted_sum_rate", "power_violation", "constant_modulus_violation", "delta_norm_penalty", "precoder_norm"):
+            for key in (
+                "loss",
+                "sum_rate",
+                "weighted_sum_rate",
+                "power_violation",
+                "constant_modulus_violation",
+                "delta_norm_penalty",
+                "distill_loss",
+                "precoder_norm",
+            ):
                 totals[key] += float(stats[key].item())
             totals["gradient_norm"] += grad_norm
             total_batches += 1
@@ -182,6 +212,7 @@ def train_model(
         "train_power_violation",
         "train_constant_modulus_violation",
         "train_delta_norm_penalty",
+        "train_distill_loss",
         "train_precoder_norm",
         "train_weighted_sum_rate",
         "train_gradient_norm",
@@ -192,10 +223,12 @@ def train_model(
         "val_power_violation",
         "val_constant_modulus_violation",
         "val_delta_norm_penalty",
+        "val_distill_loss",
         "val_precoder_norm",
         "val_gradient_norm",
         "val_learning_rate",
     ]
+    _prepare_train_log(csv_path, fieldnames)
     with csv_path.open("a", newline="") as csv_file:
         writer_obj = csv.DictWriter(csv_file, fieldnames=fieldnames)
         if csv_file.tell() == 0:
@@ -230,6 +263,7 @@ def train_model(
                 "train_power_violation": train_stats["power_violation"],
                 "train_constant_modulus_violation": train_stats["constant_modulus_violation"],
                 "train_delta_norm_penalty": train_stats["delta_norm_penalty"],
+                "train_distill_loss": train_stats["distill_loss"],
                 "train_precoder_norm": train_stats["precoder_norm"],
                 "train_weighted_sum_rate": train_stats["weighted_sum_rate"],
                 "train_gradient_norm": train_stats["gradient_norm"],
@@ -240,6 +274,7 @@ def train_model(
                 "val_power_violation": val_stats["power_violation"],
                 "val_constant_modulus_violation": val_stats["constant_modulus_violation"],
                 "val_delta_norm_penalty": val_stats["delta_norm_penalty"],
+                "val_distill_loss": val_stats["distill_loss"],
                 "val_precoder_norm": val_stats["precoder_norm"],
                 "val_gradient_norm": val_stats["gradient_norm"],
                 "val_learning_rate": val_stats["learning_rate"],

@@ -112,7 +112,7 @@ Verified synthetic baseline values:
 | RZF | 0.1643 | 0.5053 | 1.3317 | 3.1028 | 6.3026 | 11.1583 | 16.4744 |
 | DFT | 0.1294 | 0.3962 | 1.0496 | 2.3661 | 4.5415 | 7.1965 | 9.7844 |
 
-RZF remains the strongest overall reference baseline in the verified synthetic setup.
+Once `WMMSE` is included, `RZF` is no longer the strongest synthetic reference. `RZF` remains the key analytic low-latency baseline, while `WMMSE` is the strongest tested SE reference in the current narrowband digital-only setup.
 
 ## AI Models
 
@@ -267,9 +267,27 @@ gap_to_reference = (method_se - reference_se) / reference_se
 the synthetic model-family table now shows:
 
 - `WMMSE` as the strongest SE reference
-- `unfolded_rzf` slightly above `residual_rzf` but still below `WMMSE`
+- `unfolded_rzf` slightly above `residual_rzf` and slightly above `RZF`, but still below `WMMSE`
 - `unfolded_wmmse_lite` above `RZF` and closer to `WMMSE`
-- `residual_wmmse` effectively matching the current WMMSE teacher on the fair subset
+- `residual_wmmse` no longer matches `WMMSE` once teacher leakage is removed at inference; the fair `v2` result is effectively `RZF`-level
+
+Cross-family runtime is now standardized by `scripts/benchmark_latency.py` with:
+
+- `batch_size = 512`
+- `warmup_runs = 20`
+- `timed_runs = 100`
+- `include_data_transfer = false`
+- CUDA when available
+
+Under this unified protocol, the main synthetic latency points are:
+
+- `rzf = 1.380 ms`
+- `residual_rzf = 1.852 ms`
+- `residual_wmmse = 1.941 ms`
+- `unfolded_rzf = 3.791 ms`
+- `unfolded_wmmse_lite = 112.60 ms`
+- `wmmse_iter_5 = 268.41 ms`
+- `wmmse = 2048.41 ms`
 
 ### SNR Conditioning
 
@@ -301,11 +319,21 @@ The most important correction in this round was methodological. The original lea
 
 The final warm-started CNN is now a credible baseline learner. It is no longer collapsed, and it tracks the stronger classical methods closely across much of the tested range. However, once `WMMSE` is enabled, `RZF` is no longer the strongest reference. Any claim that the learned model has surpassed the strongest classical baseline would still be false unless it is evaluated against the same WMMSE reference on the same fair subset.
 
-On the synthetic benchmark, the remaining technical bottleneck is specifically the high-SNR region for the RZF-directed learned family. Neither simple loss reweighting nor a mixed RZF/ZF teacher was enough to materially close the `15/20 dB` gap. The more successful route in this round was to change the reference structure itself: WMMSE-directed distillation and WMMSE-lite unfolding move the learned family much closer to the strongest current reference.
+On the synthetic benchmark, the remaining technical bottleneck for the original CNN family was specifically the high-SNR region. Neither simple loss reweighting nor a mixed RZF/ZF teacher was enough to materially close the `15/20 dB` gap. The more successful route was to change the model structure itself: residual and unfolded models with analytic priors substantially outperform the original CNN, and `unfolded_wmmse_lite` is currently the best fair learned model in SE. However, after fixing teacher leakage, `residual_wmmse` should be interpreted as an `RZF`-prior model distilled toward `WMMSE` during training, not as a WMMSE-level inference model.
 
-The WMMSE iteration sweep also makes the deployment trade-off explicit. A reduced-iteration point such as `iter=5` keeps the mean gap to full WMMSE within about `0.66%` while cutting latency dramatically relative to the full `iter=50` reference, which makes it a meaningful Pareto point in addition to the exact full-WMMSE reference.
+The WMMSE iteration sweep also makes the within-family convergence trade-off explicit. A reduced-iteration point such as `iter=5` keeps the mean gap to full WMMSE within about `0.66%`. For cross-method comparisons, the report now uses only the unified latency protocol rather than reusing the sweep script's absolute latency numbers directly in the Pareto table.
 
 On the DeepMIMO side, the real progress in this round was executional rather than scientific: the adapter, download path, saved tensor, baseline smoke benchmark, and learned smoke benchmark all ran locally. However, because the current tensor is filtered and small in scope, those outputs should be treated as smoke evidence rather than as a mature DeepMIMO result section.
+
+A stronger DeepMIMO result now also exists beyond smoke bring-up: the non-quick full benchmark was run with `seeds=1,2,3`, and the exported summary reports `num_seeds = 3`, `mean_se = 0.7312 +- 0.0318`, and `mean_gap_to_strongest_reference = -0.65% +- 0.59%`. In addition, the random-split model-family benchmark across `seeds=1,2,3` currently ranks the methods as:
+
+1. `wmmse_iter_5`: `1.0884 +- 0.0484`
+2. `unfolded_wmmse_lite`: `0.8606 +- 0.0426`
+3. `residual_rzf`: `0.7188 +- 0.0359`
+4. `rzf`: `0.7141 +- 0.0357`
+5. `cnn`: `0.7114 +- 0.0148`
+
+These numbers are meaningful because they are real multi-seed outputs, but they still come from the filtered local tensor with `K=4`, `Nt=8`, `Nsc=1`.
 
 The next benchmark step is therefore not “more model complexity first”, but stronger benchmark hygiene:
 
@@ -325,6 +353,7 @@ The earlier quick `v2` DeepMIMO benchmark still ran only `seed=1`, so those `std
 - the unfolded PGA model is still a scaffold, not a tuned unfolding baseline
 - the current AI models are still digital-only in the verified experiments
 - the current WMMSE implementation is a narrowband digital-only MU-MISO baseline, not a complete hybrid / wideband WMMSE study
+- the current DeepMIMO model-family benchmark is available for random split, but it is still not a large-array or multi-scenario DeepMIMO study
 
 ## Future Work
 

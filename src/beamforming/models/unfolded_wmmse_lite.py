@@ -36,12 +36,29 @@ class UnfoldedWMMSELiteBeamformer(torch.nn.Module):
     def _steps(self) -> torch.Tensor:
         return torch.nn.functional.softplus(self.log_steps)
 
+    def _resolve_init_wmmse_iters(self) -> int | None:
+        if self.init_method == "rzf":
+            return None
+        if self.init_method == "wmmse":
+            return self.init_wmmse_iters
+        if self.init_method.startswith("wmmse_iter_"):
+            suffix = self.init_method.removeprefix("wmmse_iter_")
+            try:
+                max_iter = int(suffix)
+            except ValueError as exc:
+                raise ValueError(f"Unsupported init_method: {self.init_method}") from exc
+            if max_iter <= 0:
+                raise ValueError(f"Unsupported init_method: {self.init_method}")
+            return max_iter
+        raise ValueError(f"Unsupported init_method: {self.init_method}")
+
     def _init_precoder(self, channel_complex: torch.Tensor, noise_var: torch.Tensor) -> torch.Tensor:
         if self.init_method == "rzf":
             return rzf_precoder(channel_complex, noise_var=noise_var)
-        if self.init_method == "wmmse":
-            return wmmse_precoder(channel_complex, noise_var=noise_var, max_iter=self.init_wmmse_iters)
-        raise ValueError(f"Unsupported init_method: {self.init_method}")
+        max_iter = self._resolve_init_wmmse_iters()
+        if max_iter is None:
+            raise ValueError(f"Unsupported init_method: {self.init_method}")
+        return wmmse_precoder(channel_complex, noise_var=noise_var, max_iter=max_iter)
 
     def forward(
         self,

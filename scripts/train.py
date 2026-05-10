@@ -19,6 +19,8 @@ from beamforming.data.deepmimo_loader import load_deepmimo_dataset
 from beamforming.data.splits import load_dataset_split
 from beamforming.models.factory import build_model
 from beamforming.models.unfolded_pga import UnfoldedPGABeamformer
+from beamforming.training.losses import beamforming_loss
+from beamforming.training.supervised_targets import get_teacher_target
 from beamforming.training.trainer import TrainerConfig, train_model
 
 
@@ -72,6 +74,39 @@ def main() -> None:
     trainer_kwargs = {key: value for key, value in config["training"].items() if key in trainer_field_names}
     trainer_cfg = TrainerConfig(**trainer_kwargs)
     split_payload = load_dataset_split(args.split) if args.split else None
+    loss_cfg = config.get("loss", {})
+
+    loss_fn = None
+    if loss_cfg:
+        rate_weight = float(loss_cfg.get("rate_weight", 1.0))
+        distill_weight = float(loss_cfg.get("distill_weight", 0.0))
+        distill_teacher = loss_cfg.get("teacher")
+        teacher_max_iter = int(loss_cfg.get("teacher_max_iter", 30))
+        lambda_delta = float(loss_cfg.get("delta_norm_weight", config["training"].get("lambda_delta", 0.0)))
+
+        def configured_loss_fn(batch: dict[str, torch.Tensor], outputs: dict[str, torch.Tensor]):
+            distill_target = None
+            if distill_teacher:
+                teacher_name = str(distill_teacher)
+                if teacher_name == "wmmse" and teacher_max_iter > 0:
+                    teacher_name = f"wmmse_iter_{teacher_max_iter}"
+                distill_target = get_teacher_target(batch["channel"], batch["snr_db"], teacher_name)
+            return beamforming_loss(
+                channel=batch["channel"],
+                outputs=outputs,
+                snr_db=batch["snr_db"],
+                lambda_power=trainer_cfg.lambda_power,
+                lambda_const=trainer_cfg.lambda_const,
+                snr_loss_weights={
+                    float(item["snr"]): float(item["weight"]) for item in (trainer_cfg.snr_loss_weights or [])
+                } if trainer_cfg.snr_loss_weights else None,
+                lambda_delta=lambda_delta,
+                rate_weight=rate_weight,
+                distill_target=distill_target,
+                distill_weight=distill_weight,
+            )
+
+        loss_fn = configured_loss_fn
     result = train_model(
         model,
         dataset,
@@ -81,6 +116,7 @@ def main() -> None:
         resume=args.resume,
         init_ckpt=args.init_ckpt,
         split_payload=split_payload,
+        loss_fn=loss_fn,
     )
     Path(args.out).mkdir(parents=True, exist_ok=True)
     with open(Path(args.out) / "train_summary.yaml", "w", encoding="utf-8") as handle:

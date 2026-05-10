@@ -1,6 +1,6 @@
 model:
   name: residual_wmmse
-  base_method: wmmse
+  base_method: rzf
   condition_on_snr: true
   base_channels: 32
   pool_factor: 2
@@ -25,3 +25,10 @@ training:
 
 evaluation:
   batch_size: 192
+
+loss:
+  rate_weight: 1.0
+  distill_weight: 0.1
+  teacher: wmmse
+  teacher_max_iter: 30
+  delta_norm_weight: 0.02
