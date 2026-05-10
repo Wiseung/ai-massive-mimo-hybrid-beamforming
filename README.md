@@ -151,6 +151,28 @@ The Sionna demo path is an optional experimental branch and is not part of the `
 - The current branch also includes a tiny differentiable beamformer smoke demo to verify backward/short-step optimization through an OFDM-style link.
 - If a Sionna PHY component is unavailable or unstable for the current environment, the demo records an explicit torch fallback instead of silently pretending the path is fully Sionna-native.
 
+## Optional Sionna PHY/OFDM Demos
+
+Available on `feature/sionna-phy-ofdm-link` and intended for an upcoming `v0.2.0` optional Sionna demo branch state.
+
+- optional dependency: `sionna-no-rt`
+- does not change `v0.1.0` benchmark claims
+- no RT
+- no ray tracing
+- no 5G NR full stack
+- toy differentiable beamformer only
+
+```bash
+python scripts/check_sionna_env.py
+python scripts/inspect_sionna_api.py --out outputs/sionna_smoke/sionna_api_summary.json
+python scripts/inspect_sionna_ofdm_api.py --out outputs/sionna_smoke/sionna_ofdm_api_summary.json
+python scripts/sionna_phy_awgn_demo.py --out outputs/sionna_smoke/sionna_phy_awgn_summary.json
+python scripts/sionna_ofdm_resource_grid_demo.py --out outputs/sionna_smoke/sionna_ofdm_resource_grid_summary.json
+python scripts/sionna_ofdm_beamforming_bridge_demo.py --out outputs/sionna_smoke/sionna_ofdm_beamforming_bridge_summary.json
+python scripts/check_differentiable_beamformer_gradients.py --out outputs/sionna_smoke/differentiable_beamformer_gradcheck.json
+python scripts/sionna_ofdm_differentiable_beamforming_demo.py --out outputs/sionna_smoke/sionna_ofdm_differentiable_beamforming_summary.json
+```
+
 ## RTX 5090 24GB Recommended Config
 
 - Device: single CUDA GPU
