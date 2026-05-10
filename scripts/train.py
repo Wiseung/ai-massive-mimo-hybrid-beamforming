@@ -16,8 +16,10 @@ add_src_to_path()
 
 from beamforming.data.dataset import load_channel_dataset
 from beamforming.data.deepmimo_loader import load_deepmimo_dataset
+from beamforming.data.splits import load_dataset_split
 from beamforming.models.cnn_beamformer import CNNBeamformer
 from beamforming.models.mlp_beamformer import MLPBeamformer
+from beamforming.models.residual_beamformer import ResidualRZFBeamformer
 from beamforming.models.unfolded_pga import UnfoldedPGABeamformer
 from beamforming.training.trainer import TrainerConfig, train_model
 
@@ -29,6 +31,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--out", required=True)
     parser.add_argument("--resume", default=None)
     parser.add_argument("--init-ckpt", default=None)
+    parser.add_argument("--split", default=None)
     parser.add_argument("--device", default="auto")
     parser.add_argument("--dataset-type", choices=["auto", "tensor", "deepmimo"], default="auto")
     parser.add_argument("--bs-idx", type=int, default=0)
@@ -70,6 +73,16 @@ def _build_model(model_cfg: dict, data_cfg: dict) -> torch.nn.Module:
         )
     if name == "unfolded_pga":
         return UnfoldedPGABeamformer(num_layers=int(model_cfg.get("num_layers", 3)), **common)
+    if name == "residual_rzf":
+        return ResidualRZFBeamformer(
+            condition_on_snr=bool(model_cfg.get("condition_on_snr", True)),
+            base_channels=int(model_cfg.get("base_channels", 32)),
+            pool_factor=int(model_cfg.get("pool_factor", 2)),
+            hidden_dims=model_cfg.get("hidden_dims"),
+            learnable_alpha=bool(model_cfg.get("learnable_alpha", True)),
+            alpha_init=float(model_cfg.get("alpha_init", 0.1)),
+            **common,
+        )
     raise ValueError(f"Unsupported model name: {name}")
 
 
@@ -103,6 +116,7 @@ def main() -> None:
     trainer_field_names = {field.name for field in fields(TrainerConfig)}
     trainer_kwargs = {key: value for key, value in config["training"].items() if key in trainer_field_names}
     trainer_cfg = TrainerConfig(**trainer_kwargs)
+    split_payload = load_dataset_split(args.split) if args.split else None
     result = train_model(
         model,
         dataset,
@@ -111,6 +125,7 @@ def main() -> None:
         device=args.device,
         resume=args.resume,
         init_ckpt=args.init_ckpt,
+        split_payload=split_payload,
     )
     Path(args.out).mkdir(parents=True, exist_ok=True)
     with open(Path(args.out) / "train_summary.yaml", "w", encoding="utf-8") as handle:

@@ -11,6 +11,7 @@ from beamforming.baselines.dft_codebook import dft_hybrid_precoder
 from beamforming.baselines.mrt import mrt_precoder
 from beamforming.baselines.omp import omp_hybrid_precoder
 from beamforming.baselines.rzf import rzf_precoder
+from beamforming.baselines.upper_bound import fd_rzf_precoder, fd_zf_precoder
 from beamforming.baselines.zf import zf_precoder
 from beamforming.metrics.sum_rate import multi_user_downlink_sum_rate, noise_variance_from_snr
 
@@ -31,6 +32,10 @@ def evaluate_baseline(
         precoder = zf_precoder(channel)
     elif method == "rzf":
         precoder = rzf_precoder(channel, noise_var=float(noise_variance_from_snr(snr_db).item()))
+    elif method == "fd_zf":
+        precoder = fd_zf_precoder(channel)
+    elif method == "fd_rzf":
+        precoder = fd_rzf_precoder(channel, noise_var=float(noise_variance_from_snr(snr_db).item()))
     elif method == "dft":
         if num_rf_chains is None:
             raise ValueError("num_rf_chains is required for dft.")

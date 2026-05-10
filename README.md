@@ -12,6 +12,9 @@ Reproducible PyTorch-based single-GPU project for massive MIMO / mmWave beamform
 - Warm-started CNN now approaches the RZF baseline on the synthetic benchmark.
 - High-SNR-weighted fine-tuning did not materially improve the synthetic high-SNR gap.
 - Mixed-teacher warm-start produced only a marginal synthetic gain over the RZF teacher.
+- DeepMIMO dataset diagnostics and reproducible split generation were added.
+- Fully-digital `fd_zf` / `fd_rzf` reference labels were added for unified comparison, but in the current digital-only MU-MISO setup they are reference aliases rather than stronger upper bounds.
+- A residual refinement model around the RZF prior was added to target the remaining synthetic high-SNR gap.
 - DeepMIMO `v4` is installed locally and the `asu_campus_3p5` smoke path, baseline smoke benchmark, and a small learned smoke benchmark all ran successfully.
 - Sionna remains optional and is not the mainline blocker for this repository.
 
@@ -186,6 +189,8 @@ Unified baseline + learned comparisons are written by `scripts/evaluate_all.py` 
 - `outputs/comparisons/.../*_all_methods.csv`
 - `outputs/comparisons/.../*_se_vs_snr.png`
 
+When `--methods` includes multiple learned models such as `cnn residual_rzf`, `scripts/evaluate_all.py` evaluates the checkpoint/config passed on the command line and auto-discovers the repository's default fair-evaluation artifacts for the other requested learned methods when those checkpoints already exist.
+
 ## Synthetic Results
 
 ### Baselines
@@ -257,6 +262,121 @@ Current expected installation:
 ```bash
 pip install deepmimo
 ```
+
+### Dataset Diagnostics
+
+The current local DeepMIMO smoke tensor is summarized by:
+
+- `outputs/reports/deepmimo_dataset_summary.json`
+- `outputs/figures/deepmimo_channel_norm_hist.png`
+- `outputs/figures/deepmimo_user_group_power.png`
+
+Observed local diagnostics on `2026-05-10`:
+
+- raw channel shape: `(131931, 1, 8, 1)`
+- grouped project tensor shape after filtering: `(22178, 4, 8)`
+- invalid user-group ratio before filtering: `32.76%`
+- zero-power ratio after filtering: `0.0`
+- low-power ratio after filtering: `0.198%`
+
+User groups are currently formed by contiguous blocks of `K=4` users in the DeepMIMO receiver ordering after selecting one BS, then zero-power groups are removed before saving the project tensor.
+
+### Reproducible Splits
+
+DeepMIMO splits can now be generated explicitly:
+
+```bash
+python scripts/make_splits.py \
+  --dataset-type deepmimo \
+  --data outputs/data/deepmimo_asu_campus_3p5_narrowband.pt \
+  --split-mode random \
+  --seed 42 \
+  --out outputs/splits/deepmimo_asu_seed42.pt
+```
+
+Supported modes:
+
+- `random`
+- `contiguous`
+
+`contiguous` uses the current user-group ordering and assigns the first `70%` to train, the middle `15%` to val, and the last `15%` to test.
+
+### DeepMIMO Smoke Benchmark Status
+
+The current DeepMIMO benchmark should still be described as a filtered smoke benchmark:
+
+- the scenario is real and was downloaded/loaded locally
+- the tensor conversion path is real
+- baseline and learned smoke runs are real
+- the current result set is not yet a full multi-scenario DeepMIMO conclusion
+
+The existing learned smoke result on this filtered tensor showed a positive gap over filtered RZF:
+
+- `mean_se = 0.760969`
+- `mean_gap_to_rzf = +2.6913%`
+
+That result is useful smoke evidence, but it must not be overstated as a complete DeepMIMO benchmark conclusion.
+
+### DeepMIMO Benchmark Commands
+
+Dataset analysis:
+
+```bash
+python scripts/analyze_deepmimo_dataset.py \
+  --data outputs/data/deepmimo_asu_campus_3p5_narrowband.pt \
+  --out outputs/reports/deepmimo_dataset_summary
+```
+
+Residual-RZF smoke benchmark:
+
+```bash
+python scripts/train.py \
+  --dataset-type deepmimo \
+  --config configs/deepmimo_residual_rzf.yaml \
+  --data outputs/data/deepmimo_asu_campus_3p5_narrowband.pt \
+  --split outputs/splits/deepmimo_asu_seed42.pt \
+  --out outputs/runs/deepmimo_residual_rzf
+
+python scripts/evaluate_all.py \
+  --dataset-type deepmimo \
+  --data outputs/data/deepmimo_asu_campus_3p5_narrowband.pt \
+  --split outputs/splits/deepmimo_asu_seed42.pt \
+  --ckpt outputs/runs/deepmimo_residual_rzf/best.pt \
+  --config configs/deepmimo_residual_rzf.yaml \
+  --methods mrt zf rzf dft cnn residual_rzf \
+  --out outputs/comparisons/deepmimo_residual_rzf
+```
+
+Quick multi-seed smoke benchmark:
+
+```bash
+python scripts/run_deepmimo_benchmark.py \
+  --data outputs/data/deepmimo_asu_campus_3p5_narrowband.pt \
+  --seeds 1 2 3 \
+  --quick \
+  --out outputs/comparisons/deepmimo_multiseed_quick
+```
+
+`--quick` is intentionally a smoke/engineering mode. README and report treat it as such, not as a final scientific benchmark.
+
+## Residual RZF Motivation
+
+The remaining synthetic weakness is concentrated at `15/20 dB`, where direct CNN precoder prediction still trails RZF. The repository therefore adds a residual/refinement model that starts from an analytic `RZF` precoder and learns only a correction:
+
+```text
+F_pred = normalize_power(F_rzf + alpha * delta_F)
+```
+
+This structure is meant to preserve the strong communication prior at high SNR rather than asking the network to reconstruct a good precoder from scratch.
+
+## Current Negative Results
+
+The following findings are currently negative and are kept explicitly in the documentation:
+
+- high-SNR loss weighting was largely ineffective
+- mixed RZF/ZF teacher provided only a very small gain
+- the synthetic high-SNR gap is still unresolved before the residual-RZF evaluation is applied
+- Sionna is not part of the current mainline acceptance path
 
 DeepMIMO v4 quickstart shape assumed by this repository:
 

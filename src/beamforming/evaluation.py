@@ -13,6 +13,7 @@ from torch.utils.data import DataLoader, Subset
 
 from beamforming.baselines.common import evaluate_baseline
 from beamforming.data.dataset import ChannelDataset, split_dataset
+from beamforming.data.splits import subset_from_split
 from beamforming.metrics.sum_rate import multi_user_downlink_sum_rate, noise_variance_from_snr
 
 
@@ -20,6 +21,12 @@ def get_eval_subset(dataset: ChannelDataset, val_fraction: float, seed: int) -> 
     """Return the deterministic evaluation subset used across train/eval/baselines."""
     _, val_subset = split_dataset(dataset, val_fraction=val_fraction, seed=seed)
     return val_subset
+
+
+def get_eval_subset_from_payload(dataset: ChannelDataset, split_payload: dict[str, Any] | None) -> ChannelDataset | Subset:
+    if split_payload is None:
+        return dataset
+    return subset_from_split(dataset, split_payload, "test")
 
 
 def evaluate_model_by_snr(
@@ -89,15 +96,20 @@ def add_relative_gaps(df: pd.DataFrame, reference_method: str = "rzf") -> pd.Dat
     ref = result[result["method"] == reference_method][["snr_db", "se"]].rename(columns={"se": "rzf_se"})
     result = result.merge(ref, on="snr_db", how="left")
     baseline_best = (
-        result[result["method"].isin(["mrt", "zf", "rzf", "dft", "omp"])]
+        result[result["method"].isin(["mrt", "zf", "rzf", "dft", "omp", "fd_zf", "fd_rzf", "wmmse"])]
         .groupby("snr_db", as_index=False)["se"]
         .max()
         .rename(columns={"se": "best_baseline_se"})
     )
     result = result.merge(baseline_best, on="snr_db", how="left")
+    strongest_reference = result.groupby("snr_db", as_index=False)["se"].max().rename(columns={"se": "strongest_reference_se"})
+    result = result.merge(strongest_reference, on="snr_db", how="left")
     result["relative_gap_to_rzf"] = (result["se"] - result["rzf_se"]) / result["rzf_se"].abs().clip(lower=1e-12)
     result["relative_gap_to_best_baseline"] = (
         (result["se"] - result["best_baseline_se"]) / result["best_baseline_se"].abs().clip(lower=1e-12)
+    )
+    result["relative_gap_to_strongest_reference"] = (
+        (result["se"] - result["strongest_reference_se"]) / result["strongest_reference_se"].abs().clip(lower=1e-12)
     )
     for snr_value in (10.0, 15.0, 20.0):
         col = f"gap_{int(snr_value)}db"

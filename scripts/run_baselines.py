@@ -9,6 +9,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
+from torch.utils.data import Subset
 
 from _bootstrap import add_src_to_path
 
@@ -16,6 +17,7 @@ add_src_to_path()
 
 from beamforming.data.dataset import load_channel_dataset
 from beamforming.data.deepmimo_loader import load_deepmimo_dataset
+from beamforming.data.splits import load_dataset_split, subset_from_split
 from beamforming.evaluation import evaluate_baselines_by_snr, save_comparison_outputs
 
 
@@ -26,6 +28,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--download", action="store_true")
     parser.add_argument("--methods", nargs="+", required=True)
     parser.add_argument("--out", required=True)
+    parser.add_argument("--split", default=None)
     parser.add_argument("--num-rf-chains", type=int, default=4)
     parser.add_argument("--max-samples", type=int, default=0)
     parser.add_argument("--dataset-type", choices=["auto", "tensor", "deepmimo"], default="auto")
@@ -82,12 +85,20 @@ def main() -> None:
         )
     else:
         dataset = load_channel_dataset(args.data)
+    if args.split:
+        split_payload = load_dataset_split(args.split)
+        dataset = subset_from_split(dataset, split_payload, "test")
     if args.max_samples > 0:
         dataset.channels = dataset.channels[: args.max_samples]
         dataset.snr_db = dataset.snr_db[: args.max_samples]
 
-    metadata = dataset.metadata
-    num_users = int(metadata.get("num_users", dataset.channels.shape[-2]))
+    if hasattr(dataset, "dataset"):
+        metadata = dataset.dataset.metadata
+        channel_shape = dataset.dataset.channels.shape
+    else:
+        metadata = dataset.metadata
+        channel_shape = dataset.channels.shape
+    num_users = int(metadata.get("num_users", channel_shape[-2]))
     num_rf_chains = int(metadata.get("num_rf_chains", args.num_rf_chains))
 
     df = evaluate_baselines_by_snr(args.methods, dataset, num_rf_chains=num_rf_chains)
@@ -104,18 +115,32 @@ def main() -> None:
     save_comparison_outputs(df, out_dir / "figures", prefix=prefix)
     _plot_runtime_bar(df, figures_dir / "runtime_comparison.png")
 
-    if dataset.channels.ndim == 3:
+    if isinstance(dataset, Subset):
+        base_dataset = dataset.dataset
+        base_channels = base_dataset.channels[dataset.indices]
+        base_metadata = base_dataset.metadata
+    else:
+        base_dataset = dataset
+        base_channels = dataset.channels
+        base_metadata = dataset.metadata
+
+    if base_channels.ndim == 3:
         from beamforming.evaluation import evaluate_baselines_by_snr as _eval
         rzf_users = []
-        for users in range(1, min(8, dataset.channels.shape[-2]) + 1):
-            subset = copy.deepcopy(dataset)
-            subset.channels = dataset.channels[:, :users, :]
-            subset.metadata = {**dataset.metadata, "num_users": users}
+        for users in range(1, min(8, base_channels.shape[-2]) + 1):
+            subset = copy.deepcopy(base_dataset)
+            subset.channels = base_channels[:, :users, :]
+            subset.snr_db = base_dataset.snr_db[dataset.indices] if isinstance(dataset, Subset) else base_dataset.snr_db
+            subset.metadata = {**base_metadata, "num_users": users}
             result = _eval(["rzf"], subset, num_rf_chains=min(users, num_rf_chains))
             rzf_users.append({"method": "rzf", "num_users": users, "sum_rate": float(result["se"].mean())})
         dft_rf = []
-        for rf in range(1, min(8, dataset.channels.shape[-2]) + 1):
-            result = _eval(["dft"], dataset, num_rf_chains=rf)
+        base_eval_dataset = copy.deepcopy(base_dataset)
+        base_eval_dataset.channels = base_channels
+        base_eval_dataset.snr_db = base_dataset.snr_db[dataset.indices] if isinstance(dataset, Subset) else base_dataset.snr_db
+        base_eval_dataset.metadata = base_metadata
+        for rf in range(1, min(8, base_channels.shape[-2]) + 1):
+            result = _eval(["dft"], base_eval_dataset, num_rf_chains=rf)
             dft_rf.append({"method": "dft", "num_rf_chains": rf, "sum_rate": float(result["se"].mean())})
         _plot_metric(pd.DataFrame(rzf_users), "num_users", "sum_rate", figures_dir / "sum_rate_vs_users.png", "Sum-Rate vs Users")
         _plot_metric(pd.DataFrame(dft_rf), "num_rf_chains", "sum_rate", figures_dir / "sum_rate_vs_rf_chains.png", "Sum-Rate vs RF Chains")

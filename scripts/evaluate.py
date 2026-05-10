@@ -16,9 +16,17 @@ add_src_to_path()
 
 from beamforming.data.dataset import load_channel_dataset
 from beamforming.data.deepmimo_loader import load_deepmimo_dataset
-from beamforming.evaluation import add_relative_gaps, evaluate_baselines_by_snr, evaluate_model_by_snr, get_eval_subset
+from beamforming.data.splits import load_dataset_split
+from beamforming.evaluation import (
+    add_relative_gaps,
+    evaluate_baselines_by_snr,
+    evaluate_model_by_snr,
+    get_eval_subset,
+    get_eval_subset_from_payload,
+)
 from beamforming.models.cnn_beamformer import CNNBeamformer
 from beamforming.models.mlp_beamformer import MLPBeamformer
+from beamforming.models.residual_beamformer import ResidualRZFBeamformer
 from beamforming.models.unfolded_pga import UnfoldedPGABeamformer
 
 
@@ -28,6 +36,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--data", default=None)
     parser.add_argument("--ckpt", required=True)
     parser.add_argument("--out", required=True)
+    parser.add_argument("--split", default=None)
     parser.add_argument("--device", default="auto")
     parser.add_argument("--dataset-type", choices=["auto", "tensor", "deepmimo"], default="auto")
     parser.add_argument("--bs-idx", type=int, default=0)
@@ -68,6 +77,16 @@ def _build_model(model_cfg: dict, data_cfg: dict) -> torch.nn.Module:
         )
     if model_cfg["name"] == "unfolded_pga":
         return UnfoldedPGABeamformer(num_layers=int(model_cfg.get("num_layers", 3)), **common)
+    if model_cfg["name"] == "residual_rzf":
+        return ResidualRZFBeamformer(
+            condition_on_snr=bool(model_cfg.get("condition_on_snr", True)),
+            base_channels=int(model_cfg.get("base_channels", 32)),
+            pool_factor=int(model_cfg.get("pool_factor", 2)),
+            hidden_dims=model_cfg.get("hidden_dims"),
+            learnable_alpha=bool(model_cfg.get("learnable_alpha", True)),
+            alpha_init=float(model_cfg.get("alpha_init", 0.1)),
+            **common,
+        )
     raise ValueError(f"Unsupported model: {model_cfg['name']}")
 
 
@@ -93,10 +112,15 @@ def main() -> None:
     with open(args.config, "r", encoding="utf-8") as handle:
         config = yaml.safe_load(handle)
     dataset = _load_dataset(args)
-    eval_subset = get_eval_subset(
-        dataset,
-        val_fraction=float(config["training"].get("val_fraction", 0.1)),
-        seed=int(config["training"]["seed"]),
+    split_payload = load_dataset_split(args.split) if args.split else None
+    eval_subset = (
+        get_eval_subset_from_payload(dataset, split_payload)
+        if split_payload is not None
+        else get_eval_subset(
+            dataset,
+            val_fraction=float(config["training"].get("val_fraction", 0.1)),
+            seed=int(config["training"]["seed"]),
+        )
     )
     data_cfg = {**dataset.metadata}
     data_cfg.setdefault("num_users", dataset.channels.shape[-2])
@@ -110,7 +134,7 @@ def main() -> None:
 
     learned_df = evaluate_model_by_snr(model, eval_subset, batch_size=config["evaluation"].get("batch_size", 256), device=device)
     learned_df["method"] = config["model"]["name"]
-    baseline_df = evaluate_baselines_by_snr(["mrt", "zf", "rzf", "dft"], eval_subset, num_rf_chains=int(data_cfg["num_rf_chains"]))
+    baseline_df = evaluate_baselines_by_snr(["mrt", "zf", "rzf", "dft", "fd_zf", "fd_rzf"], eval_subset, num_rf_chains=int(data_cfg["num_rf_chains"]))
     combined = pd.concat([baseline_df, learned_df[["method", "snr_db", "se", "runtime_sec"]]], ignore_index=True)
     combined = add_relative_gaps(combined)
     out_dir = Path(args.out)
@@ -125,6 +149,9 @@ def main() -> None:
         ),
         "mean_relative_gap_to_best_baseline": float(
             combined[combined["method"] == config["model"]["name"]]["relative_gap_to_best_baseline"].mean()
+        ),
+        "mean_gap_to_strongest_reference": float(
+            combined[combined["method"] == config["model"]["name"]]["relative_gap_to_strongest_reference"].mean()
         ),
         "gap_10db": float(
             combined[(combined["method"] == config["model"]["name"]) & (combined["snr_db"] == 10.0)]["relative_gap_to_rzf"].iloc[0]

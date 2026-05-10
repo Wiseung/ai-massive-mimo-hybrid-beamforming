@@ -16,8 +16,10 @@ add_src_to_path()
 
 from beamforming.data.dataset import load_channel_dataset
 from beamforming.data.deepmimo_loader import load_deepmimo_dataset
+from beamforming.data.splits import load_dataset_split
 from beamforming.models.cnn_beamformer import CNNBeamformer
 from beamforming.models.mlp_beamformer import MLPBeamformer
+from beamforming.models.residual_beamformer import ResidualRZFBeamformer
 from beamforming.training.supervised_targets import get_teacher_target
 from beamforming.training.trainer import TrainerConfig, train_model
 
@@ -28,6 +30,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--data", default=None)
     parser.add_argument("--teacher", choices=["mrt", "zf", "rzf", "mixed_rzf_zf", "best_of_rzf_zf"], required=True)
     parser.add_argument("--out", required=True)
+    parser.add_argument("--split", default=None)
     parser.add_argument("--dataset-type", choices=["auto", "tensor", "deepmimo"], default="auto")
     parser.add_argument("--scenario", default=None)
     parser.add_argument("--download", action="store_true")
@@ -76,6 +79,16 @@ def _build_model(model_cfg: dict, data_cfg: dict) -> torch.nn.Module:
             residual_to_mrt=bool(model_cfg.get("residual_to_mrt", True)),
             **common,
         )
+    if model_cfg["name"] == "residual_rzf":
+        return ResidualRZFBeamformer(
+            condition_on_snr=bool(model_cfg.get("condition_on_snr", True)),
+            base_channels=int(model_cfg.get("base_channels", 32)),
+            pool_factor=int(model_cfg.get("pool_factor", 2)),
+            hidden_dims=model_cfg.get("hidden_dims"),
+            learnable_alpha=bool(model_cfg.get("learnable_alpha", True)),
+            alpha_init=float(model_cfg.get("alpha_init", 0.1)),
+            **common,
+        )
     raise ValueError(f"Unsupported model for pretraining: {model_cfg['name']}")
 
 
@@ -104,16 +117,19 @@ def main() -> None:
             "weighted_sum_rate": torch.tensor(0.0, device=batch["channel"].device),
             "power_violation": torch.mean((precoder_power - 1.0) ** 2).detach(),
             "constant_modulus_violation": torch.tensor(0.0, device=batch["channel"].device),
+            "delta_norm_penalty": torch.tensor(0.0, device=batch["channel"].device),
             "precoder_norm": torch.mean(torch.sqrt(precoder_power.clamp_min(1e-12))).detach(),
         }
         return mse, stats
 
+    split_payload = load_dataset_split(args.split) if args.split else None
     result = train_model(
         model,
         dataset,
         trainer_cfg,
         out_dir=args.out,
         device=args.device,
+        split_payload=split_payload,
         loss_fn=pretrain_loss,
     )
     Path(args.out).mkdir(parents=True, exist_ok=True)

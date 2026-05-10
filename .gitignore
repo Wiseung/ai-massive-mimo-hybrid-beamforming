@@ -13,7 +13,11 @@ outputs/data/
 outputs/runs/
 outputs/comparisons/
 outputs/metrics/
+outputs/reports/
+outputs/figures/
+outputs/splits/
 reports/generated/
+deepmimo_scenarios/
 *.pt
 *.pth
 *.ckpt

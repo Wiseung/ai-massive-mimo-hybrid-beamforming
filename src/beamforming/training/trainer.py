@@ -14,6 +14,7 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from beamforming.data.dataset import split_dataset
+from beamforming.data.splits import subset_from_split
 from beamforming.training.losses import beamforming_loss
 from beamforming.utils.seed import set_seed
 
@@ -33,6 +34,7 @@ class TrainerConfig:
     snr_loss_weights: list[dict[str, float]] | None = None
     selection_metric: str = "val_sum_rate"
     selection_mode: str = "max"
+    lambda_delta: float = 0.0
 
 
 def _prepare_device(device: str | None = None) -> torch.device:
@@ -68,6 +70,7 @@ def _run_epoch(
         "weighted_sum_rate": 0.0,
         "power_violation": 0.0,
         "constant_modulus_violation": 0.0,
+        "delta_norm_penalty": 0.0,
         "precoder_norm": 0.0,
         "gradient_norm": 0.0,
     }
@@ -91,7 +94,7 @@ def _run_epoch(
                     loss.backward()
                     grad_norm = _gradient_norm(model)
                     optimizer.step()
-            for key in ("loss", "sum_rate", "weighted_sum_rate", "power_violation", "constant_modulus_violation", "precoder_norm"):
+            for key in ("loss", "sum_rate", "weighted_sum_rate", "power_violation", "constant_modulus_violation", "delta_norm_penalty", "precoder_norm"):
                 totals[key] += float(stats[key].item())
             totals["gradient_norm"] += grad_norm
             total_batches += 1
@@ -110,6 +113,7 @@ def train_model(
     device: str | None = None,
     resume: str | None = None,
     init_ckpt: str | None = None,
+    split_payload: dict[str, Any] | None = None,
     loss_fn: Callable[[dict[str, torch.Tensor], dict[str, torch.Tensor]], tuple[torch.Tensor, dict[str, torch.Tensor]]] | None = None,
 ) -> dict[str, Any]:
     """Train a beamforming model and save checkpoints and logs."""
@@ -128,6 +132,7 @@ def train_model(
                 snr_loss_weights={
                     float(item["snr"]): float(item["weight"]) for item in (config.snr_loss_weights or [])
                 } if config.snr_loss_weights else None,
+                lambda_delta=config.lambda_delta,
             )
         loss_fn = default_loss_fn
 
@@ -135,7 +140,11 @@ def train_model(
     amp_enabled = config.amp and device_obj.type == "cuda"
     scaler = torch.amp.GradScaler(device="cuda", enabled=amp_enabled) if device_obj.type == "cuda" else None
 
-    train_set, val_set = split_dataset(dataset, val_fraction=config.val_fraction, seed=config.seed)
+    if split_payload is None:
+        train_set, val_set = split_dataset(dataset, val_fraction=config.val_fraction, seed=config.seed)
+    else:
+        train_set = subset_from_split(dataset, split_payload, "train")
+        val_set = subset_from_split(dataset, split_payload, "val")
     train_loader = DataLoader(train_set, batch_size=config.batch_size, shuffle=True, num_workers=config.num_workers)
     val_loader = DataLoader(val_set, batch_size=config.batch_size, shuffle=False, num_workers=config.num_workers)
 
@@ -172,6 +181,7 @@ def train_model(
         "train_sum_rate",
         "train_power_violation",
         "train_constant_modulus_violation",
+        "train_delta_norm_penalty",
         "train_precoder_norm",
         "train_weighted_sum_rate",
         "train_gradient_norm",
@@ -181,6 +191,7 @@ def train_model(
         "val_weighted_sum_rate",
         "val_power_violation",
         "val_constant_modulus_violation",
+        "val_delta_norm_penalty",
         "val_precoder_norm",
         "val_gradient_norm",
         "val_learning_rate",
@@ -218,6 +229,7 @@ def train_model(
                 "train_sum_rate": train_stats["sum_rate"],
                 "train_power_violation": train_stats["power_violation"],
                 "train_constant_modulus_violation": train_stats["constant_modulus_violation"],
+                "train_delta_norm_penalty": train_stats["delta_norm_penalty"],
                 "train_precoder_norm": train_stats["precoder_norm"],
                 "train_weighted_sum_rate": train_stats["weighted_sum_rate"],
                 "train_gradient_norm": train_stats["gradient_norm"],
@@ -227,6 +239,7 @@ def train_model(
                 "val_weighted_sum_rate": val_stats["weighted_sum_rate"],
                 "val_power_violation": val_stats["power_violation"],
                 "val_constant_modulus_violation": val_stats["constant_modulus_violation"],
+                "val_delta_norm_penalty": val_stats["delta_norm_penalty"],
                 "val_precoder_norm": val_stats["precoder_norm"],
                 "val_gradient_norm": val_stats["gradient_norm"],
                 "val_learning_rate": val_stats["learning_rate"],
