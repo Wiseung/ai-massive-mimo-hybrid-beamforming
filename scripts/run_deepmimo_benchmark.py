@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Run a reproducible DeepMIMO smoke/quick benchmark across seeds."""
+"""Run a reproducible DeepMIMO benchmark across seeds."""
 
 from __future__ import annotations
 

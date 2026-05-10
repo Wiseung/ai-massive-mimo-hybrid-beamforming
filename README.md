@@ -329,6 +329,19 @@ The current quick benchmark output is:
 
 It explicitly reports `num_seeds=1`.
 
+The current full multi-seed benchmark output is:
+
+- `outputs/comparisons/deepmimo_full_multiseed/deepmimo_benchmark_summary.csv`
+- `outputs/comparisons/deepmimo_full_multiseed/deepmimo_benchmark_summary.md`
+
+This run now reports `num_seeds=3` with:
+
+- `mean_se = 0.7312 +- 0.0318`
+- `mean_gap_to_rzf = +2.15% +- 3.96%`
+- `mean_gap_to_strongest_reference = -0.65% +- 0.59%`
+
+It is still a small-scale benchmark on the currently available tensor shape `K=4`, `Nt=8`, `Nsc=1`, not a final massive-array DeepMIMO study.
+
 ### DeepMIMO Benchmark Commands
 
 Dataset analysis:
@@ -393,8 +406,10 @@ Current verified synthetic structured-model results:
 
 - `residual_rzf`: `mean_se = 5.5771`, `mean_gap_to_rzf ~= 0`
 - `unfolded_rzf`: `mean_se = 5.5858`, `mean_gap_to_rzf = +0.0816%`
+- `unfolded_wmmse_lite`: `mean_se = 5.7729`, `mean_gap_to_rzf = +9.31%`, `mean_gap_to_wmmse = -1.50%`
+- `residual_wmmse`: `mean_se = 5.8523`, effectively matching the current WMMSE teacher on the fair subset
 
-This means the unfolded model slightly improves over the residual model on the current synthetic benchmark, but neither result should be reframed as a general claim beyond this tested setup.
+This means `unfolded_rzf` slightly improves over `residual_rzf` but remains below `WMMSE`. It must not be described as outperforming `RZF` when a table shows a negative `gap_to_rzf`. The WMMSE-directed variants are the ones that move the learned family toward the strongest current reference.
 
 ## WMMSE Status
 
@@ -405,6 +420,13 @@ Current verified synthetic WMMSE result is stronger than `RZF` over the tested S
 - `mean_se = 5.9024`
 - stronger than `RZF` at `10/15/20 dB`
 
+The WMMSE iteration sweep now makes the SE-latency tradeoff explicit on the same fair synthetic subset:
+
+- `iter=5`: `mean_se = 5.8155`, `gap_to_full_wmmse = -0.66%`, `latency = 0.436 ms`
+- `iter=50`: `mean_se = 5.8540`, `latency = 4.394 ms`
+
+So the current low-latency WMMSE reference is not the absolute best SE point, but it is a strong Pareto point.
+
 This implementation should still be treated as a practical narrowband benchmark for the current setup, not as a complete hybrid / wideband WMMSE study.
 
 ## Current Negative Results
@@ -413,7 +435,8 @@ The following findings are currently negative and are kept explicitly in the doc
 
 - high-SNR loss weighting was largely ineffective
 - mixed RZF/ZF teacher provided only a very small gain
-- the synthetic high-SNR gap is still unresolved before the residual-RZF evaluation is applied
+- the synthetic high-SNR gap is not meaningfully improved by simple weighting or mixed teachers
+- `residual_rzf` and `unfolded_rzf` still remain materially below `WMMSE`
 - Sionna is not part of the current mainline acceptance path
 
 DeepMIMO v4 quickstart shape assumed by this repository:

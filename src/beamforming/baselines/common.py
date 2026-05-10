@@ -17,6 +17,33 @@ from beamforming.baselines.zf import zf_precoder
 from beamforming.metrics.sum_rate import multi_user_downlink_sum_rate, noise_variance_from_snr
 
 
+def get_digital_precoder(
+    method: str,
+    channel: torch.Tensor,
+    noise_var: float | torch.Tensor | None = None,
+) -> torch.Tensor:
+    """Return a digital precoder for a supported baseline method."""
+    if method == "mrt":
+        return mrt_precoder(channel)
+    if method == "zf":
+        return zf_precoder(channel)
+    if method == "rzf":
+        if noise_var is None:
+            raise ValueError("noise_var is required for rzf.")
+        return rzf_precoder(channel, noise_var=noise_var)
+    if method == "fd_zf":
+        return fd_zf_precoder(channel)
+    if method == "fd_rzf":
+        if noise_var is None:
+            raise ValueError("noise_var is required for fd_rzf.")
+        return fd_rzf_precoder(channel, noise_var=noise_var)
+    if method == "wmmse":
+        if noise_var is None:
+            raise ValueError("noise_var is required for wmmse.")
+        return wmmse_precoder(channel, noise_var=noise_var)
+    raise ValueError(f"Unsupported digital precoder method: {method}")
+
+
 def evaluate_baseline(
     method: str,
     channel: torch.Tensor,
@@ -27,18 +54,19 @@ def evaluate_baseline(
     start = time.perf_counter()
     analog = None
     digital = None
+    noise_var = float(noise_variance_from_snr(snr_db).item())
     if method == "mrt":
-        precoder = mrt_precoder(channel)
+        precoder = get_digital_precoder(method, channel)
     elif method == "zf":
-        precoder = zf_precoder(channel)
+        precoder = get_digital_precoder(method, channel)
     elif method == "rzf":
-        precoder = rzf_precoder(channel, noise_var=float(noise_variance_from_snr(snr_db).item()))
+        precoder = get_digital_precoder(method, channel, noise_var=noise_var)
     elif method == "fd_zf":
-        precoder = fd_zf_precoder(channel)
+        precoder = get_digital_precoder(method, channel)
     elif method == "fd_rzf":
-        precoder = fd_rzf_precoder(channel, noise_var=float(noise_variance_from_snr(snr_db).item()))
+        precoder = get_digital_precoder(method, channel, noise_var=noise_var)
     elif method == "wmmse":
-        precoder = wmmse_precoder(channel, noise_var=float(noise_variance_from_snr(snr_db).item()))
+        precoder = get_digital_precoder(method, channel, noise_var=noise_var)
     elif method == "dft":
         if num_rf_chains is None:
             raise ValueError("num_rf_chains is required for dft.")
@@ -50,8 +78,8 @@ def evaluate_baseline(
     else:
         raise ValueError(f"Unknown baseline method: {method}")
     runtime = time.perf_counter() - start
-    noise_var = noise_variance_from_snr(snr_db).to(channel.device)
-    sum_rate = multi_user_downlink_sum_rate(channel, precoder, noise_var)
+    noise_var_tensor = noise_variance_from_snr(snr_db).to(channel.device)
+    sum_rate = multi_user_downlink_sum_rate(channel, precoder, noise_var_tensor)
     return {
         "method": method,
         "precoder": precoder,

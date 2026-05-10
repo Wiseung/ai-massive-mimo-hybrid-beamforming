@@ -258,6 +258,19 @@ The evaluation path now reports:
 
 and the unified script `scripts/evaluate_all.py` produces one common CSV and one common SE-vs-SNR figure for baselines and learned models together.
 
+Under the current consistent metric definition,
+
+```text
+gap_to_reference = (method_se - reference_se) / reference_se
+```
+
+the synthetic model-family table now shows:
+
+- `WMMSE` as the strongest SE reference
+- `unfolded_rzf` slightly above `residual_rzf` but still below `WMMSE`
+- `unfolded_wmmse_lite` above `RZF` and closer to `WMMSE`
+- `residual_wmmse` effectively matching the current WMMSE teacher on the fair subset
+
 ### SNR Conditioning
 
 An ablation between conditioned and non-conditioned warm-started CNNs shows almost no difference on the current synthetic benchmark:
@@ -286,9 +299,11 @@ The table compares:
 
 The most important correction in this round was methodological. The original learned result was not only weak; it was also not summarized in the same form as the baseline SE-vs-SNR benchmark. Once the evaluation contract was unified, the repository could cleanly show both the weakness of the original CNN and the effectiveness of the improved warm-start pipeline.
 
-The final warm-started CNN is now a credible baseline learner. It is no longer collapsed, and it tracks the stronger classical methods closely across much of the tested range. However, RZF still remains the stronger method at higher SNR, so any claim that the learned model has surpassed classical baselines would be false.
+The final warm-started CNN is now a credible baseline learner. It is no longer collapsed, and it tracks the stronger classical methods closely across much of the tested range. However, once `WMMSE` is enabled, `RZF` is no longer the strongest reference. Any claim that the learned model has surpassed the strongest classical baseline would still be false unless it is evaluated against the same WMMSE reference on the same fair subset.
 
-On the synthetic benchmark, the remaining technical bottleneck is specifically the high-SNR region. Neither simple loss reweighting nor a mixed RZF/ZF teacher was enough to materially close the `15/20 dB` gap.
+On the synthetic benchmark, the remaining technical bottleneck is specifically the high-SNR region for the RZF-directed learned family. Neither simple loss reweighting nor a mixed RZF/ZF teacher was enough to materially close the `15/20 dB` gap. The more successful route in this round was to change the reference structure itself: WMMSE-directed distillation and WMMSE-lite unfolding move the learned family much closer to the strongest current reference.
+
+The WMMSE iteration sweep also makes the deployment trade-off explicit. A reduced-iteration point such as `iter=5` keeps the mean gap to full WMMSE within about `0.66%` while cutting latency dramatically relative to the full `iter=50` reference, which makes it a meaningful Pareto point in addition to the exact full-WMMSE reference.
 
 On the DeepMIMO side, the real progress in this round was executional rather than scientific: the adapter, download path, saved tensor, baseline smoke benchmark, and learned smoke benchmark all ran locally. However, because the current tensor is filtered and small in scope, those outputs should be treated as smoke evidence rather than as a mature DeepMIMO result section.
 
@@ -300,21 +315,21 @@ The next benchmark step is therefore not “more model complexity first”, but 
 4. contiguous user-location-style split evaluation
 5. residual/refinement learned models that can preserve classical structure at high SNR
 
-The current quick `v2` DeepMIMO benchmark still ran only `seed=1`, so the reported `std` entries remain `NaN`. This is correctly labeled in the exported summary and is not presented as a full multi-seed campaign.
+The earlier quick `v2` DeepMIMO benchmark still ran only `seed=1`, so those `std` entries remained `NaN`. That output is still correctly labeled as a smoke/engineering benchmark. In the current round, a non-quick full benchmark was run with `seeds = 1, 2, 3`, and the exported summary now reports `num_seeds = 3` together with non-NaN mean/std statistics.
 
 ## Limitations
 
 - the current DeepMIMO benchmark is a filtered smoke benchmark, not yet a full study
-- the current DeepMIMO multi-seed benchmark may run in `--quick` mode and must not be reported as a final campaign
+- the current DeepMIMO full benchmark is still limited to the available filtered tensor with `K=4`, `Nt=8`, `Nsc=1`
 - Sionna runtime remains optional and has not been validated in this session
 - the unfolded PGA model is still a scaffold, not a tuned unfolding baseline
 - the current AI models are still digital-only in the verified experiments
-- the WMMSE baseline remains scaffold-only and is intentionally excluded from reported benchmark numbers
+- the current WMMSE implementation is a narrowband digital-only MU-MISO baseline, not a complete hybrid / wideband WMMSE study
 
 ## Future Work
 
-1. Measure whether residual-RZF actually reduces the synthetic `15/20 dB` gap without degrading the low-SNR region.
-2. Turn the current filtered DeepMIMO smoke path into a better controlled benchmark with documented scenario slicing, split strategy, and multi-seed statistics.
-3. Complete and validate a real WMMSE baseline before reporting it.
-4. Revisit unfolding models after the residual/refinement family is benchmarked.
+1. Extend the current DeepMIMO benchmark beyond the available filtered `K=4`, `Nt=8`, `Nsc=1` tensor so the benchmark becomes more representative of a massive-array setting.
+2. Add a location-generalization discussion around random versus contiguous splits in the main result section.
+3. Study whether a reduced-iteration WMMSE operating point is the better deployment reference than full WMMSE once latency is weighted explicitly.
+4. Revisit unfolding models after the WMMSE-directed learned family is benchmarked more thoroughly.
 5. Revisit Sionna later for differentiable end-to-end links after the dataset-side benchmarks are mature.

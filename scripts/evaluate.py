@@ -24,11 +24,7 @@ from beamforming.evaluation import (
     get_eval_subset,
     get_eval_subset_from_payload,
 )
-from beamforming.models.cnn_beamformer import CNNBeamformer
-from beamforming.models.mlp_beamformer import MLPBeamformer
-from beamforming.models.residual_beamformer import ResidualRZFBeamformer
-from beamforming.models.unfolded_rzf import UnfoldedRZFBeamformer
-from beamforming.models.unfolded_pga import UnfoldedPGABeamformer
+from beamforming.models.factory import build_model
 
 
 def parse_args() -> argparse.Namespace:
@@ -48,54 +44,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--num-subcarriers", type=int, default=None)
     parser.add_argument("--narrowband", action="store_true")
     return parser.parse_args()
-
-
-def _build_model(model_cfg: dict, data_cfg: dict) -> torch.nn.Module:
-    common = {
-        "num_users": int(data_cfg["num_users"]),
-        "num_bs_ant": int(data_cfg["num_bs_ant"]),
-        "num_rf_chains": int(data_cfg["num_rf_chains"]),
-    }
-    if model_cfg["name"] == "mlp":
-        return MLPBeamformer(
-            hybrid=bool(model_cfg.get("hybrid", False)),
-            hidden_dims=model_cfg.get("hidden_dims"),
-            condition_on_snr=bool(model_cfg.get("condition_on_snr", False)),
-            snr_embed_dim=int(model_cfg.get("snr_embed_dim", 16)),
-            residual_to_mrt=bool(model_cfg.get("residual_to_mrt", True)),
-            **common,
-        )
-    if model_cfg["name"] == "cnn":
-        return CNNBeamformer(
-            hybrid=bool(model_cfg.get("hybrid", False)),
-            condition_on_snr=bool(model_cfg.get("condition_on_snr", False)),
-            snr_embed_dim=int(model_cfg.get("snr_embed_dim", 16)),
-            base_channels=int(model_cfg.get("base_channels", 32)),
-            pool_factor=int(model_cfg.get("pool_factor", 2)),
-            hidden_dims=model_cfg.get("hidden_dims"),
-            residual_to_mrt=bool(model_cfg.get("residual_to_mrt", True)),
-            **common,
-        )
-    if model_cfg["name"] == "unfolded_pga":
-        return UnfoldedPGABeamformer(num_layers=int(model_cfg.get("num_layers", 3)), **common)
-    if model_cfg["name"] == "unfolded_rzf":
-        return UnfoldedRZFBeamformer(
-            num_layers=int(model_cfg.get("num_layers", 3)),
-            alpha_init=float(model_cfg.get("alpha_init", 0.05)),
-            **common,
-        )
-    if model_cfg["name"] == "residual_rzf":
-        return ResidualRZFBeamformer(
-            condition_on_snr=bool(model_cfg.get("condition_on_snr", True)),
-            base_channels=int(model_cfg.get("base_channels", 32)),
-            pool_factor=int(model_cfg.get("pool_factor", 2)),
-            hidden_dims=model_cfg.get("hidden_dims"),
-            learnable_alpha=bool(model_cfg.get("learnable_alpha", True)),
-            alpha_init=float(model_cfg.get("alpha_init", 0.1)),
-            **common,
-        )
-    raise ValueError(f"Unsupported model: {model_cfg['name']}")
-
 
 def _load_dataset(args: argparse.Namespace):
     if args.dataset_type == "deepmimo" or args.scenario is not None:
@@ -133,7 +81,7 @@ def main() -> None:
     data_cfg.setdefault("num_users", dataset.channels.shape[-2])
     data_cfg.setdefault("num_bs_ant", dataset.channels.shape[-1])
     data_cfg.setdefault("num_rf_chains", min(data_cfg["num_users"], 4))
-    model = _build_model(config["model"], data_cfg)
+    model = build_model(config["model"], data_cfg)
     device = torch.device(args.device if args.device != "auto" else ("cuda" if torch.cuda.is_available() else "cpu"))
     checkpoint = torch.load(args.ckpt, map_location=device, weights_only=False)
     model.load_state_dict(checkpoint["model"], strict=False)
@@ -141,7 +89,12 @@ def main() -> None:
 
     learned_df = evaluate_model_by_snr(model, eval_subset, batch_size=config["evaluation"].get("batch_size", 256), device=device)
     learned_df["method"] = config["model"]["name"]
-    baseline_df = evaluate_baselines_by_snr(["mrt", "zf", "rzf", "dft", "fd_zf", "fd_rzf", "wmmse"], eval_subset, num_rf_chains=int(data_cfg["num_rf_chains"]))
+    baseline_df = evaluate_baselines_by_snr(
+        ["mrt", "zf", "rzf", "dft", "fd_zf", "fd_rzf", "wmmse"],
+        eval_subset,
+        num_rf_chains=int(data_cfg["num_rf_chains"]),
+        device=device,
+    )
     combined = pd.concat([baseline_df, learned_df[["method", "snr_db", "se", "runtime_sec"]]], ignore_index=True)
     combined = add_relative_gaps(combined)
     out_dir = Path(args.out)
@@ -151,10 +104,14 @@ def main() -> None:
     summary = {
         "mean_se": float(learned_df["se"].mean()),
         "se_by_snr": {str(row.snr_db): float(row.se) for row in learned_df.itertuples()},
-        "mean_relative_gap_to_rzf": float(
+        "reference_method": "rzf",
+        "gap_formula": "(method_se - reference_se) / reference_se",
+        "num_snr_points": int(combined["snr_db"].nunique()),
+        "high_snr_points_used": [10.0, 15.0, 20.0],
+        "mean_gap_to_rzf": float(
             combined[combined["method"] == config["model"]["name"]]["relative_gap_to_rzf"].mean()
         ),
-        "mean_relative_gap_to_best_baseline": float(
+        "mean_gap_to_best_baseline": float(
             combined[combined["method"] == config["model"]["name"]]["relative_gap_to_best_baseline"].mean()
         ),
         "mean_gap_to_strongest_reference": float(
@@ -175,6 +132,8 @@ def main() -> None:
             ]["relative_gap_to_rzf"].mean()
         ),
     }
+    summary["mean_relative_gap_to_rzf"] = summary["mean_gap_to_rzf"]
+    summary["mean_relative_gap_to_best_baseline"] = summary["mean_gap_to_best_baseline"]
     with open(out_dir / "summary.yaml", "w", encoding="utf-8") as handle:
         yaml.safe_dump(summary, handle)
     print(summary)

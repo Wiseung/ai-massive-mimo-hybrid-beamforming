@@ -1,0 +1,24 @@
+model:
+  name: unfolded_wmmse_lite
+  num_layers: 5
+  alpha_init: 0.03
+  init_method: wmmse
+  init_wmmse_iters: 2
+
+training:
+  epochs: 6
+  batch_size: 128
+  lr: 0.0005
+  weight_decay: 0.0
+  seed: 42
+  num_workers: 0
+  lambda_power: 0.01
+  lambda_const: 0.0
+  lambda_delta: 0.01
+  amp: true
+  val_fraction: 0.2
+  selection_metric: val_sum_rate
+  selection_mode: max
+
+evaluation:
+  batch_size: 128

@@ -6,6 +6,7 @@ import torch
 
 from beamforming.baselines.mrt import mrt_precoder
 from beamforming.baselines.rzf import rzf_precoder
+from beamforming.baselines.wmmse import wmmse_precoder
 from beamforming.baselines.zf import zf_precoder
 from beamforming.metrics.sum_rate import noise_variance_from_snr
 
@@ -24,11 +25,8 @@ def generate_rzf_target(channel: torch.Tensor, snr_db: torch.Tensor) -> torch.Te
     """Generate per-sample RZF teacher precoders with matched noise variance."""
     if channel.ndim == 2:
         channel = channel.unsqueeze(0)
-    noise_var = noise_variance_from_snr(snr_db).view(-1)
-    precoders = []
-    for idx in range(channel.size(0)):
-        precoders.append(rzf_precoder(channel[idx : idx + 1], noise_var=float(noise_var[idx].item())).squeeze(0))
-    return torch.stack(precoders, dim=0)
+    noise_var = noise_variance_from_snr(snr_db).to(channel.device).view(-1)
+    return rzf_precoder(channel, noise_var=noise_var)
 
 
 def generate_mixed_rzf_zf_target(channel: torch.Tensor, snr_db: torch.Tensor, threshold_db: float = 10.0) -> torch.Tensor:
@@ -52,6 +50,14 @@ def generate_best_baseline_target(channel: torch.Tensor, snr_db: torch.Tensor) -
     return torch.where(mask, zf, rzf)
 
 
+def generate_wmmse_target(channel: torch.Tensor, snr_db: torch.Tensor, max_iter: int = 30) -> torch.Tensor:
+    """Generate per-sample WMMSE teacher precoders with matched noise variance."""
+    if channel.ndim == 2:
+        channel = channel.unsqueeze(0)
+    noise_var = noise_variance_from_snr(snr_db).to(channel.device).view(-1)
+    return wmmse_precoder(channel, noise_var=noise_var, max_iter=max_iter)
+
+
 def get_teacher_target(channel: torch.Tensor, snr_db: torch.Tensor, teacher: str) -> torch.Tensor:
     """Dispatch teacher target generation by name."""
     if teacher == "mrt":
@@ -64,4 +70,6 @@ def get_teacher_target(channel: torch.Tensor, snr_db: torch.Tensor, teacher: str
         return generate_mixed_rzf_zf_target(channel, snr_db)
     if teacher == "best_of_rzf_zf":
         return generate_best_baseline_target(channel, snr_db)
+    if teacher == "wmmse":
+        return generate_wmmse_target(channel, snr_db)
     raise ValueError(f"Unsupported teacher: {teacher}")

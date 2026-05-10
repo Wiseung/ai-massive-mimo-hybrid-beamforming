@@ -17,10 +17,7 @@ add_src_to_path()
 from beamforming.data.dataset import load_channel_dataset
 from beamforming.data.deepmimo_loader import load_deepmimo_dataset
 from beamforming.data.splits import load_dataset_split
-from beamforming.models.cnn_beamformer import CNNBeamformer
-from beamforming.models.mlp_beamformer import MLPBeamformer
-from beamforming.models.residual_beamformer import ResidualRZFBeamformer
-from beamforming.models.unfolded_rzf import UnfoldedRZFBeamformer
+from beamforming.models.factory import build_model
 from beamforming.models.unfolded_pga import UnfoldedPGABeamformer
 from beamforming.training.trainer import TrainerConfig, train_model
 
@@ -43,55 +40,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--num-subcarriers", type=int, default=None)
     parser.add_argument("--narrowband", action="store_true")
     return parser.parse_args()
-
-
-def _build_model(model_cfg: dict, data_cfg: dict) -> torch.nn.Module:
-    name = model_cfg["name"]
-    common = {
-        "num_users": int(data_cfg["num_users"]),
-        "num_bs_ant": int(data_cfg["num_bs_ant"]),
-        "num_rf_chains": int(data_cfg["num_rf_chains"]),
-    }
-    if name == "mlp":
-        return MLPBeamformer(
-            hybrid=bool(model_cfg.get("hybrid", False)),
-            hidden_dims=model_cfg.get("hidden_dims"),
-            condition_on_snr=bool(model_cfg.get("condition_on_snr", False)),
-            snr_embed_dim=int(model_cfg.get("snr_embed_dim", 16)),
-            residual_to_mrt=bool(model_cfg.get("residual_to_mrt", True)),
-            **common,
-        )
-    if name == "cnn":
-        return CNNBeamformer(
-            hybrid=bool(model_cfg.get("hybrid", False)),
-            condition_on_snr=bool(model_cfg.get("condition_on_snr", False)),
-            snr_embed_dim=int(model_cfg.get("snr_embed_dim", 16)),
-            base_channels=int(model_cfg.get("base_channels", 32)),
-            pool_factor=int(model_cfg.get("pool_factor", 2)),
-            hidden_dims=model_cfg.get("hidden_dims"),
-            residual_to_mrt=bool(model_cfg.get("residual_to_mrt", True)),
-            **common,
-        )
-    if name == "unfolded_pga":
-        return UnfoldedPGABeamformer(num_layers=int(model_cfg.get("num_layers", 3)), **common)
-    if name == "unfolded_rzf":
-        return UnfoldedRZFBeamformer(
-            num_layers=int(model_cfg.get("num_layers", 3)),
-            alpha_init=float(model_cfg.get("alpha_init", 0.05)),
-            **common,
-        )
-    if name == "residual_rzf":
-        return ResidualRZFBeamformer(
-            condition_on_snr=bool(model_cfg.get("condition_on_snr", True)),
-            base_channels=int(model_cfg.get("base_channels", 32)),
-            pool_factor=int(model_cfg.get("pool_factor", 2)),
-            hidden_dims=model_cfg.get("hidden_dims"),
-            learnable_alpha=bool(model_cfg.get("learnable_alpha", True)),
-            alpha_init=float(model_cfg.get("alpha_init", 0.1)),
-            **common,
-        )
-    raise ValueError(f"Unsupported model name: {name}")
-
 
 def _load_dataset(args: argparse.Namespace):
     if args.dataset_type == "deepmimo" or args.scenario is not None:
@@ -119,7 +67,7 @@ def main() -> None:
     data_cfg.setdefault("num_users", dataset.channels.shape[-2])
     data_cfg.setdefault("num_bs_ant", dataset.channels.shape[-1])
     data_cfg.setdefault("num_rf_chains", min(data_cfg["num_users"], 4))
-    model = _build_model(config["model"], data_cfg)
+    model = build_model(config["model"], data_cfg)
     trainer_field_names = {field.name for field in fields(TrainerConfig)}
     trainer_kwargs = {key: value for key, value in config["training"].items() if key in trainer_field_names}
     trainer_cfg = TrainerConfig(**trainer_kwargs)

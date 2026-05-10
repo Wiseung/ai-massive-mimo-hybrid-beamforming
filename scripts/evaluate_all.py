@@ -25,10 +25,7 @@ from beamforming.evaluation import (
     get_eval_subset_from_payload,
     save_comparison_outputs,
 )
-from beamforming.models.cnn_beamformer import CNNBeamformer
-from beamforming.models.mlp_beamformer import MLPBeamformer
-from beamforming.models.residual_beamformer import ResidualRZFBeamformer
-from beamforming.models.unfolded_rzf import UnfoldedRZFBeamformer
+from beamforming.models.factory import build_model
 
 
 def parse_args() -> argparse.Namespace:
@@ -63,52 +60,6 @@ def _load_dataset(args: argparse.Namespace):
         raise ValueError("--data is required for non-DeepMIMO evaluation.")
     return load_channel_dataset(args.data)
 
-
-def _build_model(model_cfg: dict, data_cfg: dict) -> torch.nn.Module:
-    common = {
-        "num_users": int(data_cfg["num_users"]),
-        "num_bs_ant": int(data_cfg["num_bs_ant"]),
-        "num_rf_chains": int(data_cfg["num_rf_chains"]),
-    }
-    if model_cfg["name"] == "cnn":
-        return CNNBeamformer(
-            hybrid=bool(model_cfg.get("hybrid", False)),
-            condition_on_snr=bool(model_cfg.get("condition_on_snr", False)),
-            snr_embed_dim=int(model_cfg.get("snr_embed_dim", 16)),
-            base_channels=int(model_cfg.get("base_channels", 32)),
-            pool_factor=int(model_cfg.get("pool_factor", 2)),
-            hidden_dims=model_cfg.get("hidden_dims"),
-            residual_to_mrt=bool(model_cfg.get("residual_to_mrt", True)),
-            **common,
-        )
-    if model_cfg["name"] == "mlp":
-        return MLPBeamformer(
-            hybrid=bool(model_cfg.get("hybrid", False)),
-            hidden_dims=model_cfg.get("hidden_dims"),
-            condition_on_snr=bool(model_cfg.get("condition_on_snr", False)),
-            snr_embed_dim=int(model_cfg.get("snr_embed_dim", 16)),
-            residual_to_mrt=bool(model_cfg.get("residual_to_mrt", True)),
-            **common,
-        )
-    if model_cfg["name"] == "residual_rzf":
-        return ResidualRZFBeamformer(
-            condition_on_snr=bool(model_cfg.get("condition_on_snr", True)),
-            base_channels=int(model_cfg.get("base_channels", 32)),
-            pool_factor=int(model_cfg.get("pool_factor", 2)),
-            hidden_dims=model_cfg.get("hidden_dims"),
-            learnable_alpha=bool(model_cfg.get("learnable_alpha", True)),
-            alpha_init=float(model_cfg.get("alpha_init", 0.1)),
-            **common,
-        )
-    if model_cfg["name"] == "unfolded_rzf":
-        return UnfoldedRZFBeamformer(
-            num_layers=int(model_cfg.get("num_layers", 3)),
-            alpha_init=float(model_cfg.get("alpha_init", 0.05)),
-            **common,
-        )
-    raise ValueError(f"Unsupported learned model for evaluate_all: {model_cfg['name']}")
-
-
 def _dataset_prefix(args: argparse.Namespace) -> str:
     return "deepmimo" if args.dataset_type == "deepmimo" or args.scenario is not None else "synthetic"
 
@@ -124,9 +75,17 @@ def _default_learned_artifacts(prefix: str) -> dict[str, dict[str, Path]]:
                 "config": Path("configs/deepmimo_residual_rzf.yaml"),
                 "ckpt": Path("outputs/runs/deepmimo_residual_rzf/best.pt"),
             },
+            "residual_wmmse": {
+                "config": Path("configs/deepmimo_residual_wmmse.yaml"),
+                "ckpt": Path("outputs/runs/deepmimo_residual_wmmse/best.pt"),
+            },
             "unfolded_rzf": {
                 "config": Path("configs/deepmimo_unfolded_rzf.yaml"),
                 "ckpt": Path("outputs/runs/deepmimo_unfolded_rzf/best.pt"),
+            },
+            "unfolded_wmmse_lite": {
+                "config": Path("configs/deepmimo_unfolded_wmmse_lite.yaml"),
+                "ckpt": Path("outputs/runs/deepmimo_unfolded_wmmse_lite/best.pt"),
             },
         }
     return {
@@ -138,9 +97,17 @@ def _default_learned_artifacts(prefix: str) -> dict[str, dict[str, Path]]:
                 "config": Path("configs/synthetic_residual_rzf.yaml"),
                 "ckpt": Path("outputs/runs/synthetic_residual_rzf/best.pt"),
             },
+            "residual_wmmse": {
+                "config": Path("configs/synthetic_residual_wmmse.yaml"),
+                "ckpt": Path("outputs/runs/synthetic_residual_wmmse_finetune/best.pt"),
+            },
             "unfolded_rzf": {
                 "config": Path("configs/synthetic_unfolded_rzf.yaml"),
                 "ckpt": Path("outputs/runs/synthetic_unfolded_rzf/best.pt"),
+            },
+            "unfolded_wmmse_lite": {
+                "config": Path("configs/synthetic_unfolded_wmmse_lite.yaml"),
+                "ckpt": Path("outputs/runs/synthetic_unfolded_wmmse_lite/best.pt"),
             },
         }
 
@@ -155,7 +122,7 @@ def _evaluate_learned_method(
 ) -> pd.DataFrame:
     with config_path.open("r", encoding="utf-8") as handle:
         config = yaml.safe_load(handle)
-    model = _build_model(config["model"], data_cfg)
+    model = build_model(config["model"], data_cfg)
     checkpoint = torch.load(ckpt_path, map_location=device, weights_only=False)
     model.load_state_dict(checkpoint["model"], strict=False)
     model = model.to(device)
@@ -173,8 +140,9 @@ def main() -> None:
     args = parse_args()
     dataset = _load_dataset(args)
     methods = args.methods
-    learned_methods = [m for m in methods if m in {"cnn", "mlp", "residual_rzf", "unfolded_rzf"}]
-    baseline_methods = [m for m in methods if m not in {"cnn", "mlp", "residual_rzf", "unfolded_rzf"}]
+    learned_method_set = {"cnn", "mlp", "residual_rzf", "residual_wmmse", "unfolded_rzf", "unfolded_wmmse_lite"}
+    learned_methods = [m for m in methods if m in learned_method_set]
+    baseline_methods = [m for m in methods if m not in learned_method_set]
     combined_frames: list[pd.DataFrame] = []
     split_payload = load_dataset_split(args.split) if args.split else None
 
@@ -207,7 +175,15 @@ def main() -> None:
         data_cfg.setdefault("num_rf_chains", min(data_cfg["num_users"], 4))
 
     if baseline_methods:
-        combined_frames.append(evaluate_baselines_by_snr(baseline_methods, eval_subset, num_rf_chains=int(data_cfg["num_rf_chains"])))
+        baseline_device = torch.device(args.device if args.device != "auto" else ("cuda" if torch.cuda.is_available() else "cpu"))
+        combined_frames.append(
+            evaluate_baselines_by_snr(
+                baseline_methods,
+                eval_subset,
+                num_rf_chains=int(data_cfg["num_rf_chains"]),
+                device=baseline_device,
+            )
+        )
 
     if learned_methods:
         if args.ckpt is None or primary_config is None or primary_method is None:
@@ -256,6 +232,10 @@ def main() -> None:
         learned_df = combined[combined["method"] == learned_method]
         summary = {
             "method": learned_method,
+            "reference_method": "rzf",
+            "gap_formula": "(method_se - reference_se) / reference_se",
+            "num_snr_points": int(combined["snr_db"].nunique()),
+            "high_snr_points_used": [10.0, 15.0, 20.0],
             "mean_se": float(learned_df["se"].mean()),
             "mean_gap_to_rzf": float(learned_df["relative_gap_to_rzf"].mean()),
             "mean_gap_to_best_baseline": float(learned_df["relative_gap_to_best_baseline"].mean()),
@@ -266,6 +246,8 @@ def main() -> None:
             "mean_gap_high_snr": float(learned_df[learned_df["snr_db"].isin([10.0, 15.0, 20.0])]["relative_gap_to_rzf"].mean()),
             "evaluated_methods": sorted(combined["method"].unique().tolist()),
         }
+        summary["mean_relative_gap_to_rzf"] = summary["mean_gap_to_rzf"]
+        summary["mean_relative_gap_to_best_baseline"] = summary["mean_gap_to_best_baseline"]
         with open(Path(args.out) / "summary.yaml", "w", encoding="utf-8") as handle:
             yaml.safe_dump(summary, handle)
     print(f"Saved unified comparison CSV to {csv_path}")

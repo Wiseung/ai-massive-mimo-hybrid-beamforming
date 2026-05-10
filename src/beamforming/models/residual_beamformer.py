@@ -1,4 +1,4 @@
-"""Residual refinement beamformer around an RZF prior."""
+"""Residual refinement beamformer around a classical digital prior."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import math
 
 import torch
 
+from beamforming.baselines.common import get_digital_precoder
 from beamforming.baselines.rzf import rzf_precoder
 from beamforming.metrics.sum_rate import noise_variance_from_snr
 from beamforming.models.constraints import power_normalization
@@ -13,13 +14,14 @@ from beamforming.utils.complex_ops import complex_to_real, real_to_complex
 
 
 class ResidualRZFBeamformer(torch.nn.Module):
-    """Predict a residual on top of an RZF precoder."""
+    """Predict a residual on top of a classical digital precoder."""
 
     def __init__(
         self,
         num_users: int,
         num_bs_ant: int,
         num_rf_chains: int,
+        base_method: str = "rzf",
         condition_on_snr: bool = True,
         base_channels: int = 32,
         pool_factor: int = 2,
@@ -31,6 +33,7 @@ class ResidualRZFBeamformer(torch.nn.Module):
         self.num_users = num_users
         self.num_bs_ant = num_bs_ant
         self.num_rf_chains = num_rf_chains
+        self.base_method = base_method
         self.condition_on_snr = condition_on_snr
         self.learnable_alpha = learnable_alpha
         hidden_dims = hidden_dims or [1024, 512]
@@ -81,7 +84,7 @@ class ResidualRZFBeamformer(torch.nn.Module):
 
         batch_size = channel_real.size(0)
         noise_var = noise_variance_from_snr(snr_db).to(channel_real.device)
-        base_precoder = rzf_precoder(channel_complex, noise_var=noise_var)
+        base_precoder = self._base_precoder(channel_complex, noise_var)
         base_feature = complex_to_real(base_precoder.transpose(-2, -1))
         features = torch.cat([channel_real, base_feature], dim=1)
         if self.condition_on_snr:
@@ -98,8 +101,16 @@ class ResidualRZFBeamformer(torch.nn.Module):
             "base_precoder": base_precoder,
             "delta_precoder": delta_precoder,
             "alpha": alpha,
+            "base_method": self.base_method,
             "base_precoder_norm": torch.mean(torch.sqrt((torch.abs(base_precoder) ** 2).sum(dim=(-2, -1)).clamp_min(1e-12))),
             "delta_precoder_norm": torch.mean(
                 torch.sqrt((torch.abs(delta_precoder) ** 2).sum(dim=(-2, -1)).clamp_min(1e-12))
             ),
         }
+
+    def _base_precoder(self, channel_complex: torch.Tensor, noise_var: torch.Tensor) -> torch.Tensor:
+        if self.base_method == "rzf":
+            return rzf_precoder(channel_complex, noise_var=noise_var)
+        if self.base_method in {"wmmse", "zf", "mrt"}:
+            return get_digital_precoder(self.base_method, channel_complex, noise_var=noise_var)
+        raise ValueError(f"Unsupported base_method for ResidualRZFBeamformer: {self.base_method}")

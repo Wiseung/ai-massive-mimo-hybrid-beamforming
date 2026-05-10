@@ -92,13 +92,23 @@ def evaluate_baselines_by_snr(
     return pd.DataFrame(rows)
 
 
-def add_relative_gaps(df: pd.DataFrame, reference_method: str = "rzf") -> pd.DataFrame:
-    """Compute relative gaps against RZF and best baseline for each SNR."""
+def gap_to_reference(method_se: pd.Series, reference_se: pd.Series) -> pd.Series:
+    """Canonical relative-gap definition used across the project."""
+    return (method_se - reference_se) / reference_se.abs().clip(lower=1e-12)
+
+
+def add_relative_gaps(
+    df: pd.DataFrame,
+    reference_method: str = "rzf",
+    strongest_reference_methods: tuple[str, ...] = ("mrt", "zf", "rzf", "dft", "omp", "fd_zf", "fd_rzf", "wmmse"),
+    high_snr_points: tuple[float, ...] = (10.0, 15.0, 20.0),
+) -> pd.DataFrame:
+    """Compute relative gaps against a reference and strongest baseline for each SNR."""
     result = df.copy()
-    ref = result[result["method"] == reference_method][["snr_db", "se"]].rename(columns={"se": "rzf_se"})
+    ref = result[result["method"] == reference_method][["snr_db", "se"]].rename(columns={"se": f"{reference_method}_se"})
     result = result.merge(ref, on="snr_db", how="left")
     baseline_best = (
-        result[result["method"].isin(["mrt", "zf", "rzf", "dft", "omp", "fd_zf", "fd_rzf", "wmmse"])]
+        result[result["method"].isin(strongest_reference_methods)]
         .groupby("snr_db", as_index=False)["se"]
         .max()
         .rename(columns={"se": "best_baseline_se"})
@@ -106,18 +116,23 @@ def add_relative_gaps(df: pd.DataFrame, reference_method: str = "rzf") -> pd.Dat
     result = result.merge(baseline_best, on="snr_db", how="left")
     strongest_reference = result.groupby("snr_db", as_index=False)["se"].max().rename(columns={"se": "strongest_reference_se"})
     result = result.merge(strongest_reference, on="snr_db", how="left")
-    result["relative_gap_to_rzf"] = (result["se"] - result["rzf_se"]) / result["rzf_se"].abs().clip(lower=1e-12)
-    result["relative_gap_to_best_baseline"] = (
-        (result["se"] - result["best_baseline_se"]) / result["best_baseline_se"].abs().clip(lower=1e-12)
+    ref_col = f"{reference_method}_se"
+    result["relative_gap_to_reference"] = gap_to_reference(result["se"], result[ref_col])
+    result["relative_gap_to_rzf"] = result["relative_gap_to_reference"] if reference_method == "rzf" else gap_to_reference(
+        result["se"],
+        result["rzf_se"] if "rzf_se" in result.columns else result[ref_col],
     )
-    result["relative_gap_to_strongest_reference"] = (
-        (result["se"] - result["strongest_reference_se"]) / result["strongest_reference_se"].abs().clip(lower=1e-12)
-    )
-    for snr_value in (10.0, 15.0, 20.0):
+    result["relative_gap_to_best_baseline"] = gap_to_reference(result["se"], result["best_baseline_se"])
+    result["relative_gap_to_strongest_reference"] = gap_to_reference(result["se"], result["strongest_reference_se"])
+    for snr_value in high_snr_points:
         col = f"gap_{int(snr_value)}db"
-        result[col] = result["relative_gap_to_rzf"].where(result["snr_db"] == snr_value)
-    high_mask = result["snr_db"].isin([10.0, 15.0, 20.0])
-    result["mean_gap_high_snr"] = result["relative_gap_to_rzf"].where(high_mask)
+        result[col] = result["relative_gap_to_reference"].where(result["snr_db"] == snr_value)
+    high_mask = result["snr_db"].isin(list(high_snr_points))
+    result["mean_gap_high_snr"] = result["relative_gap_to_reference"].where(high_mask)
+    result["reference_method"] = reference_method
+    result["gap_formula"] = "(method_se - reference_se) / reference_se"
+    result["num_snr_points"] = result["snr_db"].nunique()
+    result["high_snr_points_used"] = ",".join(str(int(point)) if float(point).is_integer() else str(point) for point in high_snr_points)
     return result
 
 
