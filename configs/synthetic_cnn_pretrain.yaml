@@ -1,22 +1,22 @@
 model:
   name: cnn
   hybrid: false
-  condition_on_snr: false
+  condition_on_snr: true
   snr_embed_dim: 16
-  base_channels: 16
-  pool_factor: 4
-  hidden_dims: [256]
-  residual_to_mrt: false
+  base_channels: 32
+  pool_factor: 2
+  hidden_dims: [1024, 512]
+  residual_to_mrt: true
 
 training:
-  epochs: 5
+  epochs: 8
   batch_size: 256
   lr: 0.001
   weight_decay: 0.0
   seed: 42
   num_workers: 0
-  lambda_power: 0.01
-  lambda_const: 0.01
+  lambda_power: 0.0
+  lambda_const: 0.0
   amp: true
   val_fraction: 0.1
 

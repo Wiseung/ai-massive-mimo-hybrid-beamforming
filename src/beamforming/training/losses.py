@@ -22,6 +22,7 @@ def beamforming_loss(
     sum_rate = multi_user_downlink_sum_rate(channel, precoder, noise_var)
     power = (torch.abs(precoder) ** 2).sum(dim=(-2, -1))
     power_violation = torch.mean((power - 1.0) ** 2)
+    precoder_norm = torch.mean(torch.sqrt(power.clamp_min(1e-12)))
 
     const_violation = torch.tensor(0.0, device=channel.device)
     if "analog_precoder" in outputs:
@@ -35,5 +36,6 @@ def beamforming_loss(
         "sum_rate": sum_rate.mean().detach(),
         "power_violation": power_violation.detach(),
         "constant_modulus_violation": const_violation.detach(),
+        "precoder_norm": precoder_norm.detach(),
     }
     return loss, stats

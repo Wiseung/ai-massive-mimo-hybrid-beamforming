@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Train an AI beamformer on a saved dataset."""
+"""Supervised pretraining for learned beamformers using classical teachers."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from beamforming.data.dataset import load_channel_dataset
 from beamforming.data.deepmimo_loader import load_deepmimo_dataset
 from beamforming.models.cnn_beamformer import CNNBeamformer
 from beamforming.models.mlp_beamformer import MLPBeamformer
-from beamforming.models.unfolded_pga import UnfoldedPGABeamformer
+from beamforming.training.supervised_targets import get_teacher_target
 from beamforming.training.trainer import TrainerConfig, train_model
 
 
@@ -26,38 +26,37 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
     parser.add_argument("--data", default=None)
+    parser.add_argument("--teacher", choices=["mrt", "zf", "rzf"], required=True)
     parser.add_argument("--out", required=True)
-    parser.add_argument("--resume", default=None)
-    parser.add_argument("--init-ckpt", default=None)
-    parser.add_argument("--device", default="auto")
     parser.add_argument("--dataset-type", choices=["auto", "tensor", "deepmimo"], default="auto")
-    parser.add_argument("--bs-idx", type=int, default=0)
-    parser.add_argument("--deepmimo-users", type=int, default=4)
-    parser.add_argument("--subcarrier-idx", type=int, default=None)
     parser.add_argument("--scenario", default=None)
     parser.add_argument("--download", action="store_true")
-    parser.add_argument("--num-subcarriers", type=int, default=None)
-    parser.add_argument("--narrowband", action="store_true")
+    parser.add_argument("--num-users", type=int, default=4)
+    parser.add_argument("--device", default="auto")
     return parser.parse_args()
 
 
+def _load_dataset(args: argparse.Namespace):
+    if args.dataset_type == "deepmimo" or args.scenario is not None:
+        return load_deepmimo_dataset(
+            scenario_path=args.data,
+            scenario=args.scenario,
+            download=args.download,
+            num_users=args.num_users,
+            narrowband=True,
+        )
+    if args.data is None:
+        raise ValueError("--data is required for non-DeepMIMO pretraining.")
+    return load_channel_dataset(args.data)
+
+
 def _build_model(model_cfg: dict, data_cfg: dict) -> torch.nn.Module:
-    name = model_cfg["name"]
     common = {
         "num_users": int(data_cfg["num_users"]),
         "num_bs_ant": int(data_cfg["num_bs_ant"]),
         "num_rf_chains": int(data_cfg["num_rf_chains"]),
     }
-    if name == "mlp":
-        return MLPBeamformer(
-            hybrid=bool(model_cfg.get("hybrid", False)),
-            hidden_dims=model_cfg.get("hidden_dims"),
-            condition_on_snr=bool(model_cfg.get("condition_on_snr", False)),
-            snr_embed_dim=int(model_cfg.get("snr_embed_dim", 16)),
-            residual_to_mrt=bool(model_cfg.get("residual_to_mrt", True)),
-            **common,
-        )
-    if name == "cnn":
+    if model_cfg["name"] == "cnn":
         return CNNBeamformer(
             hybrid=bool(model_cfg.get("hybrid", False)),
             condition_on_snr=bool(model_cfg.get("condition_on_snr", False)),
@@ -68,26 +67,16 @@ def _build_model(model_cfg: dict, data_cfg: dict) -> torch.nn.Module:
             residual_to_mrt=bool(model_cfg.get("residual_to_mrt", True)),
             **common,
         )
-    if name == "unfolded_pga":
-        return UnfoldedPGABeamformer(num_layers=int(model_cfg.get("num_layers", 3)), **common)
-    raise ValueError(f"Unsupported model name: {name}")
-
-
-def _load_dataset(args: argparse.Namespace):
-    if args.dataset_type == "deepmimo" or args.scenario is not None:
-        return load_deepmimo_dataset(
-            scenario_path=args.data,
-            scenario=args.scenario,
-            download=args.download,
-            bs_idx=args.bs_idx,
-            num_users=args.deepmimo_users,
-            subcarrier_idx=args.subcarrier_idx,
-            num_subcarriers=args.num_subcarriers,
-            narrowband=args.narrowband or args.num_subcarriers in (None, 1),
+    if model_cfg["name"] == "mlp":
+        return MLPBeamformer(
+            hybrid=bool(model_cfg.get("hybrid", False)),
+            hidden_dims=model_cfg.get("hidden_dims"),
+            condition_on_snr=bool(model_cfg.get("condition_on_snr", False)),
+            snr_embed_dim=int(model_cfg.get("snr_embed_dim", 16)),
+            residual_to_mrt=bool(model_cfg.get("residual_to_mrt", True)),
+            **common,
         )
-    if args.data is None:
-        raise ValueError("--data is required for non-DeepMIMO training.")
-    return load_channel_dataset(args.data)
+    raise ValueError(f"Unsupported model for pretraining: {model_cfg['name']}")
 
 
 def main() -> None:
@@ -103,19 +92,33 @@ def main() -> None:
     trainer_field_names = {field.name for field in fields(TrainerConfig)}
     trainer_kwargs = {key: value for key, value in config["training"].items() if key in trainer_field_names}
     trainer_cfg = TrainerConfig(**trainer_kwargs)
+
+    def pretrain_loss(batch: dict[str, torch.Tensor], outputs: dict[str, torch.Tensor]):
+        target = get_teacher_target(batch["channel"], batch["snr_db"], args.teacher)
+        error = outputs["precoder"] - target
+        mse = torch.mean(torch.abs(error) ** 2)
+        precoder_power = (torch.abs(outputs["precoder"]) ** 2).sum(dim=(-2, -1))
+        stats = {
+            "loss": mse.detach(),
+            "sum_rate": torch.tensor(0.0, device=batch["channel"].device),
+            "power_violation": torch.mean((precoder_power - 1.0) ** 2).detach(),
+            "constant_modulus_violation": torch.tensor(0.0, device=batch["channel"].device),
+            "precoder_norm": torch.mean(torch.sqrt(precoder_power.clamp_min(1e-12))).detach(),
+        }
+        return mse, stats
+
     result = train_model(
         model,
         dataset,
         trainer_cfg,
         out_dir=args.out,
         device=args.device,
-        resume=args.resume,
-        init_ckpt=args.init_ckpt,
+        loss_fn=pretrain_loss,
     )
     Path(args.out).mkdir(parents=True, exist_ok=True)
-    with open(Path(args.out) / "train_summary.yaml", "w", encoding="utf-8") as handle:
-        yaml.safe_dump(result, handle)
-    print("Training complete.")
+    with open(Path(args.out) / "pretrain_summary.yaml", "w", encoding="utf-8") as handle:
+        yaml.safe_dump({"teacher": args.teacher, **result}, handle)
+    print("Pretraining complete.")
     print(result)
 
 

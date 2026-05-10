@@ -5,13 +5,14 @@ from __future__ import annotations
 import csv
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import torch
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
+from beamforming.data.dataset import split_dataset
 from beamforming.training.losses import beamforming_loss
 from beamforming.utils.seed import set_seed
 
@@ -36,6 +37,14 @@ def _prepare_device(device: str | None = None) -> torch.device:
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
+def _gradient_norm(model: torch.nn.Module) -> float:
+    total = 0.0
+    for param in model.parameters():
+        if param.grad is not None:
+            total += float(param.grad.detach().norm(2).item() ** 2)
+    return total ** 0.5
+
+
 def _run_epoch(
     model: torch.nn.Module,
     loader: DataLoader,
@@ -45,42 +54,47 @@ def _run_epoch(
     amp_enabled: bool,
     lambda_power: float,
     lambda_const: float,
+    loss_fn: Callable[[dict[str, torch.Tensor], dict[str, torch.Tensor]], tuple[torch.Tensor, dict[str, torch.Tensor]]],
 ) -> dict[str, float]:
     train_mode = optimizer is not None
     model.train(train_mode)
-    total_loss = 0.0
-    total_sum_rate = 0.0
+    totals: dict[str, float] = {
+        "loss": 0.0,
+        "sum_rate": 0.0,
+        "power_violation": 0.0,
+        "constant_modulus_violation": 0.0,
+        "precoder_norm": 0.0,
+        "gradient_norm": 0.0,
+    }
     total_batches = 0
     for batch in tqdm(loader, leave=False):
-        channel = batch["channel"].to(device)
-        channel_real = batch["channel_real"].to(device)
-        snr_db = batch["snr_db"].to(device)
+        batch = {key: value.to(device) if isinstance(value, torch.Tensor) else value for key, value in batch.items()}
         with torch.set_grad_enabled(train_mode):
             with torch.amp.autocast(device_type=device.type, enabled=amp_enabled):
-                outputs = model(channel_real)
-                loss, stats = beamforming_loss(
-                    channel=channel,
-                    outputs=outputs,
-                    snr_db=snr_db,
-                    lambda_power=lambda_power,
-                    lambda_const=lambda_const,
-                )
+                outputs = model(batch["channel_real"], snr_db=batch["snr_db"], channel_complex=batch["channel"])
+                loss, stats = loss_fn(batch, outputs)
+            grad_norm = 0.0
             if train_mode:
                 optimizer.zero_grad(set_to_none=True)
                 if scaler is not None and amp_enabled:
                     scaler.scale(loss).backward()
+                    scaler.unscale_(optimizer)
+                    grad_norm = _gradient_norm(model)
                     scaler.step(optimizer)
                     scaler.update()
                 else:
                     loss.backward()
+                    grad_norm = _gradient_norm(model)
                     optimizer.step()
-        total_loss += float(stats["loss"].item())
-        total_sum_rate += float(stats["sum_rate"].item())
-        total_batches += 1
+            for key in ("loss", "sum_rate", "power_violation", "constant_modulus_violation", "precoder_norm"):
+                totals[key] += float(stats[key].item())
+            totals["gradient_norm"] += grad_norm
+            total_batches += 1
+    lr = optimizer.param_groups[0]["lr"] if optimizer is not None else 0.0
     return {
-        "loss": total_loss / max(total_batches, 1),
-        "sum_rate": total_sum_rate / max(total_batches, 1),
-    }
+        key: value / max(total_batches, 1)
+        for key, value in totals.items()
+    } | {"learning_rate": lr}
 
 
 def train_model(
@@ -90,24 +104,30 @@ def train_model(
     out_dir: str | Path,
     device: str | None = None,
     resume: str | None = None,
+    init_ckpt: str | None = None,
+    loss_fn: Callable[[dict[str, torch.Tensor], dict[str, torch.Tensor]], tuple[torch.Tensor, dict[str, torch.Tensor]]] | None = None,
 ) -> dict[str, Any]:
     """Train a beamforming model and save checkpoints and logs."""
     out_path = Path(out_dir)
     out_path.mkdir(parents=True, exist_ok=True)
     set_seed(config.seed)
 
+    if loss_fn is None:
+        def default_loss_fn(batch: dict[str, torch.Tensor], outputs: dict[str, torch.Tensor]) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+            return beamforming_loss(
+                channel=batch["channel"],
+                outputs=outputs,
+                snr_db=batch["snr_db"],
+                lambda_power=config.lambda_power,
+                lambda_const=config.lambda_const,
+            )
+        loss_fn = default_loss_fn
+
     device_obj = _prepare_device(device)
     amp_enabled = config.amp and device_obj.type == "cuda"
     scaler = torch.amp.GradScaler(device="cuda", enabled=amp_enabled) if device_obj.type == "cuda" else None
 
-    total_len = len(dataset)
-    val_len = max(1, int(total_len * config.val_fraction))
-    train_len = total_len - val_len
-    train_set, val_set = random_split(
-        dataset,
-        [train_len, val_len],
-        generator=torch.Generator().manual_seed(config.seed),
-    )
+    train_set, val_set = split_dataset(dataset, val_fraction=config.val_fraction, seed=config.seed)
     train_loader = DataLoader(train_set, batch_size=config.batch_size, shuffle=True, num_workers=config.num_workers)
     val_loader = DataLoader(val_set, batch_size=config.batch_size, shuffle=False, num_workers=config.num_workers)
 
@@ -116,6 +136,9 @@ def train_model(
 
     start_epoch = 0
     best_val = float("-inf")
+    if init_ckpt:
+        init_state = torch.load(init_ckpt, map_location=device_obj, weights_only=False)
+        model.load_state_dict(init_state["model"], strict=False)
     if resume:
         checkpoint = torch.load(resume, map_location=device_obj, weights_only=False)
         model.load_state_dict(checkpoint["model"])
@@ -125,8 +148,24 @@ def train_model(
 
     writer = SummaryWriter(log_dir=str(out_path / "tensorboard"))
     csv_path = out_path / "train_log.csv"
+    fieldnames = [
+        "epoch",
+        "train_loss",
+        "train_sum_rate",
+        "train_power_violation",
+        "train_constant_modulus_violation",
+        "train_precoder_norm",
+        "train_gradient_norm",
+        "train_learning_rate",
+        "val_loss",
+        "val_sum_rate",
+        "val_power_violation",
+        "val_constant_modulus_violation",
+        "val_precoder_norm",
+        "val_gradient_norm",
+        "val_learning_rate",
+    ]
     with csv_path.open("a", newline="") as csv_file:
-        fieldnames = ["epoch", "train_loss", "train_sum_rate", "val_loss", "val_sum_rate"]
         writer_obj = csv.DictWriter(csv_file, fieldnames=fieldnames)
         if csv_file.tell() == 0:
             writer_obj.writeheader()
@@ -140,6 +179,7 @@ def train_model(
                 amp_enabled,
                 config.lambda_power,
                 config.lambda_const,
+                loss_fn,
             )
             val_stats = _run_epoch(
                 model,
@@ -150,13 +190,24 @@ def train_model(
                 amp_enabled=amp_enabled,
                 lambda_power=config.lambda_power,
                 lambda_const=config.lambda_const,
+                loss_fn=loss_fn,
             )
             row = {
                 "epoch": epoch,
                 "train_loss": train_stats["loss"],
                 "train_sum_rate": train_stats["sum_rate"],
+                "train_power_violation": train_stats["power_violation"],
+                "train_constant_modulus_violation": train_stats["constant_modulus_violation"],
+                "train_precoder_norm": train_stats["precoder_norm"],
+                "train_gradient_norm": train_stats["gradient_norm"],
+                "train_learning_rate": train_stats["learning_rate"],
                 "val_loss": val_stats["loss"],
                 "val_sum_rate": val_stats["sum_rate"],
+                "val_power_violation": val_stats["power_violation"],
+                "val_constant_modulus_violation": val_stats["constant_modulus_violation"],
+                "val_precoder_norm": val_stats["precoder_norm"],
+                "val_gradient_norm": val_stats["gradient_norm"],
+                "val_learning_rate": val_stats["learning_rate"],
             }
             writer_obj.writerow(row)
             csv_file.flush()

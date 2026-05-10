@@ -2,7 +2,7 @@
 
 ## Background
 
-This project studies AI-assisted hybrid beamforming and precoding for massive MIMO and mmWave downlink systems. The primary engineering objective is not maximum model complexity, but a reproducible baseline pipeline that can run end-to-end on a single RTX 5090 24GB GPU.
+This project targets AI-assisted beamforming and precoding for massive MIMO and mmWave downlink systems, with engineering priorities ordered as reproducibility, benchmark fairness, and runnable single-GPU training. The current work deliberately postponed Sionna-centric end-to-end expansion until the synthetic benchmark, classical baselines, and learned-model evaluation were all on solid footing.
 
 ## System Model
 
@@ -12,15 +12,15 @@ The current validated setup is a multi-user downlink MISO configuration with:
 - user count `K`
 - one stream per user
 - total transmit power normalized to `1`
-- spectral efficiency evaluated through achievable sum-rate
+- spectral efficiency computed as MU downlink achievable sum-rate
 
-For hybrid methods, the full precoder is composed as:
+Hybrid precoder composition follows:
 
 ```text
 F = F_RF F_BB
 ```
 
-with soft power normalization and constant-modulus projection.
+The learned models used in the verified synthetic experiments are digital-only, because that is the most stable route for fair comparison against MRT, ZF, and RZF teachers.
 
 ## Dataset
 
@@ -30,15 +30,24 @@ Implemented synthetic channel families:
 
 - IID Rayleigh narrowband channels
 - sparse geometric mmWave narrowband channels
-- simple wideband OFDM-like channels
+- simple OFDM-like channels
 
-The main validated benchmark used sparse geometric mmWave channels.
+The verified benchmark in this report uses the sparse geometric mmWave narrowband dataset with:
+
+- `10000` samples
+- `64` BS antennas
+- `4` users
+- SNR grid `[-10, -5, 0, 5, 10, 15, 20]`
 
 ### DeepMIMO
 
-DeepMIMO loading hooks were added, but the local dataset is not present.
+A DeepMIMO v4 adapter and smoke path were added. The expected install command is now:
 
-DeepMIMO experiments have not been run because the dataset is not present locally.
+```bash
+pip install deepmimo
+```
+
+DeepMIMO experiments have not been run locally in this session because the `deepmimo` package is not installed.
 
 ## Baselines
 
@@ -50,11 +59,16 @@ Implemented baselines:
 - DFT codebook hybrid precoding
 - OMP-style sparse hybrid precoding
 
-Observed behavior on the current synthetic benchmark:
+Verified synthetic baseline values:
 
-- low SNR: MRT and RZF are stronger than ZF
-- high SNR: ZF and RZF overtake MRT
-- OMP and DFT are slower and weaker than digital ZF/RZF in the current lightweight setup
+| Method | -10 dB | -5 dB | 0 dB | 5 dB | 10 dB | 15 dB | 20 dB |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| MRT | 0.1656 | 0.5158 | 1.3711 | 3.1612 | 6.2269 | 10.1118 | 13.8191 |
+| ZF | 0.1011 | 0.2970 | 0.8679 | 2.4394 | 5.6202 | 10.6454 | 16.1630 |
+| RZF | 0.1643 | 0.5053 | 1.3317 | 3.1028 | 6.3026 | 11.1583 | 16.4744 |
+| DFT | 0.1294 | 0.3962 | 1.0496 | 2.3661 | 4.5415 | 7.1965 | 9.7844 |
+
+RZF remains the strongest overall reference baseline in the verified synthetic setup.
 
 ## AI Models
 
@@ -62,51 +76,115 @@ Implemented AI models:
 
 - MLP beamformer
 - CNN beamformer
-- unfolded PGA scaffold with learnable step sizes
+- unfolded PGA scaffold
 
-The current CNN model is intentionally small. It is meant to prove training, evaluation, checkpointing, AMP, and reproducibility before scaling model capacity.
+The main improvement in this round was not introducing a bigger novel model, but fixing the evaluation contract and adding a two-stage teacher-guided training path.
+
+### Original CNN
+
+The original CNN pipeline was runnable but weak once evaluated fairly:
+
+- `mean_se = 0.5567`
+- `mean_relative_gap_to_rzf = -0.9166`
+
+This established that the earlier checkpoint was not competitive under a baseline-comparable evaluation.
+
+### Warm-Started CNN
+
+The improved training path uses:
+
+1. supervised pretraining to an `RZF` teacher
+2. rate-based fine-tuning from the pretrained checkpoint
+
+This changed the fair synthetic benchmark result to:
+
+- `mean_se = 5.0524`
+- `mean_relative_gap_to_rzf = -0.0272`
+- `mean_relative_gap_to_best_baseline = -0.0383`
+
+Per-SNR CNN values after warm-start:
+
+| Method | -10 dB | -5 dB | 0 dB | 5 dB | 10 dB | 15 dB | 20 dB |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| CNN | 0.1656 | 0.5158 | 1.3710 | 3.1609 | 6.2266 | 10.1113 | 13.8154 |
+
+The improved CNN is close to MRT and RZF through low and medium SNR, but it still trails RZF at higher SNR. The repository does not claim learned superiority over RZF on this benchmark.
 
 ## Training Setup
 
 - framework: PyTorch
 - device policy: `auto`
+- GPU used in practice: single RTX 5090 Laptop GPU
 - AMP: enabled on CUDA, disabled on CPU
-- logging: TensorBoard + CSV
 - checkpointing: `best.pt`, `last.pt`
-- loss: negative sum-rate with power and constant-modulus penalties
+- logs: TensorBoard + CSV
+- fair evaluation split: deterministic validation subset reused across learned and baseline evaluation
+
+### Two-Stage Training
+
+Stage A, supervised warm-start:
+
+```text
+loss_pretrain = ||F_pred - F_teacher||_F^2
+```
+
+Stage B, rate fine-tuning:
+
+```text
+loss = -mean(sum_rate) + lambda_power * power_violation + lambda_const * constant_modulus_violation
+```
+
+### Logged Metrics
+
+Training logs now include:
+
+- sum_rate
+- power_violation
+- constant_modulus_violation
+- precoder_norm
+- gradient_norm
+- learning_rate
 
 ## Results
 
-### Verified Synthetic Baseline SE vs SNR
+### Fair Evaluation
 
-| Method | -10 dB | -5 dB | 0 dB | 5 dB | 10 dB | 15 dB | 20 dB |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| MRT | 0.1730 | 0.5137 | 1.3942 | 3.2504 | 6.2666 | 10.0521 | 13.8777 |
-| ZF | 0.1012 | 0.3134 | 0.9323 | 2.5169 | 5.7204 | 10.5916 | 16.5179 |
-| RZF | 0.1716 | 0.5041 | 1.3536 | 3.1933 | 6.4542 | 11.1204 | 16.7830 |
-| DFT | 0.1349 | 0.3969 | 1.0586 | 2.4105 | 4.5415 | 7.1477 | 9.7124 |
-| OMP | 0.1335 | 0.3927 | 1.0459 | 2.3745 | 4.4517 | 6.9579 | 9.3756 |
+The evaluation path now reports:
 
-### Verified CNN Training Status
+- `mean_se`
+- `se_by_snr`
+- `relative_gap_to_rzf`
+- `relative_gap_to_best_baseline`
 
-The synthetic CNN training pipeline completed and produced `best.pt`, `last.pt`, TensorBoard logs, CSV logs, and evaluation summaries. The current lightweight model remains below the stronger classical baselines, which is expected at this maturity level.
+and the unified script `scripts/evaluate_all.py` produces one common CSV and one common SE-vs-SNR figure for baselines and learned models together.
+
+### SNR Conditioning
+
+An ablation between conditioned and non-conditioned warm-started CNNs shows almost no difference on the current synthetic benchmark:
+
+- conditioned: `mean_se = 5.05235`
+- not conditioned: `mean_se = 5.05239`
+
+This suggests the dominant gain in this round came from teacher warm-start and fairer model design rather than from explicit SNR conditioning.
 
 ## Discussion
 
-The strongest current engineering result is not AI superiority yet; it is a stable benchmark and training pipeline. RZF is currently the most reliable classical baseline across the tested SNR range. This gives a defensible reference before moving to larger CNNs, better hybrid parameterizations, or deeper unfolding.
+The most important correction in this round was methodological. The original learned result was not only weak; it was also not summarized in the same form as the baseline SE-vs-SNR benchmark. Once the evaluation contract was unified, the repository could cleanly show both the weakness of the original CNN and the effectiveness of the improved warm-start pipeline.
+
+The final warm-started CNN is now a credible baseline learner. It is no longer collapsed, and it tracks the stronger classical methods closely across much of the tested range. However, RZF still remains the stronger method at higher SNR, so any claim that the learned model has surpassed classical baselines would be false.
 
 ## Limitations
 
-- DeepMIMO experiments are not yet validated locally
-- Sionna runtime demo is not yet validated locally
-- the unfolded PGA model is only a minimal scaffold, not a tuned algorithmic reproduction
-- no claim is made that the current AI models beat optimized classical baselines
-- OMP is a lightweight approximation, not a full reference implementation from a dedicated hybrid precoding paper
+- DeepMIMO v4 runtime has not been validated locally because `deepmimo` is not installed here
+- no real DeepMIMO benchmark results are reported
+- Sionna runtime remains optional and has not been validated in this session
+- the unfolded PGA model is still a scaffold, not a tuned unfolding baseline
+- the current AI models are still digital-only in the verified experiments
 
 ## Future Work
 
-1. Connect DeepMIMO `O1_28` using the current unified `deepmimo` package and validate channel shapes against one local scenario.
-2. Add stronger hybrid-output AI models that explicitly predict `F_RF` and `F_BB`.
-3. Expand evaluation with larger sample counts and deeper ablations.
-4. Replace the unfolded PGA scaffold with a closer algorithmic update rule tied to the actual rate objective.
-5. Install Sionna and validate the minimum differentiable end-to-end notebook.
+1. Install `deepmimo` and run the `asu_campus_3p5` smoke path plus baseline benchmark.
+2. Extend teacher-guided training to stronger hybrid-output parameterizations.
+3. Investigate why the learned model still falls behind RZF at high SNR.
+4. Add a stronger analog/digital factorized learned model after the current fair benchmark is stable.
+5. Revisit Sionna later for differentiable end-to-end links after DeepMIMO experiments are actually running.

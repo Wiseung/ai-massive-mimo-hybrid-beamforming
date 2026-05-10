@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import argparse
-import csv
+import copy
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -14,14 +14,16 @@ from _bootstrap import add_src_to_path
 
 add_src_to_path()
 
-from beamforming.baselines.common import evaluate_baseline
 from beamforming.data.dataset import load_channel_dataset
 from beamforming.data.deepmimo_loader import load_deepmimo_dataset
+from beamforming.evaluation import evaluate_baselines_by_snr, save_comparison_outputs
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data", required=True)
+    parser.add_argument("--data", default=None)
+    parser.add_argument("--scenario", default=None)
+    parser.add_argument("--download", action="store_true")
     parser.add_argument("--methods", nargs="+", required=True)
     parser.add_argument("--out", required=True)
     parser.add_argument("--num-rf-chains", type=int, default=4)
@@ -30,6 +32,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--bs-idx", type=int, default=0)
     parser.add_argument("--deepmimo-users", type=int, default=4)
     parser.add_argument("--subcarrier-idx", type=int, default=None)
+    parser.add_argument("--num-subcarriers", type=int, default=None)
+    parser.add_argument("--narrowband", action="store_true")
     return parser.parse_args()
 
 
@@ -65,62 +69,54 @@ def main() -> None:
     args = parse_args()
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
-    if args.dataset_type == "deepmimo":
+    if args.dataset_type == "deepmimo" or args.scenario is not None:
         dataset = load_deepmimo_dataset(
-            args.data,
+            scenario_path=args.data,
+            scenario=args.scenario,
+            download=args.download,
             bs_idx=args.bs_idx,
             num_users=args.deepmimo_users,
             subcarrier_idx=args.subcarrier_idx,
+            num_subcarriers=args.num_subcarriers,
+            narrowband=args.narrowband or args.num_subcarriers in (None, 1),
         )
     else:
         dataset = load_channel_dataset(args.data)
-    channels = dataset.channels if args.max_samples <= 0 else dataset.channels[: args.max_samples]
+    if args.max_samples > 0:
+        dataset.channels = dataset.channels[: args.max_samples]
+        dataset.snr_db = dataset.snr_db[: args.max_samples]
+
     metadata = dataset.metadata
-    snr_list = dataset.snr_db.unique(sorted=True).tolist()
-    num_users = int(metadata.get("num_users", channels.shape[-2]))
+    num_users = int(metadata.get("num_users", dataset.channels.shape[-2]))
     num_rf_chains = int(metadata.get("num_rf_chains", args.num_rf_chains))
 
-    rows = []
-    for snr_db in snr_list:
-        subset = channels
-        for method in args.methods:
-            result = evaluate_baseline(method, subset, float(snr_db), num_rf_chains=num_rf_chains)
-            rows.append(
-                {
-                    "method": method,
-                    "snr_db": float(snr_db),
-                    "num_users": num_users,
-                    "num_rf_chains": num_rf_chains,
-                    "sum_rate": float(result["sum_rate"].mean().item()),
-                    "se": float(result["se"].mean().item()),
-                    "runtime_sec": float(result["runtime_sec"]),
-                }
-            )
-
-    rzf_users = []
-    for users in range(1, min(8, channels.shape[-2]) + 1):
-        subset = channels[:, :users, :]
-        result = evaluate_baseline("rzf", subset, 10.0, num_rf_chains=min(users, num_rf_chains))
-        rzf_users.append({"method": "rzf", "num_users": users, "sum_rate": float(result["sum_rate"].mean().item())})
-
-    dft_rf = []
-    for rf in range(1, min(8, channels.shape[-2]) + 1):
-        result = evaluate_baseline("dft", channels, 10.0, num_rf_chains=rf)
-        dft_rf.append({"method": "dft", "num_rf_chains": rf, "sum_rate": float(result["sum_rate"].mean().item())})
-
+    df = evaluate_baselines_by_snr(args.methods, dataset, num_rf_chains=num_rf_chains)
     metrics_dir = out_dir / "metrics"
+    figures_dir = out_dir / "figures"
     metrics_dir.mkdir(exist_ok=True, parents=True)
+    figures_dir.mkdir(exist_ok=True, parents=True)
     csv_path = metrics_dir / "baseline_results.csv"
-    with csv_path.open("w", newline="") as csv_file:
-        writer = csv.DictWriter(csv_file, fieldnames=list(rows[0].keys()))
-        writer.writeheader()
-        writer.writerows(rows)
+    df.assign(num_users=num_users, num_rf_chains=num_rf_chains).to_csv(csv_path, index=False)
 
-    df = pd.DataFrame(rows)
-    _plot_metric(df, "snr_db", "se", out_dir / "se_vs_snr.png", "SE vs SNR")
-    _plot_runtime_bar(df, out_dir / "runtime_comparison.png")
-    _plot_metric(pd.DataFrame(rzf_users), "num_users", "sum_rate", out_dir / "sum_rate_vs_users.png", "Sum-Rate vs Users")
-    _plot_metric(pd.DataFrame(dft_rf), "num_rf_chains", "sum_rate", out_dir / "sum_rate_vs_rf_chains.png", "Sum-Rate vs RF Chains")
+    prefix = "deepmimo" if args.dataset_type == "deepmimo" or args.scenario is not None else "synthetic"
+    save_comparison_outputs(df, out_dir / "figures", prefix=prefix)
+    _plot_runtime_bar(df, figures_dir / "runtime_comparison.png")
+
+    if dataset.channels.ndim == 3:
+        from beamforming.evaluation import evaluate_baselines_by_snr as _eval
+        rzf_users = []
+        for users in range(1, min(8, dataset.channels.shape[-2]) + 1):
+            subset = copy.deepcopy(dataset)
+            subset.channels = dataset.channels[:, :users, :]
+            subset.metadata = {**dataset.metadata, "num_users": users}
+            result = _eval(["rzf"], subset, num_rf_chains=min(users, num_rf_chains))
+            rzf_users.append({"method": "rzf", "num_users": users, "sum_rate": float(result["se"].mean())})
+        dft_rf = []
+        for rf in range(1, min(8, dataset.channels.shape[-2]) + 1):
+            result = _eval(["dft"], dataset, num_rf_chains=rf)
+            dft_rf.append({"method": "dft", "num_rf_chains": rf, "sum_rate": float(result["se"].mean())})
+        _plot_metric(pd.DataFrame(rzf_users), "num_users", "sum_rate", figures_dir / "sum_rate_vs_users.png", "Sum-Rate vs Users")
+        _plot_metric(pd.DataFrame(dft_rf), "num_rf_chains", "sum_rate", figures_dir / "sum_rate_vs_rf_chains.png", "Sum-Rate vs RF Chains")
     print(f"Saved baseline metrics to {csv_path}")
 
 

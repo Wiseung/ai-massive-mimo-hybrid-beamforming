@@ -1,15 +1,14 @@
 #!/usr/bin/env python
-"""Evaluate a trained beamformer checkpoint."""
+"""Evaluate a trained beamformer checkpoint on a fair SNR benchmark."""
 
 from __future__ import annotations
 
 import argparse
-import csv
 from pathlib import Path
 
+import pandas as pd
 import torch
 import yaml
-from torch.utils.data import DataLoader
 
 from _bootstrap import add_src_to_path
 
@@ -17,16 +16,16 @@ add_src_to_path()
 
 from beamforming.data.dataset import load_channel_dataset
 from beamforming.data.deepmimo_loader import load_deepmimo_dataset
+from beamforming.evaluation import add_relative_gaps, evaluate_baselines_by_snr, evaluate_model_by_snr, get_eval_subset
 from beamforming.models.cnn_beamformer import CNNBeamformer
 from beamforming.models.mlp_beamformer import MLPBeamformer
 from beamforming.models.unfolded_pga import UnfoldedPGABeamformer
-from beamforming.training.losses import beamforming_loss
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
-    parser.add_argument("--data", required=True)
+    parser.add_argument("--data", default=None)
     parser.add_argument("--ckpt", required=True)
     parser.add_argument("--out", required=True)
     parser.add_argument("--device", default="auto")
@@ -34,6 +33,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--bs-idx", type=int, default=0)
     parser.add_argument("--deepmimo-users", type=int, default=4)
     parser.add_argument("--subcarrier-idx", type=int, default=None)
+    parser.add_argument("--scenario", default=None)
+    parser.add_argument("--download", action="store_true")
+    parser.add_argument("--num-subcarriers", type=int, default=None)
+    parser.add_argument("--narrowband", action="store_true")
     return parser.parse_args()
 
 
@@ -44,27 +47,57 @@ def _build_model(model_cfg: dict, data_cfg: dict) -> torch.nn.Module:
         "num_rf_chains": int(data_cfg["num_rf_chains"]),
     }
     if model_cfg["name"] == "mlp":
-        return MLPBeamformer(hybrid=bool(model_cfg.get("hybrid", False)), hidden_dims=model_cfg.get("hidden_dims"), **common)
+        return MLPBeamformer(
+            hybrid=bool(model_cfg.get("hybrid", False)),
+            hidden_dims=model_cfg.get("hidden_dims"),
+            condition_on_snr=bool(model_cfg.get("condition_on_snr", False)),
+            snr_embed_dim=int(model_cfg.get("snr_embed_dim", 16)),
+            residual_to_mrt=bool(model_cfg.get("residual_to_mrt", True)),
+            **common,
+        )
     if model_cfg["name"] == "cnn":
-        return CNNBeamformer(hybrid=bool(model_cfg.get("hybrid", False)), **common)
+        return CNNBeamformer(
+            hybrid=bool(model_cfg.get("hybrid", False)),
+            condition_on_snr=bool(model_cfg.get("condition_on_snr", False)),
+            snr_embed_dim=int(model_cfg.get("snr_embed_dim", 16)),
+            base_channels=int(model_cfg.get("base_channels", 32)),
+            pool_factor=int(model_cfg.get("pool_factor", 2)),
+            hidden_dims=model_cfg.get("hidden_dims"),
+            residual_to_mrt=bool(model_cfg.get("residual_to_mrt", True)),
+            **common,
+        )
     if model_cfg["name"] == "unfolded_pga":
         return UnfoldedPGABeamformer(num_layers=int(model_cfg.get("num_layers", 3)), **common)
     raise ValueError(f"Unsupported model: {model_cfg['name']}")
+
+
+def _load_dataset(args: argparse.Namespace):
+    if args.dataset_type == "deepmimo" or args.scenario is not None:
+        return load_deepmimo_dataset(
+            scenario_path=args.data,
+            scenario=args.scenario,
+            download=args.download,
+            bs_idx=args.bs_idx,
+            num_users=args.deepmimo_users,
+            subcarrier_idx=args.subcarrier_idx,
+            num_subcarriers=args.num_subcarriers,
+            narrowband=args.narrowband or args.num_subcarriers in (None, 1),
+        )
+    if args.data is None:
+        raise ValueError("--data is required for non-DeepMIMO evaluation.")
+    return load_channel_dataset(args.data)
 
 
 def main() -> None:
     args = parse_args()
     with open(args.config, "r", encoding="utf-8") as handle:
         config = yaml.safe_load(handle)
-    if args.dataset_type == "deepmimo":
-        dataset = load_deepmimo_dataset(
-            args.data,
-            bs_idx=args.bs_idx,
-            num_users=args.deepmimo_users,
-            subcarrier_idx=args.subcarrier_idx,
-        )
-    else:
-        dataset = load_channel_dataset(args.data)
+    dataset = _load_dataset(args)
+    eval_subset = get_eval_subset(
+        dataset,
+        val_fraction=float(config["training"].get("val_fraction", 0.1)),
+        seed=int(config["training"]["seed"]),
+    )
     data_cfg = {**dataset.metadata}
     data_cfg.setdefault("num_users", dataset.channels.shape[-2])
     data_cfg.setdefault("num_bs_ant", dataset.channels.shape[-1])
@@ -72,41 +105,27 @@ def main() -> None:
     model = _build_model(config["model"], data_cfg)
     device = torch.device(args.device if args.device != "auto" else ("cuda" if torch.cuda.is_available() else "cpu"))
     checkpoint = torch.load(args.ckpt, map_location=device, weights_only=False)
-    model.load_state_dict(checkpoint["model"])
-    model = model.to(device).eval()
+    model.load_state_dict(checkpoint["model"], strict=False)
+    model = model.to(device)
 
-    loader = DataLoader(dataset, batch_size=config["evaluation"].get("batch_size", 256), shuffle=False)
+    learned_df = evaluate_model_by_snr(model, eval_subset, batch_size=config["evaluation"].get("batch_size", 256), device=device)
+    learned_df["method"] = config["model"]["name"]
+    baseline_df = evaluate_baselines_by_snr(["mrt", "zf", "rzf", "dft"], eval_subset, num_rf_chains=int(data_cfg["num_rf_chains"]))
+    combined = pd.concat([baseline_df, learned_df[["method", "snr_db", "se", "runtime_sec"]]], ignore_index=True)
+    combined = add_relative_gaps(combined)
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
-    rows = []
-    with torch.no_grad():
-        for batch_idx, batch in enumerate(loader):
-            channel = batch["channel"].to(device)
-            channel_real = batch["channel_real"].to(device)
-            snr_db = batch["snr_db"].to(device)
-            outputs = model(channel_real)
-            _, stats = beamforming_loss(
-                channel,
-                outputs,
-                snr_db,
-                lambda_power=config["training"]["lambda_power"],
-                lambda_const=config["training"]["lambda_const"],
-            )
-            rows.append(
-                {
-                    "batch_idx": batch_idx,
-                    "sum_rate": float(stats["sum_rate"].item()),
-                    "loss": float(stats["loss"].item()),
-                }
-            )
-    csv_path = out_dir / "evaluation.csv"
-    with csv_path.open("w", newline="") as csv_file:
-        writer = csv.DictWriter(csv_file, fieldnames=["batch_idx", "sum_rate", "loss"])
-        writer.writeheader()
-        writer.writerows(rows)
+    csv_path = out_dir / "evaluation_by_snr.csv"
+    combined.to_csv(csv_path, index=False)
     summary = {
-        "mean_sum_rate": float(sum(row["sum_rate"] for row in rows) / max(len(rows), 1)),
-        "mean_loss": float(sum(row["loss"] for row in rows) / max(len(rows), 1)),
+        "mean_se": float(learned_df["se"].mean()),
+        "se_by_snr": {str(row.snr_db): float(row.se) for row in learned_df.itertuples()},
+        "mean_relative_gap_to_rzf": float(
+            combined[combined["method"] == config["model"]["name"]]["relative_gap_to_rzf"].mean()
+        ),
+        "mean_relative_gap_to_best_baseline": float(
+            combined[combined["method"] == config["model"]["name"]]["relative_gap_to_best_baseline"].mean()
+        ),
     }
     with open(out_dir / "summary.yaml", "w", encoding="utf-8") as handle:
         yaml.safe_dump(summary, handle)
