@@ -38,3 +38,33 @@ def add_awgn_torch(signal: torch.Tensor, snr_db: float) -> tuple[torch.Tensor, f
     noise_scale = (noise_var / 2.0) ** 0.5
     noise = noise_scale * (torch.randn_like(signal) + 1j * torch.randn_like(signal))
     return signal + noise, noise_var
+
+
+def try_import_sionna_ofdm() -> dict[str, Any]:
+    """Return optional Sionna OFDM components without hard failing."""
+    try:
+        from sionna.phy.channel import AWGN
+        from sionna.phy.ofdm import RemoveNulledSubcarriers, ResourceGrid, ResourceGridDemapper, ResourceGridMapper
+        from sionna.phy.mimo import StreamManagement
+
+        return {
+            "import_ok": True,
+            "AWGN": AWGN,
+            "ResourceGrid": ResourceGrid,
+            "ResourceGridMapper": ResourceGridMapper,
+            "ResourceGridDemapper": ResourceGridDemapper,
+            "RemoveNulledSubcarriers": RemoveNulledSubcarriers,
+            "StreamManagement": StreamManagement,
+            "error": None,
+        }
+    except Exception as exc:  # pragma: no cover - optional dependency path
+        return {
+            "import_ok": False,
+            "AWGN": None,
+            "ResourceGrid": None,
+            "ResourceGridMapper": None,
+            "ResourceGridDemapper": None,
+            "RemoveNulledSubcarriers": None,
+            "StreamManagement": None,
+            "error": f"{type(exc).__name__}: {exc}",
+        }

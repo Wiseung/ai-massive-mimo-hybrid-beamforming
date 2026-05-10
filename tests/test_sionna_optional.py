@@ -48,3 +48,29 @@ def test_sionna_phy_awgn_demo_runs(tmp_path: Path) -> None:
     payload = json.loads(out_path.read_text(encoding="utf-8"))
     assert payload["sionna_import_ok"] is True
     assert payload["demo_status"] == "ok"
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_inspect_sionna_ofdm_api_script_runs(tmp_path: Path) -> None:
+    out_path = tmp_path / "sionna_ofdm_api_summary.json"
+    subprocess.run(
+        [sys.executable, "scripts/inspect_sionna_ofdm_api.py", "--out", str(out_path)],
+        check=True,
+        cwd=Path(__file__).resolve().parents[1],
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["module_import_ok"] is True
+    assert "ResourceGrid" in payload["available_ofdm_symbols"]
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_sionna_ofdm_resource_grid_demo_runs(tmp_path: Path) -> None:
+    out_path = tmp_path / "sionna_ofdm_resource_grid_summary.json"
+    subprocess.run(
+        [sys.executable, "scripts/sionna_ofdm_resource_grid_demo.py", "--out", str(out_path)],
+        check=True,
+        cwd=Path(__file__).resolve().parents[1],
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["sionna_import_ok"] is True
+    assert payload["demo_status"] == "ok"
