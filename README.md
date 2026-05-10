@@ -146,6 +146,8 @@ The Sionna demo path is an optional experimental branch and is not part of the `
 - Prefer a dedicated conda environment.
 - Start with `pip install sionna-no-rt`.
 - Treat the Sionna smoke scripts as coexistence checks with the current PyTorch beamforming project, not as a full Sionna end-to-end result.
+- The current branch also includes Sionna PHY introspection, a minimal AWGN PHY smoke demo, and a small beamforming link demo.
+- If a Sionna PHY component is unavailable or unstable for the current environment, the demo records an explicit torch fallback instead of silently pretending the path is fully Sionna-native.
 
 ## RTX 5090 24GB Recommended Config
 

@@ -26,9 +26,19 @@ Recommended practice:
 
 ```bash
 python scripts/check_sionna_env.py
+python scripts/inspect_sionna_api.py --out outputs/sionna_smoke/sionna_api_summary.json
 python scripts/sionna_smoke_demo.py --out outputs/sionna_smoke/sionna_smoke_summary.json
 python scripts/sionna_bridge_beamforming_demo.py --out outputs/sionna_smoke/bridge_beamforming_summary.json
+python scripts/sionna_phy_awgn_demo.py --out outputs/sionna_smoke/sionna_phy_awgn_summary.json
+python scripts/sionna_phy_beamforming_link_demo.py --out outputs/sionna_smoke/sionna_phy_beamforming_link_summary.json
 ```
+
+## Current Status
+
+- the optional Sionna smoke demo is complete
+- the API introspection step confirms `sionna.phy`, `sionna.phy.channel`, `sionna.phy.ofdm`, `sionna.phy.mapping`, and `sionna.phy.fec` availability on this branch environment
+- the PHY AWGN demo uses Sionna PHY when the inspected `AWGN` component is callable; otherwise it falls back to a torch AWGN path and records that explicitly
+- the beamforming link demo likewise prefers Sionna PHY AWGN and otherwise records explicit fallback
 
 ## Current Limitations
 
@@ -41,6 +51,7 @@ python scripts/sionna_bridge_beamforming_demo.py --out outputs/sionna_smoke/brid
 ## Future Work
 
 - Sionna PHY OFDM link
+- replace torch fallback with confirmed Sionna PHY components where needed
 - differentiable beamforming module
 - optional Sionna RT channel generation
 - compare with DeepMIMO channels

@@ -1,0 +1,19 @@
+{
+  "sionna_import_ok": true,
+  "used_sionna_phy": true,
+  "fallback_used": false,
+  "torch_version": "2.11.0+cu130",
+  "sionna_version": "2.0.1",
+  "device": "cuda",
+  "batch_size": 512,
+  "modulation_order_or_note": "QPSK",
+  "snr_db": 10.0,
+  "mse": 0.09992396086454391,
+  "ber_if_available": 0.000782012939453125,
+  "demo_status": "ok",
+  "notes": [
+    "Used sionna.phy.channel.AWGN for the channel step.",
+    "This is a minimal PHY smoke demo, not a full Sionna end-to-end link."
+  ],
+  "noise_var": 0.1
+}

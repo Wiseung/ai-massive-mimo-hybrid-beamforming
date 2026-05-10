@@ -1,0 +1,25 @@
+{
+  "sionna_import_ok": true,
+  "sionna_version": "2.0.1",
+  "used_sionna_phy": true,
+  "fallback_used": false,
+  "device": "cuda",
+  "channel_shape": [
+    128,
+    4,
+    16
+  ],
+  "snr_db": 10.0,
+  "noise_var": 0.10000000149011612,
+  "rzf_receive_mse": 0.10490717738866806,
+  "wmmse_iter_5_receive_mse": 0.09359471499919891,
+  "rzf_sum_rate": 19.866487503051758,
+  "wmmse_iter_5_sum_rate": 19.949840545654297,
+  "approx_effective_sinr_db_rzf": 9.791948199272156,
+  "approx_effective_sinr_db_wmmse_iter_5": 10.28748631477356,
+  "demo_status": "ok",
+  "notes": [
+    "This is a Sionna-compatible beamforming link smoke demo.",
+    "It is not a full Sionna end-to-end pipeline, not Sionna RT, and not a 5G NR full-stack demo."
+  ]
+}
