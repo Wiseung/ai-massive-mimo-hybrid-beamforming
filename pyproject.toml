@@ -32,7 +32,7 @@ deepmimo = [
   "DeepMIMO",
 ]
 sionna = [
-  "sionna",
+  "sionna-no-rt",
 ]
 
 [tool.setuptools]

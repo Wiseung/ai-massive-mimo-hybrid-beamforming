@@ -1,0 +1,30 @@
+{
+  "sionna_import_ok": true,
+  "sionna_version": "2.0.1",
+  "used_sionna_ofdm": true,
+  "used_sionna_channel": true,
+  "fallback_used": false,
+  "device": "cuda",
+  "channel_shape": [
+    32,
+    8,
+    4,
+    16
+  ],
+  "num_subcarriers": 8,
+  "snr_db": 10.0,
+  "rzf_ofdm_average_mse": 0.10171404480934143,
+  "wmmse_iter_5_ofdm_average_mse": 0.0976661890745163,
+  "rzf_ofdm_average_sum_rate": 19.93743324279785,
+  "wmmse_iter_5_ofdm_average_sum_rate": 20.012876510620117,
+  "rzf_per_subcarrier_se_mean": 19.93743324279785,
+  "rzf_per_subcarrier_se_std": 0.11326214517661237,
+  "wmmse_iter_5_per_subcarrier_se_mean": 20.012876510620117,
+  "wmmse_iter_5_per_subcarrier_se_std": 0.10910813117480687,
+  "demo_status": "ok",
+  "notes": [
+    "Used real Sionna OFDM ResourceGrid/Mapper in the OFDM bridge setup.",
+    "This is an OFDM-like bridge demo only.",
+    "It is not a full Sionna end-to-end link, not Sionna RT, and not a 5G NR full-stack system."
+  ]
+}

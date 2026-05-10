@@ -124,7 +124,7 @@ Optional dependencies:
 
 ```bash
 pip install deepmimo
-pip install sionna
+pip install sionna-no-rt
 ```
 
 DeepMIMO notes:
@@ -138,6 +138,17 @@ References:
 
 - [Sionna documentation](https://nvlabs.github.io/sionna/index.html)
 - [DeepMIMO documentation](https://www.deepmimo.net/docs/index.html)
+
+## Experimental Sionna Branch
+
+The Sionna demo path is an optional experimental branch and is not part of the `v0.1.0` benchmark acceptance path.
+
+- Prefer a dedicated conda environment.
+- Start with `pip install sionna-no-rt`.
+- Treat the Sionna smoke scripts as coexistence checks with the current PyTorch beamforming project, not as a full Sionna end-to-end result.
+- The current branch also includes Sionna PHY introspection, a minimal AWGN PHY smoke demo, and a small beamforming link demo.
+- The current branch also includes OFDM API introspection, a ResourceGrid smoke demo, and an OFDM beamforming bridge demo.
+- If a Sionna PHY component is unavailable or unstable for the current environment, the demo records an explicit torch fallback instead of silently pretending the path is fully Sionna-native.
 
 ## RTX 5090 24GB Recommended Config
 

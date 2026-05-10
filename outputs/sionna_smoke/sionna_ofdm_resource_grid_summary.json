@@ -1,0 +1,21 @@
+{
+  "sionna_import_ok": true,
+  "used_sionna_ofdm": true,
+  "fallback_used": false,
+  "sionna_version": "2.0.1",
+  "torch_version": "2.11.0+cu130",
+  "device": "cuda",
+  "num_ofdm_symbols": 4,
+  "fft_size": 16,
+  "num_data_symbols": 52,
+  "modulation": "QPSK",
+  "snr_db": 10.0,
+  "mse": 0.10320311784744263,
+  "ber_if_available": 0.001953125,
+  "demo_status": "ok",
+  "notes": [
+    "Used real Sionna OFDM ResourceGrid, ResourceGridMapper, ResourceGridDemapper, RemoveNulledSubcarriers, and AWGN.",
+    "This is still a smoke demo, not a full Sionna end-to-end training pipeline."
+  ],
+  "empirical_snr_db": 9.863072037696838
+}
