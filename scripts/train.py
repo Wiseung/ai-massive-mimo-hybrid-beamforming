@@ -20,6 +20,7 @@ from beamforming.data.splits import load_dataset_split
 from beamforming.models.cnn_beamformer import CNNBeamformer
 from beamforming.models.mlp_beamformer import MLPBeamformer
 from beamforming.models.residual_beamformer import ResidualRZFBeamformer
+from beamforming.models.unfolded_rzf import UnfoldedRZFBeamformer
 from beamforming.models.unfolded_pga import UnfoldedPGABeamformer
 from beamforming.training.trainer import TrainerConfig, train_model
 
@@ -73,6 +74,12 @@ def _build_model(model_cfg: dict, data_cfg: dict) -> torch.nn.Module:
         )
     if name == "unfolded_pga":
         return UnfoldedPGABeamformer(num_layers=int(model_cfg.get("num_layers", 3)), **common)
+    if name == "unfolded_rzf":
+        return UnfoldedRZFBeamformer(
+            num_layers=int(model_cfg.get("num_layers", 3)),
+            alpha_init=float(model_cfg.get("alpha_init", 0.05)),
+            **common,
+        )
     if name == "residual_rzf":
         return ResidualRZFBeamformer(
             condition_on_snr=bool(model_cfg.get("condition_on_snr", True)),

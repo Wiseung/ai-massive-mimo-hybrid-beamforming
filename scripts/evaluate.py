@@ -27,6 +27,7 @@ from beamforming.evaluation import (
 from beamforming.models.cnn_beamformer import CNNBeamformer
 from beamforming.models.mlp_beamformer import MLPBeamformer
 from beamforming.models.residual_beamformer import ResidualRZFBeamformer
+from beamforming.models.unfolded_rzf import UnfoldedRZFBeamformer
 from beamforming.models.unfolded_pga import UnfoldedPGABeamformer
 
 
@@ -77,6 +78,12 @@ def _build_model(model_cfg: dict, data_cfg: dict) -> torch.nn.Module:
         )
     if model_cfg["name"] == "unfolded_pga":
         return UnfoldedPGABeamformer(num_layers=int(model_cfg.get("num_layers", 3)), **common)
+    if model_cfg["name"] == "unfolded_rzf":
+        return UnfoldedRZFBeamformer(
+            num_layers=int(model_cfg.get("num_layers", 3)),
+            alpha_init=float(model_cfg.get("alpha_init", 0.05)),
+            **common,
+        )
     if model_cfg["name"] == "residual_rzf":
         return ResidualRZFBeamformer(
             condition_on_snr=bool(model_cfg.get("condition_on_snr", True)),
@@ -134,7 +141,7 @@ def main() -> None:
 
     learned_df = evaluate_model_by_snr(model, eval_subset, batch_size=config["evaluation"].get("batch_size", 256), device=device)
     learned_df["method"] = config["model"]["name"]
-    baseline_df = evaluate_baselines_by_snr(["mrt", "zf", "rzf", "dft", "fd_zf", "fd_rzf"], eval_subset, num_rf_chains=int(data_cfg["num_rf_chains"]))
+    baseline_df = evaluate_baselines_by_snr(["mrt", "zf", "rzf", "dft", "fd_zf", "fd_rzf", "wmmse"], eval_subset, num_rf_chains=int(data_cfg["num_rf_chains"]))
     combined = pd.concat([baseline_df, learned_df[["method", "snr_db", "se", "runtime_sec"]]], ignore_index=True)
     combined = add_relative_gaps(combined)
     out_dir = Path(args.out)

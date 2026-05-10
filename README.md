@@ -15,7 +15,12 @@ Reproducible PyTorch-based single-GPU project for massive MIMO / mmWave beamform
 - DeepMIMO dataset diagnostics and reproducible split generation were added.
 - Fully-digital `fd_zf` / `fd_rzf` reference labels were added for unified comparison, but in the current digital-only MU-MISO setup they are reference aliases rather than stronger upper bounds.
 - A residual refinement model around the RZF prior was added to target the remaining synthetic high-SNR gap.
+- A small-scale MU-MISO WMMSE baseline is now implemented and evaluated on the synthetic benchmark.
+- An unfolded-RZF refinement model is now implemented for structure-aware learned precoding.
 - DeepMIMO `v4` is installed locally and the `asu_campus_3p5` smoke path, baseline smoke benchmark, and a small learned smoke benchmark all ran successfully.
+- DeepMIMO quick multi-seed benchmarking is implemented, but quick mode is explicitly not treated as a full benchmark.
+- The current DeepMIMO quick `v2` benchmark still ran only `seed=1`, so its `std` entries remain `NaN` and it is not reported as a full multi-seed result.
+- A contiguous DeepMIMO split benchmark is now available and should be interpreted as a harder location-generalization evaluation than the random split.
 - Sionna remains optional and is not the mainline blocker for this repository.
 
 ## Project Structure
@@ -317,6 +322,13 @@ The existing learned smoke result on this filtered tensor showed a positive gap 
 
 That result is useful smoke evidence, but it must not be overstated as a complete DeepMIMO benchmark conclusion.
 
+The current quick benchmark output is:
+
+- `outputs/comparisons/deepmimo_multiseed_quick_v2/deepmimo_benchmark_summary.csv`
+- `outputs/comparisons/deepmimo_multiseed_quick_v2/deepmimo_benchmark_summary.md`
+
+It explicitly reports `num_seeds=1`.
+
 ### DeepMIMO Benchmark Commands
 
 Dataset analysis:
@@ -368,6 +380,32 @@ F_pred = normalize_power(F_rzf + alpha * delta_F)
 ```
 
 This structure is meant to preserve the strong communication prior at high SNR rather than asking the network to reconstruct a good precoder from scratch.
+
+An additional unfolding-style model is now included:
+
+```text
+F_{t+1} = normalize_power(F_t + alpha_t * direction_t),  F_0 = RZF
+```
+
+The motivation is the same: a plain black-box CNN does not explicitly encode matrix-inversion and interference-cancellation structure, while residual and unfolded refinements do.
+
+Current verified synthetic structured-model results:
+
+- `residual_rzf`: `mean_se = 5.5771`, `mean_gap_to_rzf ~= 0`
+- `unfolded_rzf`: `mean_se = 5.5858`, `mean_gap_to_rzf = +0.0816%`
+
+This means the unfolded model slightly improves over the residual model on the current synthetic benchmark, but neither result should be reframed as a general claim beyond this tested setup.
+
+## WMMSE Status
+
+`WMMSE` is no longer a scaffold in the narrowband digital-only MU-MISO path. A small-scale implementation is now enabled in `run_baselines.py`.
+
+Current verified synthetic WMMSE result is stronger than `RZF` over the tested SNR grid:
+
+- `mean_se = 5.9024`
+- stronger than `RZF` at `10/15/20 dB`
+
+This implementation should still be treated as a practical narrowband benchmark for the current setup, not as a complete hybrid / wideband WMMSE study.
 
 ## Current Negative Results
 

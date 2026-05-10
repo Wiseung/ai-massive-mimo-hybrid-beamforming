@@ -28,6 +28,7 @@ from beamforming.evaluation import (
 from beamforming.models.cnn_beamformer import CNNBeamformer
 from beamforming.models.mlp_beamformer import MLPBeamformer
 from beamforming.models.residual_beamformer import ResidualRZFBeamformer
+from beamforming.models.unfolded_rzf import UnfoldedRZFBeamformer
 
 
 def parse_args() -> argparse.Namespace:
@@ -99,6 +100,12 @@ def _build_model(model_cfg: dict, data_cfg: dict) -> torch.nn.Module:
             alpha_init=float(model_cfg.get("alpha_init", 0.1)),
             **common,
         )
+    if model_cfg["name"] == "unfolded_rzf":
+        return UnfoldedRZFBeamformer(
+            num_layers=int(model_cfg.get("num_layers", 3)),
+            alpha_init=float(model_cfg.get("alpha_init", 0.05)),
+            **common,
+        )
     raise ValueError(f"Unsupported learned model for evaluate_all: {model_cfg['name']}")
 
 
@@ -117,17 +124,25 @@ def _default_learned_artifacts(prefix: str) -> dict[str, dict[str, Path]]:
                 "config": Path("configs/deepmimo_residual_rzf.yaml"),
                 "ckpt": Path("outputs/runs/deepmimo_residual_rzf/best.pt"),
             },
+            "unfolded_rzf": {
+                "config": Path("configs/deepmimo_unfolded_rzf.yaml"),
+                "ckpt": Path("outputs/runs/deepmimo_unfolded_rzf/best.pt"),
+            },
         }
     return {
         "cnn": {
             "config": Path("configs/synthetic_cnn_finetune.yaml"),
             "ckpt": Path("outputs/runs/cnn_finetune_rzf/best.pt"),
         },
-        "residual_rzf": {
-            "config": Path("configs/synthetic_residual_rzf.yaml"),
-            "ckpt": Path("outputs/runs/synthetic_residual_rzf/best.pt"),
-        },
-    }
+            "residual_rzf": {
+                "config": Path("configs/synthetic_residual_rzf.yaml"),
+                "ckpt": Path("outputs/runs/synthetic_residual_rzf/best.pt"),
+            },
+            "unfolded_rzf": {
+                "config": Path("configs/synthetic_unfolded_rzf.yaml"),
+                "ckpt": Path("outputs/runs/synthetic_unfolded_rzf/best.pt"),
+            },
+        }
 
 
 def _evaluate_learned_method(
@@ -158,8 +173,8 @@ def main() -> None:
     args = parse_args()
     dataset = _load_dataset(args)
     methods = args.methods
-    learned_methods = [m for m in methods if m in {"cnn", "mlp", "residual_rzf"}]
-    baseline_methods = [m for m in methods if m not in {"cnn", "mlp", "residual_rzf"}]
+    learned_methods = [m for m in methods if m in {"cnn", "mlp", "residual_rzf", "unfolded_rzf"}]
+    baseline_methods = [m for m in methods if m not in {"cnn", "mlp", "residual_rzf", "unfolded_rzf"}]
     combined_frames: list[pd.DataFrame] = []
     split_payload = load_dataset_split(args.split) if args.split else None
 

@@ -65,14 +65,16 @@ def evaluate_baselines_by_snr(
     methods: list[str],
     dataset: ChannelDataset | Subset,
     num_rf_chains: int,
+    device: torch.device | None = None,
 ) -> pd.DataFrame:
     """Evaluate baseline methods on a common subset and SNR grid."""
+    device = device or torch.device("cpu")
     if isinstance(dataset, Subset):
-        channels = dataset.dataset.channels[dataset.indices]
-        snr_values = dataset.dataset.snr_db[dataset.indices]
+        channels = dataset.dataset.channels[dataset.indices].to(device)
+        snr_values = dataset.dataset.snr_db[dataset.indices].to(device)
     else:
-        channels = dataset.channels
-        snr_values = dataset.snr_db
+        channels = dataset.channels.to(device)
+        snr_values = dataset.snr_db.to(device)
     rows: list[dict[str, Any]] = []
     for snr_db in snr_values.unique(sorted=True).tolist():
         mask = snr_values == snr_db

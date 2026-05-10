@@ -37,6 +37,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--subcarrier-idx", type=int, default=None)
     parser.add_argument("--num-subcarriers", type=int, default=None)
     parser.add_argument("--narrowband", action="store_true")
+    parser.add_argument("--device", default="auto")
     return parser.parse_args()
 
 
@@ -100,8 +101,10 @@ def main() -> None:
         channel_shape = dataset.channels.shape
     num_users = int(metadata.get("num_users", channel_shape[-2]))
     num_rf_chains = int(metadata.get("num_rf_chains", args.num_rf_chains))
+    import torch
+    device = torch.device(args.device if args.device != "auto" else ("cuda" if torch.cuda.is_available() else "cpu"))
 
-    df = evaluate_baselines_by_snr(args.methods, dataset, num_rf_chains=num_rf_chains)
+    df = evaluate_baselines_by_snr(args.methods, dataset, num_rf_chains=num_rf_chains, device=device)
     metrics_dir = out_dir / "metrics"
     figures_dir = out_dir / "figures"
     metrics_dir.mkdir(exist_ok=True, parents=True)
@@ -132,7 +135,7 @@ def main() -> None:
             subset.channels = base_channels[:, :users, :]
             subset.snr_db = base_dataset.snr_db[dataset.indices] if isinstance(dataset, Subset) else base_dataset.snr_db
             subset.metadata = {**base_metadata, "num_users": users}
-            result = _eval(["rzf"], subset, num_rf_chains=min(users, num_rf_chains))
+            result = _eval(["rzf"], subset, num_rf_chains=min(users, num_rf_chains), device=device)
             rzf_users.append({"method": "rzf", "num_users": users, "sum_rate": float(result["se"].mean())})
         dft_rf = []
         base_eval_dataset = copy.deepcopy(base_dataset)
@@ -140,7 +143,7 @@ def main() -> None:
         base_eval_dataset.snr_db = base_dataset.snr_db[dataset.indices] if isinstance(dataset, Subset) else base_dataset.snr_db
         base_eval_dataset.metadata = base_metadata
         for rf in range(1, min(8, base_channels.shape[-2]) + 1):
-            result = _eval(["dft"], base_eval_dataset, num_rf_chains=rf)
+            result = _eval(["dft"], base_eval_dataset, num_rf_chains=rf, device=device)
             dft_rf.append({"method": "dft", "num_rf_chains": rf, "sum_rate": float(result["se"].mean())})
         _plot_metric(pd.DataFrame(rzf_users), "num_users", "sum_rate", figures_dir / "sum_rate_vs_users.png", "Sum-Rate vs Users")
         _plot_metric(pd.DataFrame(dft_rf), "num_rf_chains", "sum_rate", figures_dir / "sum_rate_vs_rf_chains.png", "Sum-Rate vs RF Chains")
