@@ -1,6 +1,14 @@
 # AI Massive MIMO Hybrid Beamforming
 
-Reproducible PyTorch-based single-GPU project for massive MIMO / mmWave beamforming and precoding. The current repository is centered on a verified synthetic CSI pipeline and fair benchmark comparison before pushing further into heavier DeepMIMO or Sionna features.
+PyTorch/DeepMIMO benchmark for Massive MIMO beamforming with WMMSE, WMMSE-lite, and learned refinements.
+
+Current validated scope:
+
+- Synthetic narrowband MU-MISO
+- DeepMIMO `asu_campus_3p5` filtered benchmark
+- `K=4`, `Nt=8`, `Nsc=1`
+- no wideband yet
+- no Sionna end-to-end benchmark yet
 
 ## Release Snapshot
 
@@ -13,6 +21,16 @@ Reproducible PyTorch-based single-GPU project for massive MIMO / mmWave beamform
 | WMMSE iter 5 | 5.8155 | reduced-iteration reference |
 | Best unfolded WMMSE-lite | 5.8163 | `wmmse_iter_5` init, 3 layers, `distill=0.1`, `delta=1e-3` |
 | CNN | 5.0524 | warm-started black-box baseline |
+
+### Synthetic SE-Latency
+
+| Method | Mean SE | Latency (ms) | Note |
+| --- | ---: | ---: | --- |
+| RZF | 5.5771 | 0.5538 | low-latency analytic baseline |
+| WMMSE | 5.8523 | 1146.11 | strongest full reference |
+| WMMSE iter 5 | 5.8155 | 185.46 | strong reduced-iteration reference |
+| Best unfolded WMMSE-lite | 5.8163 | 190.24 | matches `wmmse_iter_5` in SE, slower in latency |
+| CNN | 5.0524 | 2.0442 | learned black-box baseline |
 
 ### DeepMIMO Headline
 
@@ -30,6 +48,20 @@ Reproducible PyTorch-based single-GPU project for massive MIMO / mmWave beamform
 | warmup runs | 20 |
 | timed runs | 100 |
 | include data transfer | false |
+
+### WMMSE-lite Sweep
+
+- best config: `init_method=wmmse_iter_5`, `num_layers=3`, `distill_weight=0.1`, `delta_norm_weight=1e-3`
+- `mean_se = 5.816346`
+- `gap_to_wmmse = -0.4282%`
+- `gap_to_wmmse_iter_5 = +0.0055%`
+
+### Latency Hotspot
+
+- `unfolded_wmmse_lite` hotspot is the WMMSE initializer
+- profile: `init_computation_time_ms ~= 200.51`
+- profile: `layer_refinement_time_ms ~= 3.29`
+- learned refinement overhead is small; structured initialization dominates latency
 
 ## Current Status
 
@@ -98,6 +130,7 @@ DeepMIMO notes:
 - Prefer a Python `3.11+` environment for the DeepMIMO path.
 - The DeepMIMO smoke test is independent from Sionna.
 - Do not commit downloaded DeepMIMO scenarios or generated tensors into git.
+- Do not commit raw DeepMIMO scenarios or large model checkpoints into git.
 
 References:
 
@@ -259,6 +292,8 @@ Default protocol:
 - `warmup_runs=20`
 - `timed_runs=100`
 - `include_data_transfer=false`
+
+The artifact manifest produced by `scripts/generate_artifact_manifest.py` is a result index. It is not a dataset archive and does not imply that raw DeepMIMO data or large checkpoints are tracked in git.
 
 The unified latency artifacts are:
 
@@ -598,6 +633,13 @@ This means the current best learned WMMSE-lite variant is best interpreted as an
 
 ## Reproduction Commands
 
+Quick smoke:
+
+```bash
+python scripts/reproduce_minimal.py \
+  --out outputs/repro/minimal_repro_summary.json
+```
+
 Synthetic:
 
 ```bash
@@ -653,12 +695,21 @@ python scripts/sweep_unfolded_wmmse_lite.py \
   --out outputs/comparisons/unfolded_wmmse_lite_sweep
 ```
 
+Artifact manifest:
+
+```bash
+python scripts/generate_artifact_manifest.py \
+  --out outputs/artifact_manifest.json
+```
+
 ## Known Limitations
 
 - DeepMIMO current scale is only `K=4`, `Nt=8`, `Nsc=1`
 - no wideband DeepMIMO result exists locally
 - no Sionna end-to-end result exists locally
-- current `unfolded_wmmse_lite` remains below `wmmse_iter_5` unless a better sweep variant is found
+- best `unfolded_wmmse_lite` matches `wmmse_iter_5` in SE but not in latency
+- `unfolded_wmmse_lite` currently depends on a WMMSE initializer
+- hybrid analog / RF constrained training is not the primary validated release path
 
 This implementation should still be treated as a practical narrowband benchmark for the current setup, not as a complete hybrid / wideband WMMSE study.
 
@@ -671,6 +722,15 @@ The following findings are currently negative and are kept explicitly in the doc
 - the synthetic high-SNR gap is not meaningfully improved by simple weighting or mixed teachers
 - `residual_rzf` and `unfolded_rzf` still remain materially below `WMMSE`
 - Sionna is not part of the current mainline acceptance path
+
+## CI
+
+GitHub Actions CI is now defined in [.github/workflows/ci.yml](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/.github/workflows/ci.yml). It validates:
+
+- `python -m compileall src scripts tests`
+- `pytest -q`
+
+CI does not download DeepMIMO and does not reproduce long training runs or full benchmark artifacts.
 
 DeepMIMO v4 quickstart shape assumed by this repository:
 

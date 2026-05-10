@@ -1,6 +1,7 @@
 # Artifact Manifest
 
-- commit: `7da922dce19763bfecced4eaa8c6c60a6a1dc731`
+- generated_from_commit: `bf51b89c3690371a8ac317623cf5c06b7e2f585b`
+- note: this is a result index, not a dataset archive.
 
 | path | exists | type | command |
 | --- | --- | --- | --- |

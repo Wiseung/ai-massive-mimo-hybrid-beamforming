@@ -415,6 +415,14 @@ The current phase adds two new ablation axes:
 
 The DeepMIMO split ablation is complete and exported. The unfolded-WMMSE-lite quick sweep shows that stronger structured initialization does move the learned model very close to `wmmse_iter_5`, but it also carries over much of the initialization cost. In the current local results, `wmmse_iter_5` initialization is the best SE configuration, while `wmmse_iter_1` remains the better low-cost point within the swept learned variants.
 
+## Final Conclusion
+
+- `WMMSE` is the strongest full reference in the current synthetic benchmark.
+- `wmmse_iter_5` is a strong low-iteration reference and remains the more practical structured deployment point.
+- The best current `WMMSE-lite` variant matches `wmmse_iter_5` in SE but not in latency.
+- Learned refinement overhead itself is small, but WMMSE initialization dominates the runtime.
+- DeepMIMO random and contiguous results are internally consistent with the current filtered benchmark, but they remain limited to `K=4`, `Nt=8`, `Nsc=1`.
+
 ## Discussion
 
 The most important correction in this round was methodological. The original learned result was not only weak; it was also not summarized in the same form as the baseline SE-vs-SNR benchmark. Once the evaluation contract was unified, the repository could cleanly show both the weakness of the original CNN and the effectiveness of the improved warm-start pipeline.

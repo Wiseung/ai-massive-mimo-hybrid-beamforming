@@ -46,14 +46,26 @@ def main() -> None:
                 "exists": path.exists(),
                 "type": path.suffix.lstrip("."),
                 "command": command,
-                "commit": commit,
+                "generated_from_commit": commit,
             }
         )
 
-    payload = {"commit": commit, "artifacts": rows}
+    payload = {
+        "generated_from_commit": commit,
+        "note": "Artifact manifest is an index of generated benchmark outputs. It is not a dataset archive and does not imply that raw DeepMIMO data or training checkpoints are committed to git.",
+        "artifacts": rows,
+    }
     out_json.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
-    lines = ["# Artifact Manifest", "", f"- commit: `{commit}`", "", "| path | exists | type | command |", "| --- | --- | --- | --- |"]
+    lines = [
+        "# Artifact Manifest",
+        "",
+        f"- generated_from_commit: `{commit}`",
+        "- note: this is a result index, not a dataset archive.",
+        "",
+        "| path | exists | type | command |",
+        "| --- | --- | --- | --- |",
+    ]
     for row in rows:
         lines.append(f"| {row['path']} | {row['exists']} | {row['type']} | `{row['command']}` |")
     out_md.write_text("\n".join(lines) + "\n", encoding="utf-8")

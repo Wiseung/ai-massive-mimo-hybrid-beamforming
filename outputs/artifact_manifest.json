@@ -1,82 +1,83 @@
 {
-  "commit": "7da922dce19763bfecced4eaa8c6c60a6a1dc731",
+  "generated_from_commit": "bf51b89c3690371a8ac317623cf5c06b7e2f585b",
+  "note": "Artifact manifest is an index of generated benchmark outputs. It is not a dataset archive and does not imply that raw DeepMIMO data or training checkpoints are committed to git.",
   "artifacts": [
     {
       "path": "outputs/comparisons/latency/latency_table.csv",
       "exists": true,
       "type": "csv",
       "command": "python scripts/benchmark_latency.py ...",
-      "commit": "7da922dce19763bfecced4eaa8c6c60a6a1dc731"
+      "generated_from_commit": "bf51b89c3690371a8ac317623cf5c06b7e2f585b"
     },
     {
       "path": "outputs/comparisons/latency_v2/latency_table.csv",
       "exists": true,
       "type": "csv",
       "command": "python scripts/benchmark_latency.py ... --profile-method unfolded_wmmse_lite",
-      "commit": "7da922dce19763bfecced4eaa8c6c60a6a1dc731"
+      "generated_from_commit": "bf51b89c3690371a8ac317623cf5c06b7e2f585b"
     },
     {
       "path": "outputs/comparisons/latency_v2/unfolded_wmmse_lite_profile.json",
       "exists": true,
       "type": "json",
       "command": "python scripts/benchmark_latency.py ... --profile-method unfolded_wmmse_lite",
-      "commit": "7da922dce19763bfecced4eaa8c6c60a6a1dc731"
+      "generated_from_commit": "bf51b89c3690371a8ac317623cf5c06b7e2f585b"
     },
     {
       "path": "outputs/comparisons/model_families_v3/model_family_table_v3.csv",
       "exists": true,
       "type": "csv",
       "command": "python scripts/compare_model_families.py ...",
-      "commit": "7da922dce19763bfecced4eaa8c6c60a6a1dc731"
+      "generated_from_commit": "bf51b89c3690371a8ac317623cf5c06b7e2f585b"
     },
     {
       "path": "outputs/comparisons/deepmimo_model_family_random/deepmimo_model_family_mean_std.csv",
       "exists": true,
       "type": "csv",
       "command": "python scripts/run_deepmimo_model_family_benchmark.py --split-mode random ...",
-      "commit": "7da922dce19763bfecced4eaa8c6c60a6a1dc731"
+      "generated_from_commit": "bf51b89c3690371a8ac317623cf5c06b7e2f585b"
     },
     {
       "path": "outputs/comparisons/deepmimo_model_family_contiguous/deepmimo_model_family_mean_std.csv",
       "exists": true,
       "type": "csv",
       "command": "python scripts/run_deepmimo_model_family_benchmark.py --split-mode contiguous ...",
-      "commit": "7da922dce19763bfecced4eaa8c6c60a6a1dc731"
+      "generated_from_commit": "bf51b89c3690371a8ac317623cf5c06b7e2f585b"
     },
     {
       "path": "outputs/comparisons/deepmimo_model_family_random_vs_contiguous.csv",
       "exists": true,
       "type": "csv",
       "command": "python scripts/check_deepmimo_results.py ...",
-      "commit": "7da922dce19763bfecced4eaa8c6c60a6a1dc731"
+      "generated_from_commit": "bf51b89c3690371a8ac317623cf5c06b7e2f585b"
     },
     {
       "path": "outputs/comparisons/unfolded_wmmse_lite_sweep/sweep_table.csv",
       "exists": true,
       "type": "csv",
       "command": "python scripts/sweep_unfolded_wmmse_lite.py ...",
-      "commit": "7da922dce19763bfecced4eaa8c6c60a6a1dc731"
+      "generated_from_commit": "bf51b89c3690371a8ac317623cf5c06b7e2f585b"
     },
     {
       "path": "outputs/comparisons/unfolded_wmmse_lite_sweep/best_variant.yaml",
       "exists": true,
       "type": "yaml",
       "command": "python scripts/sweep_unfolded_wmmse_lite.py ...",
-      "commit": "7da922dce19763bfecced4eaa8c6c60a6a1dc731"
+      "generated_from_commit": "bf51b89c3690371a8ac317623cf5c06b7e2f585b"
     },
     {
       "path": "outputs/comparisons/model_families_v4/model_family_table.csv",
       "exists": true,
       "type": "csv",
       "command": "python scripts/compare_model_families.py --latency-table outputs/comparisons/latency_v2/latency_table.csv --out outputs/comparisons/model_families_v4",
-      "commit": "7da922dce19763bfecced4eaa8c6c60a6a1dc731"
+      "generated_from_commit": "bf51b89c3690371a8ac317623cf5c06b7e2f585b"
     },
     {
       "path": "outputs/comparisons/model_families_v4/pareto_se_latency.png",
       "exists": true,
       "type": "png",
       "command": "python scripts/compare_model_families.py --latency-table outputs/comparisons/latency_v2/latency_table.csv --out outputs/comparisons/model_families_v4",
-      "commit": "7da922dce19763bfecced4eaa8c6c60a6a1dc731"
+      "generated_from_commit": "bf51b89c3690371a8ac317623cf5c06b7e2f585b"
     }
   ]
 }

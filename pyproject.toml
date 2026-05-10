@@ -24,7 +24,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+  "black>=24.0",
   "pytest>=8.0",
+  "ruff>=0.6",
 ]
 deepmimo = [
   "DeepMIMO",
@@ -46,3 +48,11 @@ pythonpath = [
 testpaths = [
   "tests",
 ]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
