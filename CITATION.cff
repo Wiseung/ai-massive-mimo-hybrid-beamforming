@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+title: AI Massive MIMO Hybrid Beamforming Benchmark
+message: "If you use this repository, please cite it using the metadata from this file."
+type: software
+authors:
+  - family-names: wiseung
+    email: 1120686111@qq.com
+version: 0.1.0
+date-released: 2026-05-10
+repository-code: https://github.com/Wiseung/ai-massive-mimo-hybrid-beamforming
+license: MIT
+keywords:
+  - Massive MIMO
+  - Hybrid Beamforming
+  - WMMSE
+  - DeepMIMO
+  - PyTorch
+  - Wireless AI

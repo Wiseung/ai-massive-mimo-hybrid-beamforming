@@ -2,6 +2,8 @@
 
 PyTorch/DeepMIMO benchmark for Massive MIMO beamforming with WMMSE, WMMSE-lite, and learned refinements.
 
+Current release: [`v0.1.0` release candidate](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/releases/v0.1.0.md)
+
 Current validated scope:
 
 - Synthetic narrowband MU-MISO
@@ -84,7 +86,7 @@ Current validated scope:
 - DeepMIMO `v4` is installed locally and the `asu_campus_3p5` smoke path, baseline smoke benchmark, and a small learned smoke benchmark all ran successfully.
 - DeepMIMO quick multi-seed benchmarking is implemented, but quick mode is explicitly not treated as a full benchmark.
 - The current DeepMIMO quick `v2` benchmark still ran only `seed=1`, so its `std` entries remain `NaN` and it is not reported as a full multi-seed result.
-- A contiguous DeepMIMO split benchmark is now available and should be interpreted as a harder location-generalization evaluation than the random split.
+- A contiguous DeepMIMO split benchmark is now available as an alternative location-ordered evaluation; on the current filtered tensor it should not be oversimplified as uniformly harder than the random split.
 - A non-quick DeepMIMO full multi-seed benchmark has now run with `seeds=1,2,3`.
 - A DeepMIMO random-split model-family benchmark across `seeds=1,2,3` is now available for `rzf`, `wmmse_iter_5`, `cnn`, `residual_rzf`, and `unfolded_wmmse_lite`.
 - A contiguous DeepMIMO model-family benchmark across `seeds=1,2,3` is now available, together with an exported random-vs-contiguous comparison table and figure.
@@ -731,6 +733,8 @@ GitHub Actions CI is now defined in [.github/workflows/ci.yml](/home/developer71
 - `pytest -q`
 
 CI does not download DeepMIMO and does not reproduce long training runs or full benchmark artifacts.
+
+After publishing a GitHub release, this repository can be archived through Zenodo/GitHub integration if a DOI is needed.
 
 DeepMIMO v4 quickstart shape assumed by this repository:
 
