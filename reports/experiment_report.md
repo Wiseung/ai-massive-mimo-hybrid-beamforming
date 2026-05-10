@@ -321,12 +321,12 @@ Under this unified protocol, the main synthetic latency points are:
 The refreshed `latency_v2` run requested in the current phase reports:
 
 - `mrt = 0.234 ms`
-- `rzf = 0.562 ms`
-- `wmmse_iter_1 = 55.85 ms`
-- `wmmse_iter_2 = 109.08 ms`
-- `unfolded_wmmse_lite = 118.86 ms`
-- `wmmse_iter_5 = 280.20 ms`
-- `wmmse = 1688.79 ms`
+- `rzf = 0.554 ms`
+- `wmmse_iter_1 = 37.49 ms`
+- `wmmse_iter_2 = 73.91 ms`
+- `unfolded_wmmse_lite = 190.24 ms`
+- `wmmse_iter_5 = 185.46 ms`
+- `wmmse = 1146.11 ms`
 
 The current quick ablation sweep over `unfolded_wmmse_lite` variants identifies the best synthetic configuration as:
 
@@ -337,7 +337,7 @@ The current quick ablation sweep over `unfolded_wmmse_lite` variants identifies 
 - `mean_se = 5.8163`
 - `gap_to_wmmse = -0.43%`
 - `gap_to_wmmse_iter_5 = +0.0055%`
-- sweep-local latency = `189.21 ms`
+- unified latency-table inference = `190.24 ms`
 
 So the current best unfolded-WMMSE-lite variant practically matches the `wmmse_iter_5` reference in SE, but it does not beat `wmmse_iter_5` on latency.
 
