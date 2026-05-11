@@ -1,0 +1,23 @@
+{
+  "status": "ok",
+  "sionna_import_ok": true,
+  "sionna_version": "2.0.1",
+  "model_name": "sionna_ofdm_residual_rzf",
+  "train_summary": {
+    "best_epoch": 1,
+    "best_val_loss": -19.864124298095703,
+    "best_val_mean_sum_rate": 19.924991607666016,
+    "used_sionna_ofdm": true,
+    "used_sionna_channel": true
+  },
+  "eval_summary": {
+    "learned_mean_sum_rate": 17.656394577026365,
+    "learned_mean_gap_to_rzf": 6.184516920955064e-05,
+    "learned_mean_gap_to_wmmse_iter_5": -0.00507055245341278
+  },
+  "notes": [
+    "This is a reviewer-oriented minimal reproduction check.",
+    "It uses residual-RZF smoke training only.",
+    "It does not download data and does not run the full benchmark suite."
+  ]
+}

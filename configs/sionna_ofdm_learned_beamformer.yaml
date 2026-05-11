@@ -1,0 +1,37 @@
+dataset:
+  type: synthetic_ofdm
+  batch_size: 128
+  num_batches_per_epoch: 50
+  num_val_batches: 10
+  num_subcarriers: 8
+  num_users: 4
+  num_bs_ant: 16
+  channel_model: rayleigh
+  sparse_mmwave_like: false
+  num_paths: 3
+  snr_db_train: [0, 5, 10, 15, 20]
+  snr_db_eval: [-5, 0, 5, 10, 15, 20]
+
+model:
+  name: tiny_neural_beamformer
+  hidden_dim: 128
+  normalize_power: true
+  condition_on_snr: true
+
+training:
+  epochs: 20
+  lr: 0.001
+  optimizer: adam
+  grad_clip: 1.0
+  device: auto
+  seed: 42
+
+loss:
+  type: negative_sum_rate_plus_mse
+  sum_rate_weight: 1.0
+  mse_weight: 0.1
+  power_penalty: 0.01
+
+logging:
+  out_dir: outputs/runs/sionna_ofdm_learned_beamformer
+  save_every: 5

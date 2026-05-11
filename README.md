@@ -2,7 +2,10 @@
 
 PyTorch/DeepMIMO benchmark for Massive MIMO beamforming with WMMSE, WMMSE-lite, and learned refinements.
 
-Current release: [`v0.1.0` release candidate](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/releases/v0.1.0.md)
+Published releases:
+
+- [`v0.1.0` benchmark prototype](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/releases/v0.1.0.md)
+- [`v0.2.0` optional Sionna PHY/OFDM demos](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/releases/v0.2.0.md)
 
 Current validated scope:
 
@@ -153,7 +156,7 @@ The Sionna demo path is an optional experimental branch and is not part of the `
 
 ## Optional Sionna PHY/OFDM Demos
 
-Available on `feature/sionna-phy-ofdm-link` and intended for an upcoming `v0.2.0` optional Sionna demo branch state.
+Available on the published `v0.2.0` release and the earlier `feature/sionna-phy-ofdm-link` branch history.
 
 - optional dependency: `sionna-no-rt`
 - does not change `v0.1.0` benchmark claims
@@ -172,6 +175,179 @@ python scripts/sionna_ofdm_beamforming_bridge_demo.py --out outputs/sionna_smoke
 python scripts/check_differentiable_beamformer_gradients.py --out outputs/sionna_smoke/differentiable_beamformer_gradcheck.json
 python scripts/sionna_ofdm_differentiable_beamforming_demo.py --out outputs/sionna_smoke/sionna_ofdm_differentiable_beamforming_summary.json
 ```
+
+## Experimental Sionna OFDM Training
+
+Available on `feature/sionna-learned-beamformer-training` as an optional post-`v0.2.0` experiment.
+
+- optional dependency only: `sionna-no-rt`
+- synthetic OFDM channel only
+- multi-SNR link-level training
+- no Sionna RT
+- no ray tracing
+- no 5G NR full stack
+- does not change `v0.1.0` or `v0.2.0` release claims
+
+### Sionna OFDM Learned Training Status
+
+Current mainline interpretation for this branch:
+
+- `SionnaOFDMResidualRZFBeamformer` is the cleanest mainline.
+- `SionnaOFDMResidualWMMSEDistilledBeamformer` is safe but gives only a tiny improvement.
+- no learned model beats `WMMSE-iter5`.
+- results remain synthetic OFDM only.
+
+Compact headline table:
+
+| Method | Status | mean_sum_rate | gap_to_rzf | gap_to_wmmse_iter_5 | Notes |
+| --- | --- | ---: | ---: | ---: | --- |
+| TinyNeuralBeamformer | full | `8.723585` | `-39.5834%` | `-39.9628%` | much weaker than analytic priors |
+| Residual RZF | full | `17.657597` | `+0.0134%` | `-0.4999%` | current mainline |
+| Unfolded Lite | full | `17.466006` | `-0.3550%` | `-0.8715%` | slower due to `wmmse_iter_2` initializer |
+| Residual WMMSE-distill | full | `17.657607` | `+0.0135%` | `-0.4997%` | safe, near-null gain over residual RZF |
+| RZF | full baseline | reference | `0%` | about `-0.513%` | fast analytic baseline |
+| WMMSE-iter5 | full baseline | reference | above RZF | `0%` | strongest reduced-iteration baseline |
+
+Quick-only results:
+
+- multi-seed robustness is `--quick`, not a full exhaustive benchmark
+- scale sweep is `--quick`
+- train-SNR ablation is `--quick`
+- distillation-weight sweep is `--quick`
+
+Current learned OFDM training status:
+
+- `TinyNeuralBeamformer` full result:
+  `mean_sum_rate = 8.723585`, `gap_to_rzf = -39.5834%`, `gap_to_wmmse_iter_5 = -39.9628%`
+- `SionnaOFDMResidualRZFBeamformer` full result:
+  `mean_sum_rate = 17.657597`, `gap_to_rzf = +0.0134%`, `gap_to_wmmse_iter_5 = -0.4999%`
+- `SionnaOFDMUnfoldedLiteBeamformer` full result:
+  `mean_sum_rate = 17.466006`, `gap_to_rzf = -0.3550%`, `gap_to_wmmse_iter_5 = -0.8715%`
+- `SionnaOFDMResidualWMMSEDistilledBeamformer` full result:
+  `mean_sum_rate = 17.657607`, `gap_to_rzf = +0.0135%`, `gap_to_wmmse_iter_5 = -0.4997%`
+- high-SNR gap is dramatically improved by communication priors relative to `TinyNeuralBeamformer`
+- `SionnaOFDMResidualWMMSEDistilledBeamformer` uses `WMMSE-iter5` only as a training-time teacher target; inference inputs remain `H_f + F_rzf + snr`
+- teacher leakage audit reports:
+  `teacher_used_during_training = true`,
+  `teacher_used_during_inference = false`,
+  `model_forward_calls_wmmse = false`,
+  `leakage_detected = false`
+- distillation weight quick sweep (`0.0, 0.05, 0.1, 0.5, 1.0`) shows almost no practical separation in gap to `WMMSE-iter5`; no weight produced a meaningful jump beyond the residual-RZF operating point
+- current recommended next-stage mainline for this branch remains `SionnaOFDMResidualRZFBeamformer` for clarity, while `SionnaOFDMResidualWMMSEDistilledBeamformer` is kept as a documented near-null result
+- quick multi-seed robustness (`seeds = 1,2,3`) keeps `SionnaOFDMResidualRZFBeamformer` as the strongest learned method:
+  `mean_sum_rate_mean = 17.656879 +/- 0.020110`,
+  `gap_to_rzf_mean = +0.0259% +/- 0.2038%`,
+  `gap_to_wmmse_iter_5_mean = -0.5732% +/- 0.1216%`
+- OFDM inference latency benchmark (`B=128, Nsc=8, K=4, Nt=16`) shows:
+  `rzf = 1.069 ms`, `tiny = 0.848 ms`, `residual_rzf = 2.246 ms`,
+  `unfolded_lite = 56.120 ms`, `wmmse_iter_2 = 58.532 ms`, `wmmse_iter_5 = 192.120 ms`
+- current residual correction analysis indicates a small refinement around RZF rather than a robust RZF-beating gain:
+  `mean_delta_norm_ratio = 0.052996`, `mean_relative_se_gain_over_rzf = +0.004854%`, `alpha ~= 0.0979`
+- quick train-SNR ablation does not show a meaningful sensitivity yet:
+  `high_only [15, 20]` is marginally best, but the mean-gap span to RZF is only about `2.9e-5`
+- quick scale sweep keeps residual-RZF effectively on the RZF operating point and below `WMMSE-iter5` by about `-0.3992%` on average across evaluated settings
+
+```bash
+python scripts/train_sionna_ofdm_beamformer.py \
+  --config configs/sionna_ofdm_learned_beamformer.yaml \
+  --out outputs/runs/sionna_ofdm_learned_beamformer_smoke \
+  --smoke
+
+python scripts/evaluate_sionna_ofdm_beamformer.py \
+  --config configs/sionna_ofdm_learned_beamformer.yaml \
+  --ckpt outputs/runs/sionna_ofdm_learned_beamformer_smoke/best.pt \
+  --out outputs/comparisons/sionna_ofdm_learned_beamformer_smoke
+
+python scripts/train_sionna_ofdm_beamformer.py \
+  --config configs/sionna_ofdm_residual_rzf.yaml \
+  --out outputs/runs/sionna_ofdm_residual_rzf_smoke \
+  --smoke
+
+python scripts/evaluate_sionna_ofdm_beamformer.py \
+  --config configs/sionna_ofdm_residual_rzf.yaml \
+  --ckpt outputs/runs/sionna_ofdm_residual_rzf_smoke/best.pt \
+  --out outputs/comparisons/sionna_ofdm_residual_rzf_smoke
+
+python scripts/train_sionna_ofdm_beamformer.py \
+  --config configs/sionna_ofdm_unfolded_lite.yaml \
+  --out outputs/runs/sionna_ofdm_unfolded_lite_smoke \
+  --smoke
+
+python scripts/evaluate_sionna_ofdm_beamformer.py \
+  --config configs/sionna_ofdm_unfolded_lite.yaml \
+  --ckpt outputs/runs/sionna_ofdm_unfolded_lite_smoke/best.pt \
+  --out outputs/comparisons/sionna_ofdm_unfolded_lite_smoke
+
+python scripts/compare_sionna_ofdm_training_runs.py \
+  --tiny outputs/comparisons/sionna_ofdm_learned_beamformer \
+  --residual outputs/comparisons/sionna_ofdm_residual_rzf \
+  --unfolded outputs/comparisons/sionna_ofdm_unfolded_lite \
+  --out outputs/comparisons/sionna_ofdm_training_family
+
+python scripts/run_sionna_ofdm_multiseed_benchmark.py \
+  --configs configs/sionna_ofdm_learned_beamformer.yaml \
+            configs/sionna_ofdm_residual_rzf.yaml \
+            configs/sionna_ofdm_unfolded_lite.yaml \
+  --seeds 1 2 3 \
+  --out outputs/comparisons/sionna_ofdm_multiseed \
+  --quick
+
+python scripts/benchmark_sionna_ofdm_models.py \
+  --out outputs/comparisons/sionna_ofdm_latency
+
+python scripts/analyze_sionna_residual_corrections.py \
+  --config configs/sionna_ofdm_residual_rzf.yaml \
+  --ckpt outputs/runs/sionna_ofdm_residual_rzf/best.pt \
+  --out outputs/comparisons/sionna_ofdm_residual_analysis
+
+python scripts/sweep_sionna_ofdm_scale.py \
+  --quick \
+  --out outputs/comparisons/sionna_ofdm_scale_sweep
+
+python scripts/sweep_sionna_train_snr.py \
+  --model sionna_ofdm_residual_rzf \
+  --quick \
+  --out outputs/comparisons/sionna_ofdm_snr_ablation
+
+python scripts/train_sionna_ofdm_beamformer.py \
+  --config configs/sionna_ofdm_residual_wmmse_distill.yaml \
+  --out outputs/runs/sionna_ofdm_residual_wmmse_distill_smoke \
+  --smoke
+
+python scripts/evaluate_sionna_ofdm_beamformer.py \
+  --config configs/sionna_ofdm_residual_wmmse_distill.yaml \
+  --ckpt outputs/runs/sionna_ofdm_residual_wmmse_distill_smoke/best.pt \
+  --out outputs/comparisons/sionna_ofdm_residual_wmmse_distill_smoke
+
+python scripts/train_sionna_ofdm_beamformer.py \
+  --config configs/sionna_ofdm_residual_wmmse_distill.yaml \
+  --out outputs/runs/sionna_ofdm_residual_wmmse_distill
+
+python scripts/evaluate_sionna_ofdm_beamformer.py \
+  --config configs/sionna_ofdm_residual_wmmse_distill.yaml \
+  --ckpt outputs/runs/sionna_ofdm_residual_wmmse_distill/best.pt \
+  --out outputs/comparisons/sionna_ofdm_residual_wmmse_distill
+
+python scripts/sweep_sionna_wmmse_distill_weight.py \
+  --config configs/sionna_ofdm_residual_wmmse_distill.yaml \
+  --weights 0.0 0.05 0.1 0.5 1.0 \
+  --quick \
+  --out outputs/comparisons/sionna_ofdm_wmmse_distill_sweep
+
+python scripts/audit_sionna_teacher_leakage.py \
+  --config configs/sionna_ofdm_residual_wmmse_distill.yaml \
+  --ckpt outputs/runs/sionna_ofdm_residual_wmmse_distill/best.pt \
+  --out outputs/comparisons/sionna_ofdm_teacher_leakage_audit
+
+python scripts/compare_sionna_ofdm_training_runs.py \
+  --tiny outputs/comparisons/sionna_ofdm_learned_beamformer \
+  --residual outputs/comparisons/sionna_ofdm_residual_rzf \
+  --unfolded outputs/comparisons/sionna_ofdm_unfolded_lite \
+  --wmmse-distill outputs/comparisons/sionna_ofdm_residual_wmmse_distill \
+  --out outputs/comparisons/sionna_ofdm_training_family_v2
+```
+
+See [`docs/sionna_learned_beamformer_training.md`](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/sionna_learned_beamformer_training.md) for the experimental training scope and limitations.
 
 ## RTX 5090 24GB Recommended Config
 
