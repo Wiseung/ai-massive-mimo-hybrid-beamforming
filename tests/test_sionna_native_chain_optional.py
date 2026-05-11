@@ -195,3 +195,44 @@ def test_sionna_beamforming_receiver_chain_runs(tmp_path: Path) -> None:
         assert receiver_payload["native_failure_stage"]
         assert receiver_payload["native_failure_reason"]
     assert (compare_dir / "native_chain_comparison_v2.md").exists()
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_sionna_native_learned_chain_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    learned_out = tmp_path / "learned_beamforming_receiver_summary.json"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/sionna_native_ofdm_learned_beamforming_chain.py",
+            "--out",
+            str(learned_out),
+            "--receiver-mode",
+            "auto",
+            "--trace-shapes",
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(learned_out.read_text(encoding="utf-8"))
+    assert payload["demo_status"] == "ok"
+    assert payload["native_receiver_attempted"] is True
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/compare_sionna_native_learned_beamforming.py",
+            "--analytic-summary",
+            str(repo_root / "outputs/sionna_native_chain/beamforming_receiver_chain_v2_summary.json"),
+            "--analytic-metrics",
+            str(repo_root / "outputs/sionna_native_chain/beamforming_receiver_chain_v2_metrics.csv"),
+            "--learned-summary",
+            str(learned_out),
+            "--learned-metrics",
+            str(learned_out.with_name("learned_beamforming_receiver_metrics.csv")),
+            "--out",
+            str(tmp_path / "learned_compare"),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    assert (tmp_path / "learned_compare" / "native_learned_comparison.md").exists()

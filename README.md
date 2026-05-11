@@ -404,6 +404,9 @@ Current branch status:
   `native` requires the real Sionna receiver path,
   `auto` tries native first and records exact fallback stage/reason if needed
 - the current `receiver-mode=auto` validation succeeds for `no_precoding`, `project_rzf`, `project_wmmse_iter_2`, and `project_wmmse_iter_5` through a real Sionna receiver path
+- learned insertion into the same native receiver path now succeeds for `learned_residual_rzf` and `learned_residual_wmmse_distill`
+- both learned native-chain methods keep `teacher_used_during_inference=false`
+- current native-chain learned comparison is still synthetic and project-H_f-assisted; it is not a full native-only benchmark
 - fallback proxy metrics are still not described as full Sionna-native receiver results when native receiver mode is not used
 - this branch therefore should still be read as an integration experiment, not a production e2e chain
 

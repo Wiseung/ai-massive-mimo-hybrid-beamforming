@@ -165,6 +165,41 @@ This means the repository now has both:
 
 The bridge remains experimental and synthetic-only, but it is now strong enough to justify attaching the next learned frequency-domain model at this insertion point.
 
+## Learned Residual Insertion
+
+The current learned insertion phase now validates two learned residual models inside the same native receiver path:
+
+- `learned_residual_rzf`
+- `learned_residual_wmmse_distill`
+
+Current status:
+
+- both learned methods successfully enter the Sionna-native receiver path
+- both keep `teacher_used_during_inference = false`
+- both still consume project-side `H_f = (B,Nsc,K,Nt)` as the learned-model input
+- therefore the result should be described as:
+  a native Sionna receiver benchmark with project-assisted frequency-domain precoder input,
+  not a full native-only benchmark
+
+Current one-shot comparison at the validated native insertion point:
+
+- `project_rzf`: `approximate_sum_rate ~= 18.6893`
+- `project_wmmse_iter_5`: `approximate_sum_rate ~= 18.3007`
+- `learned_residual_rzf`: `approximate_sum_rate ~= 18.2509`
+- `learned_residual_wmmse_distill`: `approximate_sum_rate ~= 18.3812`
+
+Interpretation:
+
+- `learned_residual_rzf` succeeds structurally and remains close to `project_rzf`, but it does not exceed `project_rzf` in the current native-chain evaluation
+- `learned_residual_wmmse_distill` also succeeds structurally and is slightly stronger than `learned_residual_rzf` in this native-chain run, but still does not justify any claim of a WMMSE-level breakthrough
+- `teacher_used_during_inference=false` remains preserved for both learned methods
+
+This means the next mainline recommendation is still:
+
+- keep `residual_rzf` as the clean primary learned insertion
+- keep `residual_wmmse_distill` as a documented secondary variant
+- continue to describe the setup as synthetic/project-H_f-assisted native receiver benchmarking
+
 ## Learned Beamformer Insertion Recommendation
 
 Yes, this is now the recommended insertion point for the next learned-beamformer phase:
