@@ -5,6 +5,7 @@ from __future__ import annotations
 import torch
 
 from beamforming.models.cnn_beamformer import CNNBeamformer
+from beamforming.models.differentiable_beamformer import TinyNeuralBeamformer
 from beamforming.models.mlp_beamformer import MLPBeamformer
 from beamforming.models.residual_beamformer import ResidualRZFBeamformer
 from beamforming.models.unfolded_pga import UnfoldedPGABeamformer
@@ -17,7 +18,7 @@ def build_model(model_cfg: dict, data_cfg: dict) -> torch.nn.Module:
     common = {
         "num_users": int(data_cfg["num_users"]),
         "num_bs_ant": int(data_cfg["num_bs_ant"]),
-        "num_rf_chains": int(data_cfg["num_rf_chains"]),
+        "num_rf_chains": int(data_cfg.get("num_rf_chains", min(int(data_cfg["num_users"]), 4))),
     }
     if name == "mlp":
         return MLPBeamformer(
@@ -41,6 +42,14 @@ def build_model(model_cfg: dict, data_cfg: dict) -> torch.nn.Module:
         )
     if name == "unfolded_pga":
         return UnfoldedPGABeamformer(num_layers=int(model_cfg.get("num_layers", 3)), **common)
+    if name == "tiny_neural_beamformer":
+        return TinyNeuralBeamformer(
+            num_users=common["num_users"],
+            num_bs_ant=common["num_bs_ant"],
+            hidden_dim=int(model_cfg.get("hidden_dim", 128)),
+            condition_on_snr=bool(model_cfg.get("condition_on_snr", False)),
+            normalize_power_output=bool(model_cfg.get("normalize_power", True)),
+        )
     if name == "unfolded_rzf":
         return UnfoldedRZFBeamformer(
             num_layers=int(model_cfg.get("num_layers", 3)),

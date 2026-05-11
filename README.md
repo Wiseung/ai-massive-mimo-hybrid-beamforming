@@ -2,7 +2,10 @@
 
 PyTorch/DeepMIMO benchmark for Massive MIMO beamforming with WMMSE, WMMSE-lite, and learned refinements.
 
-Current release: [`v0.1.0` release candidate](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/releases/v0.1.0.md)
+Published releases:
+
+- [`v0.1.0` benchmark prototype](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/releases/v0.1.0.md)
+- [`v0.2.0` optional Sionna PHY/OFDM demos](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/releases/v0.2.0.md)
 
 Current validated scope:
 
@@ -153,7 +156,7 @@ The Sionna demo path is an optional experimental branch and is not part of the `
 
 ## Optional Sionna PHY/OFDM Demos
 
-Available on `feature/sionna-phy-ofdm-link` and intended for an upcoming `v0.2.0` optional Sionna demo branch state.
+Available on the published `v0.2.0` release and the earlier `feature/sionna-phy-ofdm-link` branch history.
 
 - optional dependency: `sionna-no-rt`
 - does not change `v0.1.0` benchmark claims
@@ -172,6 +175,32 @@ python scripts/sionna_ofdm_beamforming_bridge_demo.py --out outputs/sionna_smoke
 python scripts/check_differentiable_beamformer_gradients.py --out outputs/sionna_smoke/differentiable_beamformer_gradcheck.json
 python scripts/sionna_ofdm_differentiable_beamforming_demo.py --out outputs/sionna_smoke/sionna_ofdm_differentiable_beamforming_summary.json
 ```
+
+## Experimental Sionna OFDM Training
+
+Available on `feature/sionna-learned-beamformer-training` as an optional post-`v0.2.0` experiment.
+
+- optional dependency only: `sionna-no-rt`
+- synthetic OFDM channel only
+- multi-SNR link-level training
+- no Sionna RT
+- no ray tracing
+- no 5G NR full stack
+- does not change `v0.1.0` or `v0.2.0` release claims
+
+```bash
+python scripts/train_sionna_ofdm_beamformer.py \
+  --config configs/sionna_ofdm_learned_beamformer.yaml \
+  --out outputs/runs/sionna_ofdm_learned_beamformer_smoke \
+  --smoke
+
+python scripts/evaluate_sionna_ofdm_beamformer.py \
+  --config configs/sionna_ofdm_learned_beamformer.yaml \
+  --ckpt outputs/runs/sionna_ofdm_learned_beamformer_smoke/best.pt \
+  --out outputs/comparisons/sionna_ofdm_learned_beamformer_smoke
+```
+
+See [`docs/sionna_learned_beamformer_training.md`](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/sionna_learned_beamformer_training.md) for the experimental training scope and limitations.
 
 ## RTX 5090 24GB Recommended Config
 
