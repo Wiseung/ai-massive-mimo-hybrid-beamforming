@@ -1,0 +1,132 @@
+{
+  "sionna_import_ok": true,
+  "sionna_version": "2.0.1",
+  "components": [
+    {
+      "name": "ResourceGrid",
+      "import_ok": true,
+      "module_path": "sionna.phy.ofdm",
+      "constructor_signature": "(num_ofdm_symbols: int, fft_size: int, subcarrier_spacing: float, num_tx: int = 1, num_streams_per_tx: int = 1, cyclic_prefix_length: int = 0, num_guard_carriers: Tuple[int, int] = (0, 0), dc_null: bool = False, pilot_pattern: Union[str, sionna.phy.ofdm.pilot_pattern.PilotPattern, NoneType] = None, pilot_ofdm_symbol_indices: Optional[List[int]] = None, precision: Optional[Literal['single', 'double']] = None, device: Optional[str] = None) -> None",
+      "minimal_callable_example_available": true,
+      "notes": [
+        "Created test grid with num_data_symbols=39."
+      ],
+      "error": null
+    },
+    {
+      "name": "ResourceGridMapper",
+      "import_ok": true,
+      "module_path": "sionna.phy.ofdm",
+      "constructor_signature": "(resource_grid: sionna.phy.ofdm.resource_grid.ResourceGrid, precision: Optional[Literal['single', 'double']] = None, device: Optional[str] = None, **kwargs) -> None",
+      "minimal_callable_example_available": true,
+      "notes": [
+        "Mapping probe shape: (2, 1, 1, 4, 16)."
+      ],
+      "error": null
+    },
+    {
+      "name": "ResourceGridDemapper",
+      "import_ok": true,
+      "module_path": "sionna.phy.ofdm",
+      "constructor_signature": "(resource_grid: sionna.phy.ofdm.resource_grid.ResourceGrid, stream_management: sionna.phy.mimo.stream_management.StreamManagement, precision: Optional[Literal['single', 'double']] = None, device: Optional[str] = None, **kwargs) -> None",
+      "minimal_callable_example_available": true,
+      "notes": [
+        "Demapping probe shape: (2, 1, 1, 39)."
+      ],
+      "error": null
+    },
+    {
+      "name": "OFDMChannel",
+      "import_ok": true,
+      "module_path": "sionna.phy.channel",
+      "constructor_signature": "(channel_model: sionna.phy.channel.channel_model.ChannelModel, resource_grid: sionna.phy.ofdm.resource_grid.ResourceGrid, normalize_channel: bool = False, return_channel: bool = False, precision: Optional[Literal['single', 'double']] = None, device: Optional[str] = None, **kwargs) -> None",
+      "minimal_callable_example_available": true,
+      "notes": [
+        "OFDMChannel output shape: (2, 1, 1, 4, 16), channel shape: (2, 1, 1, 1, 1, 4, 16)."
+      ],
+      "error": null
+    },
+    {
+      "name": "ApplyOFDMChannel",
+      "import_ok": true,
+      "module_path": "sionna.phy.channel",
+      "constructor_signature": "(precision: Optional[Literal['single', 'double']] = None, device: Optional[str] = None, **kwargs) -> None",
+      "minimal_callable_example_available": true,
+      "notes": [
+        "ApplyOFDMChannel output shape: (2, 1, 1, 4, 16)."
+      ],
+      "error": null
+    },
+    {
+      "name": "LSChannelEstimator",
+      "import_ok": true,
+      "module_path": "sionna.phy.ofdm",
+      "constructor_signature": "(resource_grid: sionna.phy.ofdm.resource_grid.ResourceGrid, interpolation_type: str = 'nn', interpolator: Optional[ForwardRef('BaseChannelInterpolator')] = None, precision: Optional[Literal['single', 'double']] = None, device: Optional[str] = None, **kwargs) -> None",
+      "minimal_callable_example_available": true,
+      "notes": [
+        "LS estimate shape: (2, 1, 1, 1, 1, 4, 13), error shape: (2, 1, 1, 1, 1, 4, 13)."
+      ],
+      "error": null
+    },
+    {
+      "name": "LMMSEEqualizer",
+      "import_ok": true,
+      "module_path": "sionna.phy.ofdm",
+      "constructor_signature": "(resource_grid: sionna.phy.ofdm.resource_grid.ResourceGrid, stream_management: sionna.phy.mimo.stream_management.StreamManagement, whiten_interference: bool = True, precision: Optional[Literal['single', 'double']] = None, device: Optional[str] = None, **kwargs) -> None",
+      "minimal_callable_example_available": true,
+      "notes": [
+        "LMMSE equalizer output shape: (2, 1, 1, 39), no_eff shape: (2, 1, 1, 39)."
+      ],
+      "error": null
+    },
+    {
+      "name": "RemoveNulledSubcarriers",
+      "import_ok": true,
+      "module_path": "sionna.phy.ofdm",
+      "constructor_signature": "(resource_grid: sionna.phy.ofdm.resource_grid.ResourceGrid, precision: Optional[Literal['single', 'double']] = None, device: Optional[str] = None, **kwargs) -> None",
+      "minimal_callable_example_available": true,
+      "notes": [
+        "Effective subcarrier probe shape: (2, 1, 1, 4, 13)."
+      ],
+      "error": null
+    },
+    {
+      "name": "Mapper",
+      "import_ok": true,
+      "module_path": "sionna.phy.mapping",
+      "constructor_signature": "(constellation_type: Optional[str] = None, num_bits_per_symbol: Optional[int] = None, constellation: Optional[sionna.phy.mapping.Constellation] = None, return_indices: bool = False, precision: Optional[Literal['single', 'double']] = None, device: Optional[str] = None, **kwargs: Any) -> None",
+      "minimal_callable_example_available": true,
+      "notes": [
+        "Mapped symbol tensor shape: (2, 1, 1, 5)."
+      ],
+      "error": null
+    },
+    {
+      "name": "Demapper",
+      "import_ok": true,
+      "module_path": "sionna.phy.mapping",
+      "constructor_signature": "(demapping_method: str, constellation_type: Optional[str] = None, num_bits_per_symbol: Optional[int] = None, constellation: Optional[sionna.phy.mapping.Constellation] = None, hard_out: bool = False, precision: Optional[Literal['single', 'double']] = None, device: Optional[str] = None, **kwargs: Any) -> None",
+      "minimal_callable_example_available": true,
+      "notes": [
+        "Demapper output shape: (2, 1, 1, 10)."
+      ],
+      "error": null
+    },
+    {
+      "name": "BinarySource",
+      "import_ok": true,
+      "module_path": "sionna.phy.mapping",
+      "constructor_signature": "(precision: Optional[Literal['single', 'double']] = None, device: Optional[str] = None, **kwargs: Any) -> None",
+      "minimal_callable_example_available": true,
+      "notes": [
+        "Generated bit tensor shape: (2, 1, 1, 10)."
+      ],
+      "error": null
+    }
+  ],
+  "recommended_next_component": "frequency-domain per-subcarrier beamforming insertion",
+  "notes": [
+    "This audit uses the currently installed Sionna 2.x API instead of assuming older module paths.",
+    "In the current install, OFDMChannel and ApplyOFDMChannel resolve from sionna.phy.channel."
+  ]
+}

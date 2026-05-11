@@ -1,0 +1,19 @@
+# Sionna Native Chain Artifact Manifest
+
+- generated_from_commit: `8947b125ad87c45697e002b2d968560e983d3f70`
+- note: optional synthetic Sionna-native chain artifacts only; project-H_f-assisted entries are not full native-only benchmarks.
+
+| path | exists | resource grid | channel | estimator | equalizer | demapper | project H_f assisted | full native only | command |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| outputs/sionna_native_chain/ofdm_component_audit.json | True | False | False | False | False | False | False | False | `python scripts/audit_sionna_native_ofdm_components.py --out outputs/sionna_native_chain/ofdm_component_audit.json` |
+| outputs/sionna_native_chain/baseline_chain_summary.json | True | True | False | True | True | False | False | False | `python scripts/sionna_native_ofdm_baseline_chain.py --out outputs/sionna_native_chain/baseline_chain_summary.json` |
+| outputs/sionna_native_chain/precoding_component_audit.json | True | False | False | False | False | False | False | False | `python scripts/audit_sionna_precoding_components.py --out outputs/sionna_native_chain/precoding_component_audit.json` |
+| outputs/sionna_native_chain/beamforming_chain_summary.json | True | True | False | False | False | False | True | False | `python scripts/sionna_native_ofdm_beamforming_chain.py --out outputs/sionna_native_chain/beamforming_chain_summary.json` |
+| outputs/sionna_native_chain/pilot_pattern_audit.json | True | False | False | False | False | False | False | False | `python scripts/audit_sionna_resource_grid_pilots.py --out outputs/sionna_native_chain/pilot_pattern_audit.json` |
+| outputs/sionna_native_chain/estimator_equalizer_demo_summary.json | True | True | True | True | True | True | False | True | `python scripts/sionna_native_estimator_equalizer_demo.py --out outputs/sionna_native_chain/estimator_equalizer_demo_summary.json` |
+| outputs/sionna_native_chain/beamforming_receiver_chain_v2_summary.json | True | True | True | True | True | True | True | False | `python scripts/sionna_native_ofdm_beamforming_chain.py --out outputs/sionna_native_chain/beamforming_receiver_chain_v2_summary.json --enable-receiver-chain --receiver-mode auto --trace-shapes` |
+| outputs/sionna_native_chain/beamformed_receiver_shape_trace.json | True | False | False | False | False | False | True | False | `python scripts/trace_sionna_beamformed_receiver_shapes.py --out outputs/sionna_native_chain/beamformed_receiver_shape_trace.json` |
+| outputs/sionna_native_chain/stream_management_audit.json | True | False | False | False | False | False | False | False | `python scripts/audit_sionna_stream_management.py --out outputs/sionna_native_chain/stream_management_audit.json` |
+| outputs/sionna_native_chain/learned_beamforming_receiver_summary.json | True | True | True | True | True | True | True | False | `python scripts/sionna_native_ofdm_learned_beamforming_chain.py --out outputs/sionna_native_chain/learned_beamforming_receiver_summary.json --receiver-mode auto --trace-shapes` |
+| outputs/sionna_native_chain/native_learned_comparison.md | True | False | False | False | False | False | True | False | `python scripts/compare_sionna_native_learned_beamforming.py --analytic-summary outputs/sionna_native_chain/beamforming_receiver_chain_v2_summary.json --analytic-metrics outputs/sionna_native_chain/beamforming_receiver_chain_v2_metrics.csv --learned-summary outputs/sionna_native_chain/learned_beamforming_receiver_summary.json --learned-metrics outputs/sionna_native_chain/learned_beamforming_receiver_metrics.csv --out outputs/sionna_native_chain` |
+| outputs/sionna_native_chain/native_learned_minibench/summary.md | True | False | False | False | False | False | True | False | `python scripts/run_sionna_native_learned_chain_minibench.py --out outputs/sionna_native_chain/native_learned_minibench` |

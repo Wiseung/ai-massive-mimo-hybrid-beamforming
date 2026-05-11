@@ -349,6 +349,102 @@ python scripts/compare_sionna_ofdm_training_runs.py \
 
 See [`docs/sionna_learned_beamformer_training.md`](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/sionna_learned_beamformer_training.md) for the experimental training scope and limitations.
 
+## Experimental Sionna-Native OFDM Link Chain
+
+Available on `feature/sionna-native-ofdm-link-chain` only.
+
+- optional dependency only: `sionna-no-rt`
+- feature-branch-only integration work
+- does not change `v0.3.0` claims
+- current status: `v0.4.0` candidate only
+- no Sionna RT
+- no ray tracing
+- no 5G NR full stack
+- native PHY/OFDM chain exploration only, not production e2e
+
+Reproduction:
+
+```bash
+python scripts/check_sionna_env.py
+python scripts/audit_sionna_native_ofdm_components.py \
+  --out outputs/sionna_native_chain/ofdm_component_audit.json
+python scripts/sionna_native_ofdm_baseline_chain.py \
+  --out outputs/sionna_native_chain/baseline_chain_summary.json
+python scripts/audit_sionna_precoding_components.py \
+  --out outputs/sionna_native_chain/precoding_component_audit.json
+python scripts/audit_sionna_resource_grid_pilots.py \
+  --out outputs/sionna_native_chain/pilot_pattern_audit.json
+python scripts/sionna_native_estimator_equalizer_demo.py \
+  --out outputs/sionna_native_chain/estimator_equalizer_demo_summary.json
+python scripts/sionna_native_ofdm_beamforming_chain.py \
+  --out outputs/sionna_native_chain/beamforming_chain_summary.json
+python scripts/sionna_native_ofdm_beamforming_chain.py \
+  --out outputs/sionna_native_chain/beamforming_receiver_chain_v2_summary.json \
+  --enable-receiver-chain \
+  --receiver-mode auto \
+  --trace-shapes
+python scripts/sionna_native_ofdm_learned_beamforming_chain.py \
+  --out outputs/sionna_native_chain/learned_beamforming_receiver_summary.json \
+  --receiver-mode auto \
+  --trace-shapes
+python scripts/compare_sionna_native_chains.py \
+  --baseline outputs/sionna_native_chain/baseline_chain_summary.json \
+  --beamforming outputs/sionna_native_chain/beamforming_chain_summary.json \
+  --receiver outputs/sionna_native_chain/beamforming_receiver_chain_v2_summary.json \
+  --metrics outputs/sionna_native_chain/beamforming_receiver_chain_v2_metrics.csv \
+  --out outputs/sionna_native_chain
+python scripts/compare_sionna_native_learned_beamforming.py \
+  --analytic-summary outputs/sionna_native_chain/beamforming_receiver_chain_v2_summary.json \
+  --analytic-metrics outputs/sionna_native_chain/beamforming_receiver_chain_v2_metrics.csv \
+  --learned-summary outputs/sionna_native_chain/learned_beamforming_receiver_summary.json \
+  --learned-metrics outputs/sionna_native_chain/learned_beamforming_receiver_metrics.csv \
+  --out outputs/sionna_native_chain
+python scripts/run_sionna_native_learned_chain_minibench.py \
+  --out outputs/sionna_native_chain/native_learned_minibench
+python scripts/generate_sionna_native_chain_artifact_manifest.py \
+  --out outputs/sionna_native_chain/native_chain_artifact_manifest.json
+python scripts/reproduce_sionna_native_chain_minimal.py \
+  --out outputs/repro/sionna_native_chain_minimal_summary.json
+```
+
+See [`docs/sionna_native_ofdm_link_chain.md`](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/sionna_native_ofdm_link_chain.md) for the intended beamforming insertion point and current chain limitations.
+
+Current branch status:
+
+- `RZFPrecoder` is available in Sionna 2.0.1, but its expected tensor layout is not the same as the repository's `H_f=(B,Nsc,K,Nt)` project-side precoder path
+- current clean mainline remains project frequency-domain precoder insertion
+- `project_rzf` and `project_wmmse_iter_5` both improve strongly over `no_precoding` in the current beamforming-chain proxy metrics
+- pilot-pattern audit shows that `LSChannelEstimator` requires a non-empty pilot pattern; `pilot_pattern=\"kronecker\"` with `pilot_ofdm_symbol_indices=[0]` is the current minimal working config
+- the minimal estimator/equalizer demo succeeds with a real Sionna pilot-based receiver chain
+- the shape-trace audit shows the earlier beamformed failure `shape '[16,1,1,0]'` came from a pilot-only grid with `num_data_symbols=0`, not from a random receiver bug
+- the StreamManagement audit shows the beamformed downlink should use `num_tx=1`, `num_streams_per_tx=K`, and `rx_tx_association=ones(K,1)`
+- the beamformed receiver chain now supports explicit `receiver-mode {proxy,native,auto}`:
+  `proxy` keeps project-side metrics only,
+  `native` requires the real Sionna receiver path,
+  `auto` tries native first and records exact fallback stage/reason if needed
+- the current `receiver-mode=auto` validation succeeds for `no_precoding`, `project_rzf`, `project_wmmse_iter_2`, and `project_wmmse_iter_5` through a real Sionna receiver path
+- learned insertion into the same native receiver path now succeeds for `learned_residual_rzf` and `learned_residual_wmmse_distill`
+- both learned native-chain methods keep `teacher_used_during_inference=false`
+- current native-chain learned comparison is still synthetic and project-H_f-assisted; it is not a full native-only benchmark
+- both learned methods enter a real Sionna receiver path while still consuming project-assisted `H_f` / precoder inputs
+- fallback proxy metrics are still not described as full Sionna-native receiver results when native receiver mode is not used
+- this branch therefore should still be read as an integration experiment, not a production e2e chain
+
+Current `v0.4.0` candidate comparison at the validated native insertion point:
+
+| Method | Native receiver success | Teacher inference | Approx sum-rate | Gap vs `project_rzf` | Gap vs `project_wmmse_iter_5` |
+| --- | --- | --- | ---: | ---: | ---: |
+| `project_rzf` | `true` | `false` | `18.689259` | `0.000000%` | `+2.122005%` |
+| `project_wmmse_iter_5` | `true` | `false` | `18.300722` | `-2.077917%` | `0.000000%` |
+| `learned_residual_rzf` | `true` | `false` | `18.250900` | `-2.345509%` | `-0.272240%` |
+| `learned_residual_wmmse_distill` | `true` | `false` | `18.381174` | `-1.648458%` | `+0.439611%` |
+
+Interpretation:
+
+- `learned_residual_rzf` remains the clean mainline learned insertion for the native chain
+- `learned_residual_wmmse_distill` is a valid secondary variant and is slightly stronger than `learned_residual_rzf` in the current one-shot native-chain run
+- neither result should be generalized into a stable, universal claim that learned methods beat `WMMSE-iter5`
+
 ## RTX 5090 24GB Recommended Config
 
 - Device: single CUDA GPU
