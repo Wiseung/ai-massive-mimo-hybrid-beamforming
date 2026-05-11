@@ -125,6 +125,86 @@ class SionnaOFDMResidualRZFBeamformer(torch.nn.Module):
             "alpha": alpha,
             "model_name": self.model_name,
             "base_method": "rzf",
+            "teacher_used_during_training": False,
+            "teacher_used_during_inference": False,
+            "inference_inputs": ["H_f", "F_rzf", "snr_db"],
+        }
+
+
+class SionnaOFDMResidualWMMSEDistilledBeamformer(torch.nn.Module):
+    """Residual-RZF beamformer trained with an offline WMMSE teacher objective only."""
+
+    def __init__(
+        self,
+        num_users: int,
+        num_bs_ant: int,
+        hidden_dim: int = 128,
+        alpha_init: float = 0.1,
+        learnable_alpha: bool = True,
+        condition_on_snr: bool = True,
+        teacher_iter: int = 5,
+    ) -> None:
+        super().__init__()
+        self.num_users = num_users
+        self.num_bs_ant = num_bs_ant
+        self.condition_on_snr = condition_on_snr
+        self.learnable_alpha = learnable_alpha
+        self.teacher_iter = int(teacher_iter)
+        self.model_name = "sionna_ofdm_residual_wmmse_distill"
+        feature_dim = 4 * num_users * num_bs_ant
+        output_dim = 2 * num_bs_ant * num_users
+        self.delta_head = _SubcarrierResidualBlock(
+            in_dim=feature_dim,
+            out_dim=output_dim,
+            hidden_dim=hidden_dim,
+            condition_on_snr=condition_on_snr,
+        )
+        if learnable_alpha:
+            init = torch.tensor(float(alpha_init), dtype=torch.float32)
+            self.log_alpha = torch.nn.Parameter(torch.log(torch.expm1(init) + 1e-8))
+        else:
+            self.register_buffer("fixed_alpha", torch.tensor(float(alpha_init), dtype=torch.float32))
+
+    def _alpha(self) -> torch.Tensor:
+        if self.learnable_alpha:
+            return torch.nn.functional.softplus(self.log_alpha)
+        return self.fixed_alpha
+
+    def _base_precoder(self, channel_f: torch.Tensor, noise_var: torch.Tensor) -> torch.Tensor:
+        precoders = []
+        for sc in range(channel_f.size(1)):
+            precoders.append(get_digital_precoder("rzf", channel_f[:, sc, :, :], noise_var=noise_var))
+        return torch.stack(precoders, dim=1)
+
+    def forward(self, channel_f: torch.Tensor, snr_db: torch.Tensor | None = None) -> dict[str, torch.Tensor | str | int | bool | list[str]]:
+        if snr_db is None:
+            raise ValueError("snr_db must be provided for SionnaOFDMResidualWMMSEDistilledBeamformer.")
+        if channel_f.ndim != 4:
+            raise ValueError("channel_f must have shape (B, Nsc, K, Nt).")
+        batch, num_sc, _, _ = channel_f.shape
+        noise_var = noise_variance_from_snr(snr_db).to(channel_f.device)
+        base_precoder = self._base_precoder(channel_f, noise_var)
+
+        flat_channel = channel_f.reshape(batch * num_sc, self.num_users, self.num_bs_ant)
+        flat_base = base_precoder.reshape(batch * num_sc, self.num_bs_ant, self.num_users)
+        features = torch.cat([_flatten_complex(flat_channel), _flatten_complex(flat_base)], dim=-1)
+        snr_feature = snr_db.repeat_interleave(num_sc).to(device=channel_f.device, dtype=torch.float32)
+        delta_raw = self.delta_head(features, snr_feature if self.condition_on_snr else None)
+        delta_real = delta_raw.reshape(batch, num_sc, self.num_bs_ant, self.num_users, 2)
+        delta_precoder = torch.complex(delta_real[..., 0], delta_real[..., 1])
+        alpha = self._alpha().to(channel_f.device)
+        precoder = power_normalization(base_precoder + alpha * delta_precoder)
+        return {
+            "precoder": precoder,
+            "base_precoder": base_precoder,
+            "delta_precoder": delta_precoder,
+            "alpha": alpha,
+            "teacher_iter": self.teacher_iter,
+            "model_name": self.model_name,
+            "base_method": "rzf",
+            "teacher_used_during_training": True,
+            "teacher_used_during_inference": False,
+            "inference_inputs": ["H_f", "F_rzf", "snr_db"],
         }
 
 
@@ -211,4 +291,7 @@ class SionnaOFDMUnfoldedLiteBeamformer(torch.nn.Module):
             "model_name": self.model_name,
             "init_method": self.init_method,
             "num_layers": self.num_layers,
+            "teacher_used_during_training": False,
+            "teacher_used_during_inference": False,
+            "inference_inputs": ["H_f", "initializer", "snr_db"],
         }

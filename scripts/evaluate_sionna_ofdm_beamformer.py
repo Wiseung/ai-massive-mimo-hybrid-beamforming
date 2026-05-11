@@ -163,7 +163,16 @@ def _save_plot(frame: pd.DataFrame, x: str, y: str, out_path: Path, ylabel: str)
 
 
 def _save_gap_plot(frame: pd.DataFrame, out_path: Path) -> None:
-    learned = frame[frame["method"].isin({"tiny_neural_beamformer", "sionna_ofdm_residual_rzf", "sionna_ofdm_unfolded_lite"})]
+    learned = frame[
+        frame["method"].isin(
+            {
+                "tiny_neural_beamformer",
+                "sionna_ofdm_residual_rzf",
+                "sionna_ofdm_unfolded_lite",
+                "sionna_ofdm_residual_wmmse_distill",
+            }
+        )
+    ]
     plt.figure(figsize=(7, 4.5))
     for method, group in learned.groupby("method"):
         plt.plot(group["snr_db"], group["gap_to_rzf"], marker="o", label=f"{method} vs RZF")
@@ -239,6 +248,8 @@ def main() -> None:
         f"- Used real Sionna OFDM in evaluation path: `{bool(frame['used_sionna_ofdm'].any())}`",
         f"- Used real Sionna AWGN in evaluation path: `{bool(frame['used_sionna_channel'].any())}`",
         f"- Any fallback used: `{bool(frame['fallback_used'].any())}`",
+        f"- teacher_used_during_inference: `False`",
+        f"- inference_inputs: `{['H_f', 'F_rzf', 'snr_db'] if learned_name == 'sionna_ofdm_residual_wmmse_distill' else 'model-specific'}`",
         "",
         "## Mean learned results",
         "",
@@ -276,6 +287,8 @@ def main() -> None:
                 "learned_mean_gap_to_wmmse_iter_5": float(learned_only["gap_to_wmmse_iter_5"].mean()),
                 "high_snr_gap_to_rzf": float(high_snr["gap_to_rzf"].mean()),
                 "high_snr_gap_to_wmmse_iter_5": float(high_snr["gap_to_wmmse_iter_5"].mean()),
+                "teacher_used_during_inference": False,
+                "inference_inputs": ["H_f", "F_rzf", "snr_db"] if learned_name == "sionna_ofdm_residual_wmmse_distill" else None,
                 "init_method": learned_only["init_method"].dropna().iloc[0] if "init_method" in learned_only and learned_only["init_method"].dropna().size else None,
                 "num_layers": int(learned_only["num_layers"].dropna().iloc[0]) if "num_layers" in learned_only and learned_only["num_layers"].dropna().size else None,
             },

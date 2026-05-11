@@ -75,12 +75,25 @@ SionnaOFDMUnfoldedLite full result:
 - mean high-SNR gap to RZF: `-1.4279%`
 - mean high-SNR gap to WMMSE-iter5: `-1.5685%`
 
+SionnaOFDMResidualWMMSEDistilled full result:
+
+- training uses `WMMSE-iter5` teacher target
+- inference uses only `H_f + F_rzf + snr`
+- `teacher_used_during_inference = false`
+- `learned_mean_sum_rate = 17.657607`
+- `mean_gap_to_rzf = +0.0135%`
+- `mean_gap_to_wmmse_iter_5 = -0.4997%`
+- `mean high-SNR gap to RZF = -0.0079%`
+- `mean high-SNR gap to WMMSE-iter5 = -0.1485%`
+- It is only a tiny improvement over the plain residual-RZF result and still does not fairly exceed `WMMSE-iter5`.
+
 Interpretation:
 
 - Communication-prior models improve over `TinyNeuralBeamformer` by a large margin.
-- `SionnaOFDMResidualRZFBeamformer` is the strongest current learned method on this synthetic OFDM setup.
+- `SionnaOFDMResidualWMMSEDistilledBeamformer` is the numerically strongest current learned method on this synthetic OFDM setup, but only by a tiny margin over the plain residual-RZF variant.
 - `SionnaOFDMUnfoldedLiteBeamformer` is also strong, but under the current configuration it remains slightly below residual-RZF and is slower to train because the `wmmse_iter_2` initializer is evaluated per subcarrier.
-- Neither learned method fairly exceeds `WMMSE-iter5`; that remaining gap is reported directly.
+- `SionnaOFDMResidualWMMSEDistilledBeamformer` is marginally stronger than the plain residual-RZF variant, but only by a noise-level amount.
+- None of the learned methods fairly exceeds `WMMSE-iter5`; that remaining gap is reported directly.
 
 ## Robustness, Latency, and Ablation
 
@@ -145,17 +158,56 @@ Quick train-SNR ablation:
   high-SNR-gap span is about `6.10e-5`
 - This quick ablation does not support a strong claim that mixed training is best, nor does it justify curriculum training yet.
 
+## WMMSE Distillation Without Teacher Leakage
+
+Design:
+
+- base input to the learned residual model is still `RZF`
+- training may generate `WMMSE-iter5` teacher targets
+- inference does not generate `WMMSE`, and does not consume a teacher precoder
+- model output is `F_pred = normalize_power(F_rzf + alpha * delta_F)`
+
+Teacher leakage audit:
+
+- `teacher_allowed_during_training = true`
+- `teacher_used_during_training = true`
+- `teacher_used_during_inference = false`
+- `model_forward_calls_wmmse = false`
+- `evaluate_uses_wmmse_only_as_baseline = true`
+- `checkpoint_saves_teacher_artifacts = false`
+- `leakage_detected = false`
+
+Distillation weight quick sweep (`0.0, 0.05, 0.1, 0.5, 1.0`):
+
+- All tested weights stay essentially on the same operating point:
+  `mean_gap_to_wmmse_iter_5` stays around `-0.6399%` in quick mode
+- No tested distillation weight produced a meaningful spectral-efficiency improvement.
+- Distillation did not create a visible tradeoff where the model matches the teacher much better but loses SE badly; instead, the entire sweep was almost flat.
+- Recommended weight under the current quick sweep is pragmatic rather than strongly evidence-driven. `0.5` was the best quick gap/loss point, but the differences are tiny.
+
+Family v2 comparison:
+
+- `TinyNeuralBeamformer`: still far below the communication-prior family
+- `SionnaOFDMResidualRZFBeamformer`: `mean_gap_to_wmmse_iter_5 = -0.4999%`
+- `SionnaOFDMResidualWMMSEDistilledBeamformer`: `mean_gap_to_wmmse_iter_5 = -0.4997%`
+- `SionnaOFDMUnfoldedLiteBeamformer`: `mean_gap_to_wmmse_iter_5 = -0.8715%`
+- The distilled residual model is closer to `WMMSE-iter5` than residual-RZF, but only by about `0.0001%` absolute gap.
+- High-SNR behavior is effectively tied between residual-RZF and the distilled residual model.
+- The correct conclusion is that distillation works without leakage, but it does not yet unlock a materially better operating point.
+
 ## Notes
 
 - `TinyNeuralBeamformer` remains the unconstrained learned baseline, but it is clearly too weak at high SNR.
 - `SionnaOFDMResidualRZFBeamformer` uses an RZF prior plus learnable residual correction and does not depend on WMMSE at inference.
+- `SionnaOFDMResidualWMMSEDistilledBeamformer` also uses an RZF prior at inference; `WMMSE-iter5` is training-only supervision.
 - `SionnaOFDMUnfoldedLiteBeamformer` uses a configurable few-iteration initializer and learnable refinement layers; if the initializer is `wmmse_iter_k`, that is reported explicitly in summaries.
 - Real Sionna `ResourceGrid` and PHY AWGN are used when available; explicit fallback is recorded in logs and summaries.
 - This pipeline does not modify the published `v0.1.0` or `v0.2.0` benchmark claims.
 
 ## Future Work
 
-- use `SionnaOFDMResidualRZFBeamformer` as the main learned baseline for the next phase
+- use `SionnaOFDMResidualWMMSEDistilledBeamformer` as the next mainline only if the next phase explicitly targets stronger WMMSE-aligned supervision
+- keep `SionnaOFDMResidualRZFBeamformer` as the fallback mainline because the current distillation gain is extremely small
 - revisit `SionnaOFDMUnfoldedLiteBeamformer` with different `init_method` or lower-cost initialization
 - Sionna-native equalizer/detector chain
 - DeepMIMO-to-Sionna comparison

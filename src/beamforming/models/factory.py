@@ -8,7 +8,11 @@ from beamforming.models.cnn_beamformer import CNNBeamformer
 from beamforming.models.differentiable_beamformer import TinyNeuralBeamformer
 from beamforming.models.mlp_beamformer import MLPBeamformer
 from beamforming.models.residual_beamformer import ResidualRZFBeamformer
-from beamforming.models.sionna_ofdm_prior_beamformer import SionnaOFDMResidualRZFBeamformer, SionnaOFDMUnfoldedLiteBeamformer
+from beamforming.models.sionna_ofdm_prior_beamformer import (
+    SionnaOFDMResidualRZFBeamformer,
+    SionnaOFDMResidualWMMSEDistilledBeamformer,
+    SionnaOFDMUnfoldedLiteBeamformer,
+)
 from beamforming.models.unfolded_pga import UnfoldedPGABeamformer
 from beamforming.models.unfolded_rzf import UnfoldedRZFBeamformer
 
@@ -59,6 +63,16 @@ def build_model(model_cfg: dict, data_cfg: dict) -> torch.nn.Module:
             alpha_init=float(model_cfg.get("alpha_init", 0.1)),
             learnable_alpha=bool(model_cfg.get("learnable_alpha", True)),
             condition_on_snr=bool(model_cfg.get("condition_on_snr", True)),
+        )
+    if name == "sionna_ofdm_residual_wmmse_distill":
+        return SionnaOFDMResidualWMMSEDistilledBeamformer(
+            num_users=common["num_users"],
+            num_bs_ant=common["num_bs_ant"],
+            hidden_dim=int(model_cfg.get("hidden_dim", 128)),
+            alpha_init=float(model_cfg.get("alpha_init", 0.1)),
+            learnable_alpha=bool(model_cfg.get("learnable_alpha", True)),
+            condition_on_snr=bool(model_cfg.get("condition_on_snr", True)),
+            teacher_iter=int(model_cfg.get("teacher_iter", 5)),
         )
     if name == "sionna_ofdm_unfolded_lite":
         return SionnaOFDMUnfoldedLiteBeamformer(

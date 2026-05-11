@@ -18,6 +18,7 @@ add_src_to_path()
 
 from beamforming.data.sionna_ofdm_synthetic import SionnaOFDMSyntheticConfig, SionnaOFDMSyntheticGenerator
 from beamforming.models.factory import build_model
+from beamforming.training.supervised_targets import get_teacher_target
 from beamforming.utils.seed import set_seed
 from beamforming.utils.sionna_env import collect_sionna_env_info
 from beamforming.utils.sionna_ofdm_training import compute_link_metrics, generate_qpsk_resource_grid, run_model_forward, simulate_multiuser_ofdm_link
@@ -98,7 +99,22 @@ def _extract_model_metadata(outputs: dict[str, Any], model_name: str) -> dict[st
         metadata["alpha"] = float(outputs["alpha"].detach().cpu().item())
     if "step_sizes" in outputs and torch.is_tensor(outputs["step_sizes"]):
         metadata["step_sizes"] = [float(x) for x in outputs["step_sizes"].detach().cpu().tolist()]
+    if "teacher_iter" in outputs:
+        metadata["teacher_iter"] = int(outputs["teacher_iter"])
+    if "teacher_used_during_training" in outputs:
+        metadata["teacher_used_during_training"] = bool(outputs["teacher_used_during_training"])
+    if "teacher_used_during_inference" in outputs:
+        metadata["teacher_used_during_inference"] = bool(outputs["teacher_used_during_inference"])
+    if "inference_inputs" in outputs:
+        metadata["inference_inputs"] = list(outputs["inference_inputs"])
     return metadata
+
+
+def _build_teacher_target(channel_f: torch.Tensor, snr_db: torch.Tensor, teacher_iter: int) -> torch.Tensor:
+    targets = []
+    for sc in range(channel_f.size(1)):
+        targets.append(get_teacher_target(channel_f[:, sc, :, :], snr_db, f"wmmse_iter_{teacher_iter}"))
+    return torch.stack(targets, dim=1)
 
 
 def _run_epoch(
@@ -126,6 +142,9 @@ def _run_epoch(
         "power_norm": 0.0,
         "power_violation": 0.0,
         "grad_norm": 0.0,
+        "distill_loss": 0.0,
+        "delta_norm": 0.0,
+        "teacher_generation_time_ms": 0.0,
     }
 
     for _ in range(num_batches):
@@ -172,11 +191,22 @@ def _run_epoch(
         if "delta_precoder" in outputs and torch.is_tensor(outputs["delta_precoder"]):
             delta_norm = torch.mean(torch.abs(outputs["delta_precoder"]) ** 2)
 
+        distill_loss = torch.tensor(0.0, device=device)
+        teacher_generation_time_ms = 0.0
+        teacher_iter = int(loss_cfg.get("teacher_iter", outputs.get("teacher_iter", 0) or 0))
+        teacher_target = None
+        if float(loss_cfg.get("distill_weight", 0.0)) > 0.0 and teacher_iter > 0:
+            teacher_start = time.perf_counter()
+            teacher_target = _build_teacher_target(batch["H_f"], batch["snr_db"], teacher_iter)
+            teacher_generation_time_ms = (time.perf_counter() - teacher_start) * 1000.0
+            distill_loss = torch.mean(torch.abs(precoder - teacher_target) ** 2)
+
         loss = (
-            -float(loss_cfg.get("sum_rate_weight", 1.0)) * metrics["mean_sum_rate"]
+            -float(loss_cfg.get("sum_rate_weight", loss_cfg.get("rate_weight", 1.0))) * metrics["mean_sum_rate"]
             + float(loss_cfg.get("mse_weight", 0.1)) * metrics["receive_mse"]
             + float(loss_cfg.get("power_penalty", 0.01)) * metrics["power_violation"]
             + float(loss_cfg.get("delta_norm_weight", 0.0)) * delta_norm
+            + float(loss_cfg.get("distill_weight", 0.0)) * distill_loss
         )
 
         grad_norm = 0.0
@@ -193,6 +223,9 @@ def _run_epoch(
         totals["power_norm"] += float(metrics["power_norm"].item())
         totals["power_violation"] += float(metrics["power_violation"].item())
         totals["grad_norm"] += grad_norm
+        totals["distill_loss"] += float(distill_loss.item())
+        totals["delta_norm"] += float(delta_norm.item())
+        totals["teacher_generation_time_ms"] += teacher_generation_time_ms
 
     denom = max(num_batches, 1)
     averaged = {key: value / denom for key, value in totals.items()}
@@ -254,17 +287,24 @@ def main() -> None:
         "model_name",
         "init_method",
         "num_layers",
+        "teacher_iter",
         "train_loss",
         "val_loss",
         "mean_sum_rate",
         "val_mean_sum_rate",
         "mse",
         "val_mse",
+        "distill_loss",
+        "val_distill_loss",
+        "delta_norm",
+        "val_delta_norm",
         "power_norm",
         "val_power_norm",
         "power_violation",
         "val_power_violation",
         "grad_norm",
+        "teacher_generation_time_ms",
+        "val_teacher_generation_time_ms",
         "learning_rate",
     ]
     csv_path = out_dir / "train_log.csv"
@@ -301,17 +341,24 @@ def main() -> None:
             "model_name": model_name,
             "init_method": val_meta.get("init_method", ""),
             "num_layers": val_meta.get("num_layers", ""),
+            "teacher_iter": val_meta.get("teacher_iter", config["loss"].get("teacher_iter", "")),
             "train_loss": train_stats["loss"],
             "val_loss": val_stats["loss"],
             "mean_sum_rate": train_stats["mean_sum_rate"],
             "val_mean_sum_rate": val_stats["mean_sum_rate"],
             "mse": train_stats["receive_mse"],
             "val_mse": val_stats["receive_mse"],
+            "distill_loss": train_stats["distill_loss"],
+            "val_distill_loss": val_stats["distill_loss"],
+            "delta_norm": train_stats["delta_norm"],
+            "val_delta_norm": val_stats["delta_norm"],
             "power_norm": train_stats["power_norm"],
             "val_power_norm": val_stats["power_norm"],
             "power_violation": train_stats["power_violation"],
             "val_power_violation": val_stats["power_violation"],
             "grad_norm": train_stats["grad_norm"],
+            "teacher_generation_time_ms": train_stats["teacher_generation_time_ms"],
+            "val_teacher_generation_time_ms": val_stats["teacher_generation_time_ms"],
             "learning_rate": optimizer.param_groups[0]["lr"],
         }
         with csv_path.open("a", newline="", encoding="utf-8") as handle:
@@ -360,9 +407,15 @@ def main() -> None:
         "best_train_loss": best_snapshot.get("train_stats", {}).get("loss"),
         "best_val_mean_sum_rate": best_snapshot.get("val_stats", {}).get("mean_sum_rate"),
         "best_val_mse": best_snapshot.get("val_stats", {}).get("receive_mse"),
+        "best_val_distill_loss": best_snapshot.get("val_stats", {}).get("distill_loss"),
         "init_method": best_snapshot.get("val_meta", {}).get("init_method"),
         "num_layers": best_snapshot.get("val_meta", {}).get("num_layers"),
         "alpha": best_snapshot.get("val_meta", {}).get("alpha"),
+        "teacher_iter": best_snapshot.get("val_meta", {}).get("teacher_iter", config["loss"].get("teacher_iter")),
+        "teacher_used_during_training": bool(best_snapshot.get("val_meta", {}).get("teacher_used_during_training", False)),
+        "teacher_used_during_inference": bool(best_snapshot.get("val_meta", {}).get("teacher_used_during_inference", False)),
+        "inference_inputs": best_snapshot.get("val_meta", {}).get("inference_inputs"),
+        "teacher_generation_time_ms": best_snapshot.get("val_stats", {}).get("teacher_generation_time_ms"),
         "step_sizes": best_snapshot.get("val_meta", {}).get("step_sizes"),
         "layer_sum_rate_mean": best_snapshot.get("val_meta", {}).get("layer_sum_rate_mean"),
         "notes": sorted(
