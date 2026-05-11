@@ -198,6 +198,18 @@ Current learned OFDM training status:
   `mean_sum_rate = 17.466006`, `gap_to_rzf = -0.3550%`, `gap_to_wmmse_iter_5 = -0.8715%`
 - high-SNR gap is dramatically improved by communication priors relative to `TinyNeuralBeamformer`
 - current recommended next-stage mainline for this branch: `SionnaOFDMResidualRZFBeamformer`
+- quick multi-seed robustness (`seeds = 1,2,3`) keeps `SionnaOFDMResidualRZFBeamformer` as the strongest learned method:
+  `mean_sum_rate_mean = 17.656879 +/- 0.020110`,
+  `gap_to_rzf_mean = +0.0259% +/- 0.2038%`,
+  `gap_to_wmmse_iter_5_mean = -0.5732% +/- 0.1216%`
+- OFDM inference latency benchmark (`B=128, Nsc=8, K=4, Nt=16`) shows:
+  `rzf = 1.069 ms`, `tiny = 0.848 ms`, `residual_rzf = 2.246 ms`,
+  `unfolded_lite = 56.120 ms`, `wmmse_iter_2 = 58.532 ms`, `wmmse_iter_5 = 192.120 ms`
+- current residual correction analysis indicates a small refinement around RZF rather than a robust RZF-beating gain:
+  `mean_delta_norm_ratio = 0.052996`, `mean_relative_se_gain_over_rzf = +0.004854%`, `alpha ~= 0.0979`
+- quick train-SNR ablation does not show a meaningful sensitivity yet:
+  `high_only [15, 20]` is marginally best, but the mean-gap span to RZF is only about `2.9e-5`
+- quick scale sweep keeps residual-RZF effectively on the RZF operating point and below `WMMSE-iter5` by about `-0.3992%` on average across evaluated settings
 
 ```bash
 python scripts/train_sionna_ofdm_beamformer.py \
@@ -235,6 +247,31 @@ python scripts/compare_sionna_ofdm_training_runs.py \
   --residual outputs/comparisons/sionna_ofdm_residual_rzf \
   --unfolded outputs/comparisons/sionna_ofdm_unfolded_lite \
   --out outputs/comparisons/sionna_ofdm_training_family
+
+python scripts/run_sionna_ofdm_multiseed_benchmark.py \
+  --configs configs/sionna_ofdm_learned_beamformer.yaml \
+            configs/sionna_ofdm_residual_rzf.yaml \
+            configs/sionna_ofdm_unfolded_lite.yaml \
+  --seeds 1 2 3 \
+  --out outputs/comparisons/sionna_ofdm_multiseed \
+  --quick
+
+python scripts/benchmark_sionna_ofdm_models.py \
+  --out outputs/comparisons/sionna_ofdm_latency
+
+python scripts/analyze_sionna_residual_corrections.py \
+  --config configs/sionna_ofdm_residual_rzf.yaml \
+  --ckpt outputs/runs/sionna_ofdm_residual_rzf/best.pt \
+  --out outputs/comparisons/sionna_ofdm_residual_analysis
+
+python scripts/sweep_sionna_ofdm_scale.py \
+  --quick \
+  --out outputs/comparisons/sionna_ofdm_scale_sweep
+
+python scripts/sweep_sionna_train_snr.py \
+  --model sionna_ofdm_residual_rzf \
+  --quick \
+  --out outputs/comparisons/sionna_ofdm_snr_ablation
 ```
 
 See [`docs/sionna_learned_beamformer_training.md`](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/sionna_learned_beamformer_training.md) for the experimental training scope and limitations.
