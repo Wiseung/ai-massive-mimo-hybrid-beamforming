@@ -12,6 +12,13 @@ This branch adds an optional multi-SNR OFDM learned beamformer training pipeline
 - no full 5G NR stack
 - not a production e2e training pipeline
 
+## Branch Status
+
+- current mainline: `SionnaOFDMResidualRZFBeamformer`
+- `SionnaOFDMResidualWMMSEDistilledBeamformer` is safe but only marginally better
+- no learned model beats `WMMSE-iter5`
+- quick robustness/ablation artifacts are useful for branch hardening, not for claiming a full exhaustive benchmark
+
 ## Commands
 
 Train tiny baseline:
@@ -87,10 +94,22 @@ SionnaOFDMResidualWMMSEDistilled full result:
 - `mean high-SNR gap to WMMSE-iter5 = -0.1485%`
 - It is only a tiny improvement over the plain residual-RZF result and still does not fairly exceed `WMMSE-iter5`.
 
+Compact status table:
+
+| Method | full/quick | mean_sum_rate | gap_to_rzf | gap_to_wmmse_iter_5 | interpretation |
+| --- | --- | ---: | ---: | ---: | --- |
+| TinyNeuralBeamformer | full | `8.723585` | `-39.5834%` | `-39.9628%` | weak unconstrained baseline |
+| SionnaOFDMResidualRZF | full | `17.657597` | `+0.0134%` | `-0.4999%` | clean mainline |
+| SionnaOFDMUnfoldedLite | full | `17.466006` | `-0.3550%` | `-0.8715%` | slower and weaker than residual-RZF |
+| SionnaOFDMResidualWMMSEDistilled | full | `17.657607` | `+0.0135%` | `-0.4997%` | safe, near-null gain |
+| multi-seed robustness | quick | residual best | near `RZF` | still below `WMMSE-iter5` | not a full robustness benchmark |
+| distill-weight sweep | quick | nearly flat | nearly flat | nearly flat | not a distillation breakthrough |
+
 Interpretation:
 
 - Communication-prior models improve over `TinyNeuralBeamformer` by a large margin.
 - `SionnaOFDMResidualWMMSEDistilledBeamformer` is the numerically strongest current learned method on this synthetic OFDM setup, but only by a tiny margin over the plain residual-RZF variant.
+- `SionnaOFDMResidualRZFBeamformer` remains the cleanest mainline because the distilled variant does not open a materially better operating point.
 - `SionnaOFDMUnfoldedLiteBeamformer` is also strong, but under the current configuration it remains slightly below residual-RZF and is slower to train because the `wmmse_iter_2` initializer is evaluated per subcarrier.
 - `SionnaOFDMResidualWMMSEDistilledBeamformer` is marginally stronger than the plain residual-RZF variant, but only by a noise-level amount.
 - None of the learned methods fairly exceeds `WMMSE-iter5`; that remaining gap is reported directly.
@@ -206,8 +225,8 @@ Family v2 comparison:
 
 ## Future Work
 
-- use `SionnaOFDMResidualWMMSEDistilledBeamformer` as the next mainline only if the next phase explicitly targets stronger WMMSE-aligned supervision
-- keep `SionnaOFDMResidualRZFBeamformer` as the fallback mainline because the current distillation gain is extremely small
+- keep `SionnaOFDMResidualRZFBeamformer` as the next mainline
+- keep `SionnaOFDMResidualWMMSEDistilledBeamformer` as a documented near-null extension unless a later phase can amplify the gain
 - revisit `SionnaOFDMUnfoldedLiteBeamformer` with different `init_method` or lower-cost initialization
 - Sionna-native equalizer/detector chain
 - DeepMIMO-to-Sionna comparison

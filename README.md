@@ -188,6 +188,33 @@ Available on `feature/sionna-learned-beamformer-training` as an optional post-`v
 - no 5G NR full stack
 - does not change `v0.1.0` or `v0.2.0` release claims
 
+### Sionna OFDM Learned Training Status
+
+Current mainline interpretation for this branch:
+
+- `SionnaOFDMResidualRZFBeamformer` is the cleanest mainline.
+- `SionnaOFDMResidualWMMSEDistilledBeamformer` is safe but gives only a tiny improvement.
+- no learned model beats `WMMSE-iter5`.
+- results remain synthetic OFDM only.
+
+Compact headline table:
+
+| Method | Status | mean_sum_rate | gap_to_rzf | gap_to_wmmse_iter_5 | Notes |
+| --- | --- | ---: | ---: | ---: | --- |
+| TinyNeuralBeamformer | full | `8.723585` | `-39.5834%` | `-39.9628%` | much weaker than analytic priors |
+| Residual RZF | full | `17.657597` | `+0.0134%` | `-0.4999%` | current mainline |
+| Unfolded Lite | full | `17.466006` | `-0.3550%` | `-0.8715%` | slower due to `wmmse_iter_2` initializer |
+| Residual WMMSE-distill | full | `17.657607` | `+0.0135%` | `-0.4997%` | safe, near-null gain over residual RZF |
+| RZF | full baseline | reference | `0%` | about `-0.513%` | fast analytic baseline |
+| WMMSE-iter5 | full baseline | reference | above RZF | `0%` | strongest reduced-iteration baseline |
+
+Quick-only results:
+
+- multi-seed robustness is `--quick`, not a full exhaustive benchmark
+- scale sweep is `--quick`
+- train-SNR ablation is `--quick`
+- distillation-weight sweep is `--quick`
+
 Current learned OFDM training status:
 
 - `TinyNeuralBeamformer` full result:
@@ -206,7 +233,7 @@ Current learned OFDM training status:
   `model_forward_calls_wmmse = false`,
   `leakage_detected = false`
 - distillation weight quick sweep (`0.0, 0.05, 0.1, 0.5, 1.0`) shows almost no practical separation in gap to `WMMSE-iter5`; no weight produced a meaningful jump beyond the residual-RZF operating point
-- current recommended next-stage mainline for this branch: `SionnaOFDMResidualWMMSEDistilledBeamformer`, but only as a very small improvement over `SionnaOFDMResidualRZFBeamformer`, not as a WMMSE-level breakthrough
+- current recommended next-stage mainline for this branch remains `SionnaOFDMResidualRZFBeamformer` for clarity, while `SionnaOFDMResidualWMMSEDistilledBeamformer` is kept as a documented near-null result
 - quick multi-seed robustness (`seeds = 1,2,3`) keeps `SionnaOFDMResidualRZFBeamformer` as the strongest learned method:
   `mean_sum_rate_mean = 17.656879 +/- 0.020110`,
   `gap_to_rzf_mean = +0.0259% +/- 0.2038%`,
