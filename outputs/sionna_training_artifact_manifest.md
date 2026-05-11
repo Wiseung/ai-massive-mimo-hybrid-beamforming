@@ -1,6 +1,6 @@
 # Sionna Learned Training Artifact Manifest
 
-- generated_from_commit: `f8fb1f4dfcb5bb580cf68c98444271317b0c3603`
+- generated_from_commit: `a120395bbfcfdb0c520998857550e03d6c5db802`
 - note: optional synthetic-OFDM learned-training artifacts only.
 
 | path | exists | quick | teacher_train | teacher_infer | RT | ray tracing | 5G NR | command |
