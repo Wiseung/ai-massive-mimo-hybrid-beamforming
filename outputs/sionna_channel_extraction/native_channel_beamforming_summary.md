@@ -6,7 +6,7 @@
 
 | Method | Extracted H_f | Native OK | Teacher Inference | Sum Rate | Fallback | Reason |
 | --- | --- | --- | --- | ---: | --- | --- |
-| project_rzf_from_extracted_h | True | True | False | 0.173533 | False |  |
-| project_wmmse_iter_5_from_extracted_h | True | True | False | 0.265344 | False |  |
-| learned_residual_rzf_from_extracted_h | True | True | False | 0.303954 | False |  |
-| learned_residual_wmmse_distill_from_extracted_h | True | True | False | 0.149824 | False |  |
+| project_rzf_from_extracted_h | True | True | False | 18.346704 | False |  |
+| project_wmmse_iter_5_from_extracted_h | True | True | False | 18.067097 | False |  |
+| learned_residual_rzf_from_extracted_h | True | True | False | 18.625557 | False |  |
+| learned_residual_wmmse_distill_from_extracted_h | True | True | False | 18.317352 | False |  |

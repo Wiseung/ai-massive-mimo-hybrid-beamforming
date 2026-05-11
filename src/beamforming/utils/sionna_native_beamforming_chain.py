@@ -318,6 +318,9 @@ def extract_effective_channel_from_sionna(
     device: torch.device,
     *,
     noise_var: float,
+    selected_ofdm_symbol: str | int = "first_data",
+    effective_subcarriers: str | list[int] = "all_effective",
+    normalize_channel: bool = False,
 ) -> tuple[torch.Tensor | None, torch.Tensor | None, dict[str, Any]]:
     """Extract a project-side effective channel from Sionna OFDMChannel.
 
@@ -363,6 +366,9 @@ def extract_effective_channel_from_sionna(
             resource_grid=resource_grid,
             num_users=num_users,
             num_bs_ant=num_bs_ant,
+            selected_ofdm_symbol=selected_ofdm_symbol,
+            effective_subcarriers=effective_subcarriers,
+            normalize_channel=normalize_channel,
         )
         meta["extraction_meta"] = extraction_meta
         if not extraction_success or h_f is None:

@@ -19,6 +19,7 @@ from beamforming.utils.sionna_native_beamforming_chain import build_pilot_aware_
 from beamforming.utils.sionna_native_chain import load_component, write_json, write_markdown
 from beamforming.utils.sionna_native_learned_beamforming import (
     build_native_receiver_context,
+    clone_native_receiver_context,
     default_checkpoint_path,
     infer_learned_precoder,
     load_learned_beamformer_checkpoint,
@@ -95,27 +96,16 @@ def main() -> None:
         device=device,
     )
     rg = context.resource_grid
-    OFDMChannel, _, _ = load_component("OFDMChannel")
-    RayleighBlockFading, _, _ = load_component("RayleighBlockFading")
-    extracted_h_f = None
-    if OFDMChannel is not None and RayleighBlockFading is not None:
-        channel_model = RayleighBlockFading(num_rx=4, num_rx_ant=1, num_tx=1, num_tx_ant=16, device=sionna_device)
-        channel = OFDMChannel(channel_model, rg, return_channel=True, device=sionna_device)
-        dummy_x = torch.zeros(16, 1, 16, rg.num_ofdm_symbols, rg.fft_size, dtype=torch.complex64, device=device)
-        _, h = channel(dummy_x, no=torch.full((16, 4, 1), context.noise_var, dtype=torch.float32, device=device))
-        extracted_h_f, extraction_meta, extraction_success, fallback_reason = extract_h_f_from_sionna_channel(
-            h,
-            resource_grid=rg,
-            num_users=4,
-            num_bs_ant=16,
-        )
-        summary["extraction_success"] = bool(extraction_success)
-        summary["project_h_f_assisted"] = not extraction_success
-        summary["extraction_meta"] = extraction_meta
-        if not extraction_success:
-            summary["notes"].append(f"Fell back to project-assisted H_f: {fallback_reason}")
+    extracted_h_f = context.h_f if not bool(context.context_meta.get("project_h_f_assisted", True)) else None
+    extraction_meta = context.context_meta.get("channel_meta")
+    extraction_success = extracted_h_f is not None
+    summary["extraction_success"] = bool(extraction_success)
+    summary["project_h_f_assisted"] = not bool(extraction_success)
+    summary["extraction_meta"] = extraction_meta
+    if not extraction_success:
+        summary["notes"].append("Fell back to project-assisted H_f because shared native extraction was unavailable in the receiver context.")
 
-    h_f_for_methods = extracted_h_f if extracted_h_f is not None else context.h_f
+    h_f_for_methods = context.h_f
     methods = [
         ("project_rzf_from_extracted_h", "analytic"),
         ("project_wmmse_iter_5_from_extracted_h", "analytic"),
@@ -161,17 +151,11 @@ def main() -> None:
 
         method_context = context
         if extracted_h_f is not None:
-            method_context = type(context)(
-                bits=context.bits,
-                stream_symbols=context.stream_symbols,
-                resource_grid=context.resource_grid,
-                stream_management=context.stream_management,
+            method_context = clone_native_receiver_context(
+                context,
                 h_f=extracted_h_f,
                 h_full=context.h_full,
-                noise_var=context.noise_var,
-                snr_db=context.snr_db,
-                device=context.device,
-                context_meta={**context.context_meta, "project_h_f_assisted": False, "extracted_h_f_used": True},
+                context_meta_updates={"project_h_f_assisted": False, "extracted_h_f_used": True},
             )
         row, _, _ = run_native_receiver_with_precoder(
             method=method,
@@ -184,8 +168,8 @@ def main() -> None:
             trace_shapes=False,
         )
         row["extraction_success"] = summary["extraction_success"]
-        row["project_h_f_assisted"] = not bool(extracted_h_f is not None)
-        row["extracted_h_f_used"] = bool(extracted_h_f is not None)
+        row["project_h_f_assisted"] = bool(method_context.context_meta.get("project_h_f_assisted", True))
+        row["extracted_h_f_used"] = bool(method_context.context_meta.get("extracted_h_f_used", False))
         rows.append(row)
 
     summary["metrics"] = rows
