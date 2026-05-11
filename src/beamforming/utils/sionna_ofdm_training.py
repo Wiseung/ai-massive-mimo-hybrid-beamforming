@@ -195,3 +195,15 @@ def build_baseline_precoder_stack(method: str, channel_f: torch.Tensor, noise_va
     for sc in range(channel_f.size(1)):
         precoders.append(get_digital_precoder(method, channel_f[:, sc, :, :], noise_var=noise_var))
     return torch.stack(precoders, dim=1)
+
+
+def run_model_forward(model: torch.nn.Module, channel_f: torch.Tensor, snr_db: torch.Tensor) -> dict[str, Any]:
+    """Normalize model outputs into a shared dict with a precoder field."""
+    outputs = model(channel_f, snr_db=snr_db)
+    if isinstance(outputs, dict):
+        if "precoder" not in outputs:
+            raise ValueError("Structured OFDM model output must include a 'precoder' field.")
+        return outputs
+    if torch.is_tensor(outputs):
+        return {"precoder": outputs}
+    raise TypeError(f"Unsupported model output type: {type(outputs)!r}")

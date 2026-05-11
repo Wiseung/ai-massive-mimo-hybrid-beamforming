@@ -188,6 +188,17 @@ Available on `feature/sionna-learned-beamformer-training` as an optional post-`v
 - no 5G NR full stack
 - does not change `v0.1.0` or `v0.2.0` release claims
 
+Current learned OFDM training status:
+
+- `TinyNeuralBeamformer` full result:
+  `mean_sum_rate = 8.723585`, `gap_to_rzf = -39.5834%`, `gap_to_wmmse_iter_5 = -39.9628%`
+- `SionnaOFDMResidualRZFBeamformer` full result:
+  `mean_sum_rate = 17.657597`, `gap_to_rzf = +0.0134%`, `gap_to_wmmse_iter_5 = -0.4999%`
+- `SionnaOFDMUnfoldedLiteBeamformer` full result:
+  `mean_sum_rate = 17.466006`, `gap_to_rzf = -0.3550%`, `gap_to_wmmse_iter_5 = -0.8715%`
+- high-SNR gap is dramatically improved by communication priors relative to `TinyNeuralBeamformer`
+- current recommended next-stage mainline for this branch: `SionnaOFDMResidualRZFBeamformer`
+
 ```bash
 python scripts/train_sionna_ofdm_beamformer.py \
   --config configs/sionna_ofdm_learned_beamformer.yaml \
@@ -198,6 +209,32 @@ python scripts/evaluate_sionna_ofdm_beamformer.py \
   --config configs/sionna_ofdm_learned_beamformer.yaml \
   --ckpt outputs/runs/sionna_ofdm_learned_beamformer_smoke/best.pt \
   --out outputs/comparisons/sionna_ofdm_learned_beamformer_smoke
+
+python scripts/train_sionna_ofdm_beamformer.py \
+  --config configs/sionna_ofdm_residual_rzf.yaml \
+  --out outputs/runs/sionna_ofdm_residual_rzf_smoke \
+  --smoke
+
+python scripts/evaluate_sionna_ofdm_beamformer.py \
+  --config configs/sionna_ofdm_residual_rzf.yaml \
+  --ckpt outputs/runs/sionna_ofdm_residual_rzf_smoke/best.pt \
+  --out outputs/comparisons/sionna_ofdm_residual_rzf_smoke
+
+python scripts/train_sionna_ofdm_beamformer.py \
+  --config configs/sionna_ofdm_unfolded_lite.yaml \
+  --out outputs/runs/sionna_ofdm_unfolded_lite_smoke \
+  --smoke
+
+python scripts/evaluate_sionna_ofdm_beamformer.py \
+  --config configs/sionna_ofdm_unfolded_lite.yaml \
+  --ckpt outputs/runs/sionna_ofdm_unfolded_lite_smoke/best.pt \
+  --out outputs/comparisons/sionna_ofdm_unfolded_lite_smoke
+
+python scripts/compare_sionna_ofdm_training_runs.py \
+  --tiny outputs/comparisons/sionna_ofdm_learned_beamformer \
+  --residual outputs/comparisons/sionna_ofdm_residual_rzf \
+  --unfolded outputs/comparisons/sionna_ofdm_unfolded_lite \
+  --out outputs/comparisons/sionna_ofdm_training_family
 ```
 
 See [`docs/sionna_learned_beamformer_training.md`](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/sionna_learned_beamformer_training.md) for the experimental training scope and limitations.

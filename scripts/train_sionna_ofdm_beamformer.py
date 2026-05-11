@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Train an optional learned beamformer on synthetic OFDM channels."""
+"""Train optional learned OFDM beamformers on synthetic multi-SNR channels."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import csv
 import json
 import time
 from pathlib import Path
+from typing import Any
 
 from _bootstrap import add_src_to_path
 import torch
@@ -19,7 +20,7 @@ from beamforming.data.sionna_ofdm_synthetic import SionnaOFDMSyntheticConfig, Si
 from beamforming.models.factory import build_model
 from beamforming.utils.seed import set_seed
 from beamforming.utils.sionna_env import collect_sionna_env_info
-from beamforming.utils.sionna_ofdm_training import compute_link_metrics, generate_qpsk_resource_grid, simulate_multiuser_ofdm_link
+from beamforming.utils.sionna_ofdm_training import compute_link_metrics, generate_qpsk_resource_grid, run_model_forward, simulate_multiuser_ofdm_link
 
 
 def parse_args() -> argparse.Namespace:
@@ -32,21 +33,21 @@ def parse_args() -> argparse.Namespace:
 
 
 def _resolve_device(requested: str | None, cfg_device: str | None) -> torch.device:
-    device_name = requested or cfg_device or "auto"
-    if device_name != "auto":
-        return torch.device(device_name)
+    name = requested or cfg_device or "auto"
+    if name != "auto":
+        return torch.device(name)
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def _load_config(path: str) -> dict:
+def _load_config(path: str) -> dict[str, Any]:
     with open(path, "r", encoding="utf-8") as handle:
         return yaml.safe_load(handle)
 
 
-def _apply_smoke_overrides(config: dict) -> dict:
+def _apply_smoke_overrides(config: dict[str, Any]) -> dict[str, Any]:
     payload = yaml.safe_load(yaml.safe_dump(config))
     payload["training"]["epochs"] = min(int(payload["training"].get("epochs", 20)), 2)
-    payload["dataset"]["batch_size"] = min(int(payload["dataset"].get("batch_size", 128)), 32)
+    payload["dataset"]["batch_size"] = min(int(payload["dataset"].get("batch_size", payload["training"].get("batch_size", 128))), 32)
     payload["dataset"]["num_batches_per_epoch"] = min(int(payload["dataset"].get("num_batches_per_epoch", 50)), 3)
     payload["dataset"]["num_val_batches"] = min(int(payload["dataset"].get("num_val_batches", 10)), 1)
     return payload
@@ -67,12 +68,12 @@ def _gradient_norm(model: torch.nn.Module) -> float:
     return total ** 0.5
 
 
-def _build_generator(config: dict, train: bool) -> SionnaOFDMSyntheticGenerator:
+def _build_generator(config: dict[str, Any], train: bool) -> SionnaOFDMSyntheticGenerator:
     dataset_cfg = config["dataset"]
     training_cfg = config["training"]
     return SionnaOFDMSyntheticGenerator(
         SionnaOFDMSyntheticConfig(
-            batch_size=int(dataset_cfg["batch_size"]),
+            batch_size=int(dataset_cfg.get("batch_size", training_cfg.get("batch_size", 128))),
             num_subcarriers=int(dataset_cfg["num_subcarriers"]),
             num_users=int(dataset_cfg["num_users"]),
             num_bs_ant=int(dataset_cfg["num_bs_ant"]),
@@ -85,21 +86,39 @@ def _build_generator(config: dict, train: bool) -> SionnaOFDMSyntheticGenerator:
     )
 
 
+def _extract_model_metadata(outputs: dict[str, Any], model_name: str) -> dict[str, Any]:
+    metadata = {"model_name": model_name}
+    if "init_method" in outputs:
+        metadata["init_method"] = outputs["init_method"]
+    if "num_layers" in outputs:
+        metadata["num_layers"] = int(outputs["num_layers"])
+    if "layer_sum_rates" in outputs and torch.is_tensor(outputs["layer_sum_rates"]) and outputs["layer_sum_rates"].numel() > 0:
+        metadata["layer_sum_rate_mean"] = [float(x) for x in outputs["layer_sum_rates"].mean(dim=0).detach().cpu().tolist()]
+    if "alpha" in outputs and torch.is_tensor(outputs["alpha"]):
+        metadata["alpha"] = float(outputs["alpha"].detach().cpu().item())
+    if "step_sizes" in outputs and torch.is_tensor(outputs["step_sizes"]):
+        metadata["step_sizes"] = [float(x) for x in outputs["step_sizes"].detach().cpu().tolist()]
+    return metadata
+
+
 def _run_epoch(
     model: torch.nn.Module,
+    model_name: str,
     generator: SionnaOFDMSyntheticGenerator,
     num_batches: int,
     device: torch.device,
     optimizer: torch.optim.Optimizer | None,
     grad_clip: float,
-    loss_cfg: dict,
-) -> tuple[dict[str, float], dict[str, object]]:
+    loss_cfg: dict[str, Any],
+) -> tuple[dict[str, float], dict[str, Any]]:
     train_mode = optimizer is not None
     model.train(train_mode)
     notes: list[str] = []
     used_sionna_ofdm = False
     used_sionna_channel = False
     fallback_used = False
+    layer_sum_rate_trace: list[list[float]] = []
+    extra_model_meta: dict[str, Any] = {"model_name": model_name}
     totals = {
         "loss": 0.0,
         "mean_sum_rate": 0.0,
@@ -124,7 +143,12 @@ def _run_epoch(
 
         if train_mode:
             optimizer.zero_grad(set_to_none=True)
-        precoder = model(batch["H_f"], snr_db=batch["snr_db"])
+        outputs = run_model_forward(model, batch["H_f"], batch["snr_db"])
+        extra_model_meta.update(_extract_model_metadata(outputs, model_name))
+        if "layer_sum_rate_mean" in extra_model_meta:
+            layer_sum_rate_trace.append(extra_model_meta["layer_sum_rate_mean"])
+        precoder = outputs["precoder"]
+
         link = simulate_multiuser_ofdm_link(
             channel_f=batch["H_f"],
             precoder=precoder,
@@ -144,10 +168,15 @@ def _run_epoch(
             rx_symbols=link["rx"],
             noise_var=batch["noise_var"],
         )
+        delta_norm = torch.tensor(0.0, device=device)
+        if "delta_precoder" in outputs and torch.is_tensor(outputs["delta_precoder"]):
+            delta_norm = torch.mean(torch.abs(outputs["delta_precoder"]) ** 2)
+
         loss = (
             -float(loss_cfg.get("sum_rate_weight", 1.0)) * metrics["mean_sum_rate"]
             + float(loss_cfg.get("mse_weight", 0.1)) * metrics["receive_mse"]
             + float(loss_cfg.get("power_penalty", 0.01)) * metrics["power_violation"]
+            + float(loss_cfg.get("delta_norm_weight", 0.0)) * delta_norm
         )
 
         grad_norm = 0.0
@@ -168,11 +197,17 @@ def _run_epoch(
     denom = max(num_batches, 1)
     averaged = {key: value / denom for key, value in totals.items()}
     metadata = {
+        "model_name": model_name,
         "used_sionna_ofdm": used_sionna_ofdm,
         "used_sionna_channel": used_sionna_channel,
         "fallback_used": fallback_used,
         "notes": sorted(set(notes)),
-    }
+    } | extra_model_meta
+    if layer_sum_rate_trace:
+        metadata["layer_sum_rate_mean"] = [
+            float(sum(layer[idx] for layer in layer_sum_rate_trace) / len(layer_sum_rate_trace))
+            for idx in range(len(layer_sum_rate_trace[0]))
+        ]
     return averaged, metadata
 
 
@@ -194,6 +229,7 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     set_seed(int(config["training"]["seed"]))
 
+    model_name = str(config["model"]["name"])
     data_cfg = {
         "num_users": int(config["dataset"]["num_users"]),
         "num_bs_ant": int(config["dataset"]["num_bs_ant"]),
@@ -215,6 +251,9 @@ def main() -> None:
 
     fieldnames = [
         "epoch",
+        "model_name",
+        "init_method",
+        "num_layers",
         "train_loss",
         "val_loss",
         "mean_sum_rate",
@@ -233,12 +272,13 @@ def main() -> None:
 
     best_val_loss = float("inf")
     best_epoch = -1
-    best_snapshot: dict[str, object] = {}
+    best_snapshot: dict[str, Any] = {}
     start_time = time.perf_counter()
 
     for epoch in range(epochs):
         train_stats, train_meta = _run_epoch(
             model=model,
+            model_name=model_name,
             generator=train_generator,
             num_batches=num_batches_per_epoch,
             device=device,
@@ -248,6 +288,7 @@ def main() -> None:
         )
         val_stats, val_meta = _run_epoch(
             model=model,
+            model_name=model_name,
             generator=val_generator,
             num_batches=num_val_batches,
             device=device,
@@ -257,6 +298,9 @@ def main() -> None:
         )
         row = {
             "epoch": epoch,
+            "model_name": model_name,
+            "init_method": val_meta.get("init_method", ""),
+            "num_layers": val_meta.get("num_layers", ""),
             "train_loss": train_stats["loss"],
             "val_loss": val_stats["loss"],
             "mean_sum_rate": train_stats["mean_sum_rate"],
@@ -305,6 +349,8 @@ def main() -> None:
         "torch_version": env_info["torch_version"],
         "device": str(device),
         "smoke": bool(args.smoke),
+        "model_name": model_name,
+        "training_snr_list": [float(x) for x in config["dataset"]["snr_db_train"]],
         "best_epoch": best_epoch,
         "best_val_loss": best_val_loss,
         "train_time_sec": train_time_sec,
@@ -314,6 +360,11 @@ def main() -> None:
         "best_train_loss": best_snapshot.get("train_stats", {}).get("loss"),
         "best_val_mean_sum_rate": best_snapshot.get("val_stats", {}).get("mean_sum_rate"),
         "best_val_mse": best_snapshot.get("val_stats", {}).get("receive_mse"),
+        "init_method": best_snapshot.get("val_meta", {}).get("init_method"),
+        "num_layers": best_snapshot.get("val_meta", {}).get("num_layers"),
+        "alpha": best_snapshot.get("val_meta", {}).get("alpha"),
+        "step_sizes": best_snapshot.get("val_meta", {}).get("step_sizes"),
+        "layer_sum_rate_mean": best_snapshot.get("val_meta", {}).get("layer_sum_rate_mean"),
         "notes": sorted(
             set(best_snapshot.get("train_meta", {}).get("notes", []) + best_snapshot.get("val_meta", {}).get("notes", []))
         )
