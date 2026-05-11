@@ -349,6 +349,30 @@ python scripts/compare_sionna_ofdm_training_runs.py \
 
 See [`docs/sionna_learned_beamformer_training.md`](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/sionna_learned_beamformer_training.md) for the experimental training scope and limitations.
 
+## Experimental Sionna-Native OFDM Link Chain
+
+Available on `feature/sionna-native-ofdm-link-chain` only.
+
+- optional dependency only: `sionna-no-rt`
+- feature-branch-only integration work
+- does not change `v0.3.0` claims
+- no Sionna RT
+- no ray tracing
+- no 5G NR full stack
+- native PHY/OFDM chain exploration only, not production e2e
+
+Reproduction:
+
+```bash
+python scripts/check_sionna_env.py
+python scripts/audit_sionna_native_ofdm_components.py \
+  --out outputs/sionna_native_chain/ofdm_component_audit.json
+python scripts/sionna_native_ofdm_baseline_chain.py \
+  --out outputs/sionna_native_chain/baseline_chain_summary.json
+```
+
+See [`docs/sionna_native_ofdm_link_chain.md`](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/sionna_native_ofdm_link_chain.md) for the intended beamforming insertion point and current chain limitations.
+
 ## RTX 5090 24GB Recommended Config
 
 - Device: single CUDA GPU

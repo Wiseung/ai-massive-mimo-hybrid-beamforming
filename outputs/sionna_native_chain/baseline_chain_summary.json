@@ -1,0 +1,40 @@
+{
+  "demo_scope": "experimental_sionna_native_ofdm_link_chain",
+  "sionna_import_ok": true,
+  "sionna_version": "2.0.1",
+  "torch_version": "2.11.0+cu130",
+  "device": "cuda",
+  "demo_status": "ok",
+  "used_sionna_native_components": true,
+  "used_components": [
+    "BinarySource",
+    "Mapper",
+    "ResourceGrid",
+    "ResourceGridMapper",
+    "ResourceGridDemapper",
+    "RemoveNulledSubcarriers",
+    "RayleighBlockFading",
+    "OFDMChannel",
+    "LSChannelEstimator",
+    "LMMSEEqualizer",
+    "Demapper"
+  ],
+  "fallback_used": false,
+  "fallback_flags": {
+    "channel_fallback": false,
+    "estimator_fallback": false,
+    "equalizer_fallback": false,
+    "demapper_fallback": false
+  },
+  "ber_if_available": 0.03565705195069313,
+  "symbol_mse": 0.40306782722473145,
+  "empirical_snr_db": 3.946218192577362,
+  "notes": [
+    "Used real Sionna OFDMChannel with RayleighBlockFading.",
+    "Used real Sionna LSChannelEstimator and LMMSEEqualizer. Effective noise variance mean=0.387411.",
+    "Used real Sionna Demapper for hard-bit BER.",
+    "Recommended beamforming insertion point for the next phase is frequency-domain per-subcarrier precoding before OFDMChannel.",
+    "This remains a synthetic channel-level smoke chain, not a full 5G NR or production e2e stack."
+  ],
+  "used_ls_lmmse": true
+}
