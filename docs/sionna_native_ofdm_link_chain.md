@@ -86,6 +86,44 @@ Current method comparison from the demo:
 - `project_wmmse_iter_5` slightly improves `approximate_sum_rate` over `project_rzf`
 - this does not imply any learned model exceeds `WMMSE-iter5`; it only reflects project analytic precoders inside the current native-chain insertion experiment
 
+## Pilot Pattern Audit
+
+Current pilot-pattern conclusion:
+
+- `pilot_pattern=None` creates `EmptyPilotPattern`
+- `LSChannelEstimator` fails immediately on `EmptyPilotPattern`
+- `pilot_pattern="kronecker"` with `pilot_ofdm_symbol_indices=[0]` is the current minimal working configuration
+
+This means the receiver-chain integration problem has two layers:
+
+1. pilot-free ResourceGrid is invalid for the estimator path
+2. after fixing pilots, the beamformed multi-user shape still needs an explicit bridge
+
+## Minimal Receiver Chain Demo
+
+The minimal success path now exists without beamforming:
+
+- `ResourceGrid`
+- `OFDMChannel`
+- `LSChannelEstimator`
+- `LMMSEEqualizer`
+- `Demapper`
+
+This confirms that the current install can run a real pilot-based Sionna receiver chain when the stream count and grid configuration stay in the simple supported regime.
+
+## Beamformed Receiver Chain Status
+
+Current status for `--enable-receiver-chain`:
+
+- the chain now uses a pilot-enabled `ResourceGrid`
+- receiver failures, if any, are recorded by explicit fallback stage
+- the remaining integration question is not whether pilots are required, but whether the project beamformed tensor layout can be consumed by the Sionna receiver path without shape mismatches
+
+If the receiver path still falls back, it must be described as:
+
+- project beamforming plus receiver-chain compatibility fallback
+- not a full Sionna-native beamformed receiver result
+
 ## Learned Beamformer Insertion Recommendation
 
 Yes, this is now the recommended insertion point for the next learned-beamformer phase:
@@ -96,6 +134,8 @@ Yes, this is now the recommended insertion point for the next learned-beamformer
 - feed the result into the Sionna-native OFDM chain where possible
 
 This recommendation is about architecture and integration cleanliness, not about claiming the chain is already a production-ready full Sionna e2e path.
+
+The recommended next model family remains `residual_rzf`, because it already matches the project-side frequency-domain precoder interface and does not require any claim beyond the current optional experimental scope.
 
 ## Limitations
 

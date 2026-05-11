@@ -21,7 +21,17 @@ def build_frequency_domain_channel(
     resource_grid: Any | None = None,
     noise_var: float | None = None,
 ) -> tuple[torch.Tensor, dict[str, Any]]:
-    """Return H_f with shape (B, Nsc, K, Nt)."""
+    """Return H_f with shape ``(B, Nsc, K, Nt)``.
+
+    Args:
+        batch_size: Batch size ``B``.
+        num_subcarriers: Number of effective frequency bins ``Nsc``.
+        num_users: Number of users / streams ``K``.
+        num_bs_ant: Number of BS antennas ``Nt``.
+        device: Torch device for the returned tensor.
+        resource_grid: Optional Sionna ``ResourceGrid`` used to attempt native channel extraction.
+        noise_var: Optional noise variance for the Sionna channel call path.
+    """
     sionna_device = resolve_sionna_device(device)
     OFDMChannel, _, _ = load_component("OFDMChannel")
     RayleighBlockFading, _, _ = load_component("RayleighBlockFading")
@@ -69,7 +79,7 @@ def compute_project_precoder_per_subcarrier(
     channel_f: torch.Tensor,
     noise_var: float | torch.Tensor,
 ) -> torch.Tensor:
-    """Compute F_f with shape (B, Nsc, Nt, K)."""
+    """Compute project precoders with output shape ``(B, Nsc, Nt, K)``."""
     precoders = []
     for sc in range(channel_f.size(1)):
         precoders.append(get_digital_precoder(method, channel_f[:, sc, :, :], noise_var=noise_var))
@@ -85,6 +95,91 @@ def apply_precoder_to_resource_grid(stream_symbols: torch.Tensor, precoder_f: to
     """
     tx = torch.matmul(precoder_f, stream_symbols.unsqueeze(-1)).squeeze(-1)
     return tx.transpose(1, 2).contiguous()
+
+
+def project_symbols_to_sionna_grid(
+    stream_symbols: torch.Tensor,
+    num_ofdm_symbols: int = 1,
+) -> tuple[torch.Tensor, dict[str, str | bool]]:
+    """Bridge project symbols to a Sionna-style grid tensor.
+
+    Args:
+        stream_symbols: ``(B, Nsc, K)`` project user-symbol tensor.
+        num_ofdm_symbols: Number of OFDM symbols. Currently only ``1`` is supported natively.
+
+    Returns:
+        grid: ``(B, 1, K, num_ofdm_symbols, Nsc)`` if supported, otherwise a fallback reshaping result.
+        meta: Explicit bridge status with fallback reason when needed.
+    """
+    if num_ofdm_symbols != 1:
+        return (
+            stream_symbols.transpose(1, 2).unsqueeze(1),
+            {"fallback_used": True, "fallback_reason": "only_num_ofdm_symbols_eq_1_is_supported_in_project_symbol_bridge"},
+        )
+    return (
+        stream_symbols.transpose(1, 2).unsqueeze(1).unsqueeze(-2).contiguous(),
+        {"fallback_used": False, "fallback_reason": ""},
+    )
+
+
+def project_precoded_grid_to_sionna_tx(
+    tx_precoded: torch.Tensor,
+    num_ofdm_symbols: int = 1,
+) -> tuple[torch.Tensor, dict[str, str | bool]]:
+    """Bridge project precoded antenna-domain symbols to a Sionna OFDMChannel input.
+
+    Args:
+        tx_precoded: ``(B, Nt, Nsc)`` from ``apply_precoder_to_resource_grid``.
+        num_ofdm_symbols: Number of OFDM symbols. Currently only ``1`` is supported.
+
+    Returns:
+        tx_grid: ``(B, 1, Nt, num_ofdm_symbols, Nsc)`` if supported.
+        meta: Explicit bridge status with fallback reason when needed.
+    """
+    if num_ofdm_symbols != 1:
+        return (
+            tx_precoded.unsqueeze(1),
+            {"fallback_used": True, "fallback_reason": "only_num_ofdm_symbols_eq_1_is_supported_in_precoded_tx_bridge"},
+        )
+    return (
+        tx_precoded.unsqueeze(1).unsqueeze(-2).contiguous(),
+        {"fallback_used": False, "fallback_reason": ""},
+    )
+
+
+def sionna_rx_to_project_symbols(
+    x_hat: torch.Tensor,
+) -> tuple[torch.Tensor, dict[str, str | bool]]:
+    """Bridge Sionna equalizer output back to project symbol layout.
+
+    Args:
+        x_hat: Expected Sionna equalizer output ``(B, 1, K, Nsc_total)`` for the currently supported path.
+
+    Returns:
+        project_symbols: ``(B, Nsc_total, K)`` if supported.
+        meta: Explicit bridge status with fallback reason when needed.
+    """
+    if x_hat.ndim != 4:
+        return x_hat, {"fallback_used": True, "fallback_reason": f"unexpected_equalizer_rank_{x_hat.ndim}"}
+    return x_hat.squeeze(1).transpose(1, 2).contiguous(), {"fallback_used": False, "fallback_reason": ""}
+
+
+def compute_project_metrics_from_sionna_rx(
+    project_rx_symbols: torch.Tensor,
+    ref_symbols: torch.Tensor,
+) -> dict[str, float]:
+    """Compute simple project-side metrics from a bridged Sionna receiver output.
+
+    Args:
+        project_rx_symbols: ``(B, Nsc, K)``
+        ref_symbols: ``(B, Nsc, K)``
+    """
+    mse = torch.mean(torch.abs(project_rx_symbols - ref_symbols) ** 2).item()
+    eff_sinr = torch.mean(torch.abs(ref_symbols) ** 2) / torch.mean(torch.abs(project_rx_symbols - ref_symbols) ** 2).clamp_min(1e-12)
+    return {
+        "symbol_mse": float(mse),
+        "effective_sinr_db": float(10.0 * torch.log10(eff_sinr).item()),
+    }
 
 
 def evaluate_ofdm_beamforming_outputs(

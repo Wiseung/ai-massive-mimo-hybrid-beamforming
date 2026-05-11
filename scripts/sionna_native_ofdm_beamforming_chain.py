@@ -29,6 +29,7 @@ from beamforming.utils.sionna_native_chain import load_component, resolve_sionna
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", required=True)
+    parser.add_argument("--enable-receiver-chain", action="store_true")
     return parser.parse_args()
 
 
@@ -54,6 +55,62 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
         writer.writeheader()
         writer.writerows(rows)
+
+
+def _receiver_chain_grid(
+    bits: torch.Tensor,
+    tx_precoded: torch.Tensor,
+    noise_var: float,
+    rg: Any,
+    sm: Any,
+    device: torch.device,
+    sionna_device: str | None,
+) -> tuple[dict[str, Any] | None, str | None, str | None]:
+    """Try a real Sionna receiver chain for the beamformed path.
+
+    Current expected shapes:
+    - bits: (B, Nsc, K, 2)
+    - tx_precoded: (B, Nt, Nsc)
+    - rg: pilot-enabled ResourceGrid with num_ofdm_symbols=1
+    """
+    OFDMChannel, _, _ = load_component("OFDMChannel")
+    LSChannelEstimator, _, _ = load_component("LSChannelEstimator")
+    LMMSEEqualizer, _, _ = load_component("LMMSEEqualizer")
+    Demapper, _, _ = load_component("Demapper")
+    RayleighBlockFading, _, _ = load_component("RayleighBlockFading")
+    if not all([OFDMChannel, LSChannelEstimator, LMMSEEqualizer, Demapper, RayleighBlockFading]):
+        return None, "receiver_components", "one_or_more_receiver_components_unavailable"
+    try:
+        batch_size = bits.size(0)
+        num_users = bits.size(2)
+        num_bs_ant = tx_precoded.size(1)
+        channel_model = RayleighBlockFading(num_rx=num_users, num_rx_ant=1, num_tx=1, num_tx_ant=num_bs_ant, device=sionna_device)
+        channel = OFDMChannel(channel_model, rg, return_channel=True, device=sionna_device)
+        tx_grid = tx_precoded.unsqueeze(1).unsqueeze(-2)
+        rx_grid, _ = channel(tx_grid, no=torch.full((batch_size, num_users, 1), noise_var, dtype=torch.float32, device=device))
+        estimator = LSChannelEstimator(rg, device=sionna_device)
+        h_hat, err_var = estimator(rx_grid, torch.full((batch_size, num_users, 1), noise_var, dtype=torch.float32, device=device))
+    except Exception as exc:  # pragma: no cover
+        return None, "receiver_channel_or_estimator", f"{type(exc).__name__}: {exc}"
+    try:
+        equalizer = LMMSEEqualizer(rg, sm, device=sionna_device)
+        x_hat, no_eff = equalizer(rx_grid, h_hat, err_var, torch.full((batch_size, num_users, 1), noise_var, dtype=torch.float32, device=device))
+    except Exception as exc:  # pragma: no cover
+        return None, "receiver_equalizer", f"{type(exc).__name__}: {exc}"
+    try:
+        demapper = Demapper("app", "qam", 2, hard_out=True, device=sionna_device)
+        hard_bits = demapper(x_hat, torch.full((batch_size, 1, num_users, 1), noise_var, dtype=torch.float32, device=device))
+        ber = float((hard_bits.to(torch.int64) != bits.transpose(1, 2).reshape_as(hard_bits)).float().mean().item())
+        return {
+            "used_sionna_estimator": True,
+            "used_sionna_equalizer": True,
+            "used_sionna_demapper": True,
+            "ber_if_available": ber,
+            "x_hat": x_hat,
+            "no_eff_mean": float(no_eff.mean().item()),
+        }, None, None
+    except Exception as exc:  # pragma: no cover
+        return None, "receiver_demapper", f"{type(exc).__name__}: {exc}"
 
 
 def _md(summary: dict[str, Any]) -> list[str]:
@@ -86,13 +143,13 @@ def main() -> None:
     args = parse_args()
     out_path = Path(args.out)
     md_path = out_path.with_suffix(".md")
-    csv_path = out_path.with_name("beamforming_chain_metrics.csv")
+    csv_path = out_path.with_name("beamforming_receiver_chain_metrics.csv" if args.enable_receiver_chain else "beamforming_chain_metrics.csv")
     env = collect_sionna_env_info()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     sionna_device = resolve_sionna_device(device)
 
     summary: dict[str, Any] = {
-        "demo_scope": "experimental_sionna_native_ofdm_beamforming_chain",
+        "demo_scope": "experimental_sionna_native_ofdm_beamforming_receiver_chain" if args.enable_receiver_chain else "experimental_sionna_native_ofdm_beamforming_chain",
         "sionna_import_ok": env["sionna_import_ok"],
         "sionna_version": env["sionna_version"],
         "device": str(device),
@@ -104,6 +161,7 @@ def main() -> None:
         "used_sionna_demapper": False,
         "fallback_used": False,
         "notes": [],
+        "receiver_chain_enabled": bool(args.enable_receiver_chain),
         "metrics": [],
     }
 
@@ -128,20 +186,21 @@ def main() -> None:
     num_users = 4
     num_bs_ant = 16
     noise_var = 10.0 ** (-10.0 / 10.0)
-    methods = ["no_precoding", "project_rzf", "project_wmmse_iter_1", "project_wmmse_iter_2", "project_wmmse_iter_5"]
+    methods = ["no_precoding", "project_rzf", "project_wmmse_iter_2", "project_wmmse_iter_5"] if args.enable_receiver_chain else ["no_precoding", "project_rzf", "project_wmmse_iter_1", "project_wmmse_iter_2", "project_wmmse_iter_5"]
 
     rg = ResourceGrid(
         num_ofdm_symbols=1,
         fft_size=num_subcarriers,
         subcarrier_spacing=15_000.0,
         num_tx=1,
-        num_streams_per_tx=num_users,
-        num_guard_carriers=(0, 0),
-        dc_null=False,
-        pilot_pattern=None,
+        num_streams_per_tx=1,
+        num_guard_carriers=(1, 1),
+        dc_null=True,
+        pilot_pattern="kronecker",
+        pilot_ofdm_symbol_indices=[0],
         device=sionna_device,
     )
-    sm = StreamManagement(np.array([[1]]), num_streams_per_tx=num_users)
+    sm = StreamManagement(np.array([[1]]), num_streams_per_tx=1)
     summary["used_sionna_resource_grid"] = True
 
     bits, stream_symbols = _qpsk_symbols(batch_size, num_subcarriers, num_users, device)
@@ -210,28 +269,19 @@ def main() -> None:
 
         tx_precoded = apply_precoder_to_resource_grid(stream_symbols, precoder_f)
         metrics = evaluate_ofdm_beamforming_outputs(h_f, precoder_f, stream_symbols, noise_var)
-        if OFDMChannel is not None and RayleighBlockFading is not None and LSChannelEstimator is not None and LMMSEEqualizer is not None and Demapper is not None:
-            try:
-                channel_model = RayleighBlockFading(num_rx=num_users, num_rx_ant=1, num_tx=1, num_tx_ant=num_bs_ant, device=sionna_device)
-                channel = OFDMChannel(channel_model, rg, return_channel=True, device=sionna_device)
-                tx_grid = tx_precoded.unsqueeze(1)
-                rx_grid, _ = channel(tx_grid, no=torch.full((batch_size, num_users, 1), noise_var, dtype=torch.float32, device=device))
-                estimator = LSChannelEstimator(rg, device=sionna_device)
-                equalizer = LMMSEEqualizer(rg, sm, device=sionna_device)
-                demapper = Demapper("app", "qam", 2, hard_out=True, device=sionna_device)
-                h_hat, err_var = estimator(rx_grid, torch.full((batch_size, num_users, 1), noise_var, dtype=torch.float32, device=device))
-                x_hat, no_eff = equalizer(rx_grid, h_hat, err_var, torch.full((batch_size, num_users, 1), noise_var, dtype=torch.float32, device=device))
-                hard_bits = demapper(x_hat, torch.full((batch_size, 1, 1, 1), noise_var, dtype=torch.float32, device=device))
-                metrics["ber_if_available"] = float((hard_bits.to(torch.int64) != bits.view_as(hard_bits)).float().mean().item())
+        if args.enable_receiver_chain:
+            receiver_result, fallback_stage, receiver_reason = _receiver_chain_grid(bits, tx_precoded, noise_var, rg, sm, device, sionna_device)
+            if receiver_result is not None:
                 used_sionna_estimator = True
                 used_sionna_equalizer = True
                 used_sionna_demapper = True
-            except Exception as exc:  # pragma: no cover
+                metrics["ber_if_available"] = receiver_result["ber_if_available"]
+            else:
                 local_fallback = True
-                fallback_reason = f"beamformed_rx_chain_fallback: {type(exc).__name__}: {exc}"
+                fallback_reason = receiver_reason or "receiver_chain_unknown_failure"
         else:
             local_fallback = True
-            fallback_reason = "beamformed_rx_chain_components_unavailable"
+            fallback_reason = "receiver_chain_not_enabled"
 
         rows.append(
             {
@@ -242,6 +292,7 @@ def main() -> None:
                 "used_sionna_equalizer": used_sionna_equalizer,
                 "used_sionna_demapper": used_sionna_demapper,
                 "fallback_used": local_fallback,
+                "fallback_stage": "receiver_chain" if local_fallback else "",
                 "fallback_reason": fallback_reason,
                 "ber_if_available": metrics["ber_if_available"],
                 "symbol_mse": metrics["symbol_mse"],
@@ -263,6 +314,7 @@ def main() -> None:
             "metrics": rows,
             "notes": summary["notes"]
             + [
+                "Pilot-enabled ResourceGrid is required when --enable-receiver-chain is used.",
                 "Project frequency-domain precoders are the current clean insertion path because they match H_f=(B,Nsc,K,Nt) directly.",
                 "Optional Sionna RZFPrecoder is audited separately and recorded only as a shape-checked reference path.",
             ],

@@ -1,0 +1,116 @@
+{
+  "sionna_import_ok": true,
+  "sionna_version": "2.0.1",
+  "resource_grid_configs": [
+    {
+      "name": "empty_default",
+      "num_ofdm_symbols": 4,
+      "fft_size": 16,
+      "num_tx": 1,
+      "num_streams_per_tx": 1,
+      "pilot_pattern_type": "EmptyPilotPattern",
+      "num_data_symbols": 52,
+      "num_pilot_symbols": 0,
+      "effective_subcarrier_ind": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "ls_estimator_ok": false,
+      "lmmse_ctor_ok": true,
+      "notes": [
+        "LSChannelEstimator failed: AssertionError: The pilot pattern cannot be empty"
+      ]
+    },
+    {
+      "name": "kronecker_one_pilot_symbol",
+      "num_ofdm_symbols": 4,
+      "fft_size": 16,
+      "num_tx": 1,
+      "num_streams_per_tx": 1,
+      "pilot_pattern_type": "KroneckerPilotPattern",
+      "num_data_symbols": 39,
+      "num_pilot_symbols": 13,
+      "effective_subcarrier_ind": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "ls_estimator_ok": true,
+      "lmmse_ctor_ok": true,
+      "notes": []
+    },
+    {
+      "name": "kronecker_two_pilot_symbols",
+      "num_ofdm_symbols": 4,
+      "fft_size": 16,
+      "num_tx": 1,
+      "num_streams_per_tx": 1,
+      "pilot_pattern_type": "KroneckerPilotPattern",
+      "num_data_symbols": 26,
+      "num_pilot_symbols": 26,
+      "effective_subcarrier_ind": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "ls_estimator_ok": true,
+      "lmmse_ctor_ok": true,
+      "notes": []
+    }
+  ],
+  "summary": {
+    "why_pilot_pattern_empty": "beamforming_chain used pilot_pattern=None, which creates EmptyPilotPattern and causes LSChannelEstimator to raise AssertionError.",
+    "ls_estimator_working_config": "pilot_pattern='kronecker' with pilot_ofdm_symbol_indices=[0]",
+    "pilot_indices_required": true,
+    "recommended_resource_grid_config": {
+      "num_ofdm_symbols": 4,
+      "fft_size": 16,
+      "num_tx": 1,
+      "num_streams_per_tx": 1,
+      "pilot_pattern": "kronecker",
+      "pilot_ofdm_symbol_indices": [
+        0
+      ],
+      "num_guard_carriers": [
+        1,
+        1
+      ],
+      "dc_null": true
+    }
+  },
+  "notes": [
+    "EmptyPilotPattern is valid for data-only chains but not for LSChannelEstimator.",
+    "The current minimal receiver-success path uses a non-empty Kronecker pilot pattern."
+  ]
+}

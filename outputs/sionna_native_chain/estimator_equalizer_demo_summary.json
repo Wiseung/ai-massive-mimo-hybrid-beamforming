@@ -1,0 +1,16 @@
+{
+  "sionna_import_ok": true,
+  "sionna_version": "2.0.1",
+  "used_sionna_resource_grid": true,
+  "used_sionna_channel": true,
+  "used_sionna_estimator": true,
+  "used_sionna_equalizer": true,
+  "used_sionna_demapper": true,
+  "fallback_used": false,
+  "ber_if_available": 0.10176282376050949,
+  "symbol_mse": 1.5975760221481323,
+  "demo_status": "ok",
+  "notes": [
+    "Minimal pilot-based Sionna receiver chain succeeded without beamforming."
+  ]
+}
