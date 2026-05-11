@@ -369,9 +369,26 @@ python scripts/audit_sionna_native_ofdm_components.py \
   --out outputs/sionna_native_chain/ofdm_component_audit.json
 python scripts/sionna_native_ofdm_baseline_chain.py \
   --out outputs/sionna_native_chain/baseline_chain_summary.json
+python scripts/audit_sionna_precoding_components.py \
+  --out outputs/sionna_native_chain/precoding_component_audit.json
+python scripts/sionna_native_ofdm_beamforming_chain.py \
+  --out outputs/sionna_native_chain/beamforming_chain_summary.json
+python scripts/compare_sionna_native_chains.py \
+  --baseline outputs/sionna_native_chain/baseline_chain_summary.json \
+  --beamforming outputs/sionna_native_chain/beamforming_chain_summary.json \
+  --metrics outputs/sionna_native_chain/beamforming_chain_metrics.csv \
+  --out outputs/sionna_native_chain
 ```
 
 See [`docs/sionna_native_ofdm_link_chain.md`](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/sionna_native_ofdm_link_chain.md) for the intended beamforming insertion point and current chain limitations.
+
+Current branch status:
+
+- `RZFPrecoder` is available in Sionna 2.0.1, but its expected tensor layout is not the same as the repository's `H_f=(B,Nsc,K,Nt)` project-side precoder path
+- current clean mainline remains project frequency-domain precoder insertion
+- `project_rzf` and `project_wmmse_iter_5` both improve strongly over `no_precoding` in the current beamforming-chain proxy metrics
+- the beamforming-chain demo still uses a synthetic Rayleigh `H_f` fallback and does not yet cleanly reuse the Sionna estimator/equalizer/demapper path for the beamformed multi-user case
+- this branch therefore should still be read as an integration experiment, not a production e2e chain
 
 ## RTX 5090 24GB Recommended Config
 

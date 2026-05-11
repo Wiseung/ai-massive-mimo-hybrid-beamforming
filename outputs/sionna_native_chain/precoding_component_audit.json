@@ -1,0 +1,54 @@
+{
+  "sionna_import_ok": true,
+  "sionna_version": "2.0.1",
+  "components": [
+    {
+      "name": "RZFPrecoder",
+      "module_path": "sionna.phy.ofdm",
+      "import_ok": true,
+      "constructor_signature": "(resource_grid: 'sionna.phy.ofdm.ResourceGrid', stream_management: 'sionna.phy.mimo.StreamManagement', return_effective_channel: bool = False, precision: Optional[Literal['single', 'double']] = None, device: Optional[str] = None, **kwargs) -> None",
+      "call_signature": "(self, x: torch.Tensor, h: torch.Tensor, alpha: Union[float, torch.Tensor] = 0.0) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]",
+      "expected_input_shape": "[B, num_tx, num_streams_per_tx, num_ofdm_symbols, fft_size] plus h with Sionna channel tensor layout",
+      "expected_output_shape": "precoded resource grid, optionally effective channel",
+      "minimal_callable_probe_passed": true,
+      "error": null,
+      "notes": [
+        "Probe output shapes: y=(2, 1, 1, 4, 16), h_eff=(2, 1, 1, 1, 1, 4, 13)."
+      ]
+    },
+    {
+      "name": "PrecodedChannel",
+      "module_path": "sionna.phy.ofdm",
+      "import_ok": true,
+      "constructor_signature": "(resource_grid: 'sionna.phy.ofdm.ResourceGrid', stream_management: 'sionna.phy.mimo.StreamManagement', precision: Optional[Literal['single', 'double']] = None, device: Optional[str] = None, **kwargs) -> None",
+      "call_signature": "(self, h: torch.Tensor, tx_power: torch.Tensor, h_hat: Optional[torch.Tensor] = None, **kwargs) -> torch.Tensor",
+      "expected_input_shape": "effective channel tensor h plus tx_power, optional h_hat",
+      "expected_output_shape": "effective post-precoding channel",
+      "minimal_callable_probe_passed": false,
+      "error": null,
+      "notes": [
+        "Abstract effective-channel helper; not the primary insertion point for project precoders."
+      ]
+    },
+    {
+      "name": "StreamManagement",
+      "module_path": "sionna.phy.mimo",
+      "import_ok": true,
+      "constructor_signature": "(rx_tx_association: numpy.ndarray, num_streams_per_tx: int) -> None",
+      "call_signature": "unavailable: AttributeError: type object 'StreamManagement' has no attribute 'call'",
+      "expected_input_shape": "rx_tx_association ndarray, num_streams_per_tx",
+      "expected_output_shape": "stream-management object",
+      "minimal_callable_probe_passed": true,
+      "error": null,
+      "notes": []
+    }
+  ],
+  "mimo_precoding_module_available": true,
+  "mimo_utils_module_available": true,
+  "resource_grid_precoder_shape_note": "Expected Sionna RZFPrecoder input x is [B, num_tx, num_streams_per_tx, num_ofdm_symbols, fft_size].",
+  "recommendation": "use project frequency-domain precoder insertion first; keep Sionna RZFPrecoder as an optional shape-checked reference path",
+  "notes": [
+    "Current project channel/precoder tensors use H_f=(B, Nsc, K, Nt) and F_f=(B, Nsc, Nt, K).",
+    "Current Sionna RZFPrecoder expects a resource-grid tensor plus a higher-rank channel tensor layout, so direct substitution is not the clean mainline path."
+  ]
+}

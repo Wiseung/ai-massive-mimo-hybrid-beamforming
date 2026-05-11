@@ -54,6 +54,49 @@ Auxiliary components include:
 - If estimator/equalizer/demapper shapes are unstable for the current API surface, the scripts must record explicit fallback flags instead of pretending that the chain is fully native.
 - The next beamforming phase should target frequency-domain per-subcarrier precoding, not a full NR stack migration.
 
+## Precoding Audit Result
+
+- `RZFPrecoder` is available in `sionna.phy.ofdm` and its constructor/call path is real on this install.
+- `RZFPrecoder` expects a Sionna resource-grid tensor plus a higher-rank channel tensor layout, not the repository's simpler `H_f = (B, Nsc, K, Nt)` shape.
+- `PrecodedChannel` is available as an effective-channel helper, but it is not the clean primary insertion point for the repository's project-side per-subcarrier precoders.
+- Current recommendation:
+  use project frequency-domain precoder insertion first, and keep `RZFPrecoder` as an optional shape-checked reference path.
+
+## Beamforming Chain Status
+
+Current demo compares:
+
+- `no_precoding`
+- `project_rzf`
+- `project_wmmse_iter_1`
+- `project_wmmse_iter_2`
+- `project_wmmse_iter_5`
+- optional `sionna_rzf_precoder` audit/reference path
+
+Observed status on this branch:
+
+- real Sionna `ResourceGrid` is still used
+- the beamforming demo currently uses a synthetic Rayleigh `H_f` fallback instead of extracting a compatible beamformed channel tensor from Sionna
+- the multi-user beamformed RX path does not yet reuse the Sionna estimator/equalizer/demapper chain cleanly because the current setup trips over empty-pilot assumptions
+- therefore the current beamforming demo reports `symbol_mse`, `effective_sinr_db`, `approximate_sum_rate`, `power_norm`, and `power_violation` as the reliable metrics
+
+Current method comparison from the demo:
+
+- `project_rzf` strongly improves over `no_precoding`
+- `project_wmmse_iter_5` slightly improves `approximate_sum_rate` over `project_rzf`
+- this does not imply any learned model exceeds `WMMSE-iter5`; it only reflects project analytic precoders inside the current native-chain insertion experiment
+
+## Learned Beamformer Insertion Recommendation
+
+Yes, this is now the recommended insertion point for the next learned-beamformer phase:
+
+- keep the beamformer in frequency domain
+- operate per subcarrier on `H_f = (B, Nsc, K, Nt)`
+- output `F_f = (B, Nsc, Nt, K)`
+- feed the result into the Sionna-native OFDM chain where possible
+
+This recommendation is about architecture and integration cleanliness, not about claiming the chain is already a production-ready full Sionna e2e path.
+
 ## Limitations
 
 - optional Sionna dependency only: `sionna-no-rt`
