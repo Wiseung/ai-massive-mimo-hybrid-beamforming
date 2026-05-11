@@ -116,13 +116,54 @@ This confirms that the current install can run a real pilot-based Sionna receive
 Current status for `--enable-receiver-chain`:
 
 - the chain now uses a pilot-enabled `ResourceGrid`
-- receiver failures, if any, are recorded by explicit fallback stage
-- the remaining integration question is not whether pilots are required, but whether the project beamformed tensor layout can be consumed by the Sionna receiver path without shape mismatches
+- the shape-trace audit localized the earlier `shape '[16,1,1,0]'` failure to a pilot-only grid:
+  `num_ofdm_symbols=1` with `pilot_ofdm_symbol_indices=[0]` forces `num_data_symbols=0`
+- the StreamManagement audit shows the beamformed downlink should be modeled as
+  `num_tx=1`, `num_streams_per_tx=K`, `rx_tx_association=ones(K,1)`
+- with that bridge plus `ApplyOFDMChannel`, the current native beamformed receiver retry succeeds for:
+  `no_precoding`, `project_rzf`, `project_wmmse_iter_2`, `project_wmmse_iter_5`
 
-If the receiver path still falls back, it must be described as:
+This is now a real Sionna-native beamformed receiver path for the current synthetic link-level experiment. It is still not a production e2e system and it still does not change any release claim about RT, ray tracing, or a full NR stack.
 
-- project beamforming plus receiver-chain compatibility fallback
-- not a full Sionna-native beamformed receiver result
+## Shape Trace And StreamManagement Audit
+
+Current conclusions:
+
+- minimal success path shapes are stable:
+  `y = [B, 1, 1, 4, 16]`,
+  `h_hat = [B, 1, 1, 1, 1, 4, 13]`,
+  `err_var = [B, 1, 1, 1, 1, 4, 13]`,
+  `x_hat = [B, 1, 1, 39]`,
+  `no_eff = [B, 1, 1, 39]`
+- the old beamformed failure did not come from an arbitrary equalizer bug:
+  it came from `num_data_symbols=0`, which then propagated into `x_hat/no_eff = [16, 1, 1, 0]`
+- `StreamManagement(np.ones((K,1)), num_streams_per_tx=1)` is not the correct downlink semantic mapping for the project beamformed chain
+- the current recommended bridge is:
+  build a pilot-aware `ResourceGrid` with at least one data OFDM symbol,
+  set `num_tx=1`,
+  set `num_streams_per_tx=K`,
+  set `rx_tx_association=np.ones((K,1))`,
+  map project stream symbols into the data REs only,
+  and apply project precoders onto the antenna-domain grid before `ApplyOFDMChannel`
+
+This keeps the project-side `H_f=(B,Nsc,K,Nt)` and `F_f=(B,Nsc,Nt,K)` interface while making the Sionna-native receiver chain interpretable.
+
+## Current Native Receiver Outcome
+
+The current `receiver-mode=auto` run reports:
+
+- `native_receiver_attempted = true`
+- `native_receiver_success = true`
+- native-success methods:
+  `no_precoding`, `project_rzf`, `project_wmmse_iter_2`, `project_wmmse_iter_5`
+- no methods required fallback-only handling in the current validated run
+
+This means the repository now has both:
+
+- a minimal non-beamformed Sionna receiver success path
+- a beamformed Sionna receiver success path through the new shape bridge
+
+The bridge remains experimental and synthetic-only, but it is now strong enough to justify attaching the next learned frequency-domain model at this insertion point.
 
 ## Learned Beamformer Insertion Recommendation
 

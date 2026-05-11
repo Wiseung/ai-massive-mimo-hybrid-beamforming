@@ -1,0 +1,146 @@
+{
+  "sionna_import_ok": true,
+  "sionna_version": "2.0.1",
+  "cases": [
+    {
+      "name": "minimal_success",
+      "rx_tx_association": [
+        [
+          1
+        ]
+      ],
+      "num_rx": 1,
+      "num_tx": 1,
+      "num_streams_per_tx": 1,
+      "num_streams_per_rx": 1,
+      "num_interfering_streams_per_rx": 0,
+      "stream_ind": [
+        0
+      ],
+      "detection_desired_ind": [
+        0
+      ],
+      "detection_undesired_ind": []
+    },
+    {
+      "name": "previous_beamformed_failing_sm",
+      "rx_tx_association": [
+        [
+          1
+        ],
+        [
+          1
+        ],
+        [
+          1
+        ],
+        [
+          1
+        ]
+      ],
+      "num_rx": 4,
+      "num_tx": 1,
+      "num_streams_per_tx": 1,
+      "num_streams_per_rx": 0,
+      "num_interfering_streams_per_rx": 1,
+      "stream_ind": [],
+      "detection_desired_ind": [],
+      "detection_undesired_ind": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "name": "recommended_beamformed_native_sm",
+      "rx_tx_association": [
+        [
+          1
+        ],
+        [
+          1
+        ],
+        [
+          1
+        ],
+        [
+          1
+        ]
+      ],
+      "num_rx": 4,
+      "num_tx": 1,
+      "num_streams_per_tx": 4,
+      "num_streams_per_rx": 1,
+      "num_interfering_streams_per_rx": 3,
+      "stream_ind": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "detection_desired_ind": [
+        0,
+        5,
+        10,
+        15
+      ],
+      "detection_undesired_ind": [
+        1,
+        2,
+        3,
+        4,
+        6,
+        7,
+        8,
+        9,
+        11,
+        12,
+        13,
+        14
+      ]
+    }
+  ],
+  "summary": {
+    "why_minimal_succeeds": "The minimal chain uses num_tx=1, num_streams_per_tx=1, rx_tx_association=[[1]], and a pilot-aware grid with positive num_data_symbols.",
+    "beamformed_mapping_recommendation": "Model the downlink beamformed chain as num_tx=1 and num_streams_per_tx=K, not as K receivers each fed by a single-stream transmitter.",
+    "recommended_rx_tx_association": [
+      [
+        1
+      ],
+      [
+        1
+      ],
+      [
+        1
+      ],
+      [
+        1
+      ]
+    ],
+    "zero_dimension_from_stream_management": false,
+    "stream_management_failure_mode": "The old beamformed setup with rx_tx_association shape (K,1) and num_streams_per_tx=1 does not create zero desired streams, but it mismatches the intended K-stream downlink semantics and contributes to an incompatible equalizer interpretation.",
+    "recommended_configuration": {
+      "num_tx": 1,
+      "num_streams_per_tx": 4,
+      "rx_tx_association": [
+        [
+          1
+        ],
+        [
+          1
+        ],
+        [
+          1
+        ],
+        [
+          1
+        ]
+      ],
+      "resource_grid_num_ofdm_symbols": 2,
+      "pilot_ofdm_symbol_indices": [
+        0
+      ]
+    }
+  }
+}

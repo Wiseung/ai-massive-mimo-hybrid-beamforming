@@ -129,8 +129,10 @@ def test_sionna_beamforming_receiver_chain_runs(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     baseline_out = tmp_path / "baseline_chain_summary.json"
     beamforming_out = tmp_path / "beamforming_chain_summary.json"
-    receiver_out = tmp_path / "beamforming_receiver_chain_summary.json"
+    receiver_out = tmp_path / "beamforming_receiver_chain_v2_summary.json"
     compare_dir = tmp_path / "compare_v2"
+    shape_trace_out = tmp_path / "beamformed_receiver_shape_trace.json"
+    stream_mgmt_out = tmp_path / "stream_management_audit.json"
     subprocess.run(
         [sys.executable, "scripts/sionna_native_ofdm_baseline_chain.py", "--out", str(baseline_out)],
         check=True,
@@ -142,12 +144,25 @@ def test_sionna_beamforming_receiver_chain_runs(tmp_path: Path) -> None:
         cwd=repo_root,
     )
     subprocess.run(
+        [sys.executable, "scripts/trace_sionna_beamformed_receiver_shapes.py", "--out", str(shape_trace_out)],
+        check=True,
+        cwd=repo_root,
+    )
+    subprocess.run(
+        [sys.executable, "scripts/audit_sionna_stream_management.py", "--out", str(stream_mgmt_out)],
+        check=True,
+        cwd=repo_root,
+    )
+    subprocess.run(
         [
             sys.executable,
             "scripts/sionna_native_ofdm_beamforming_chain.py",
             "--out",
             str(receiver_out),
             "--enable-receiver-chain",
+            "--receiver-mode",
+            "auto",
+            "--trace-shapes",
         ],
         check=True,
         cwd=repo_root,
@@ -163,11 +178,20 @@ def test_sionna_beamforming_receiver_chain_runs(tmp_path: Path) -> None:
             "--receiver",
             str(receiver_out),
             "--metrics",
-            str(receiver_out.with_name("beamforming_receiver_chain_metrics.csv")),
+            str(receiver_out.with_name("beamforming_receiver_chain_v2_metrics.csv")),
             "--out",
             str(compare_dir),
         ],
         check=True,
         cwd=repo_root,
     )
+    shape_payload = json.loads(shape_trace_out.read_text(encoding="utf-8"))
+    assert "beamformed_paths" in shape_payload
+    stream_payload = json.loads(stream_mgmt_out.read_text(encoding="utf-8"))
+    assert stream_payload["summary"]["recommended_configuration"]["num_streams_per_tx"] == 4
+    receiver_payload = json.loads(receiver_out.read_text(encoding="utf-8"))
+    assert receiver_payload["native_receiver_attempted"] is True
+    if not receiver_payload["native_receiver_success"]:
+        assert receiver_payload["native_failure_stage"]
+        assert receiver_payload["native_failure_reason"]
     assert (compare_dir / "native_chain_comparison_v2.md").exists()

@@ -1,0 +1,686 @@
+{
+  "sionna_import_ok": true,
+  "sionna_version": "2.0.1",
+  "device": "cuda",
+  "minimal_success_path": {
+    "path_name": "minimal_receiver_success_path",
+    "success": true,
+    "resource_grid": {
+      "num_ofdm_symbols": 4,
+      "fft_size": 16,
+      "num_data_symbols": 39,
+      "num_pilot_symbols": 13,
+      "effective_subcarrier_ind": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ]
+    },
+    "stream_management": {
+      "num_rx": 1,
+      "num_tx": 1,
+      "num_streams_per_tx": 1,
+      "detection_desired_ind": [
+        0
+      ]
+    },
+    "tensor_trace": [
+      {
+        "tensor_name": "bits",
+        "shape": [
+          32,
+          1,
+          1,
+          78
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "semantic_axes": [
+          "batch",
+          "num_tx",
+          "num_streams",
+          "coded_bits"
+        ],
+        "expected": null
+      },
+      {
+        "tensor_name": "tx_symbols",
+        "shape": [
+          32,
+          1,
+          1,
+          39
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "semantic_axes": [
+          "batch",
+          "num_tx",
+          "num_streams",
+          "data_symbols"
+        ],
+        "expected": null
+      },
+      {
+        "tensor_name": "tx_grid",
+        "shape": [
+          32,
+          1,
+          1,
+          4,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "semantic_axes": [
+          "batch",
+          "num_tx",
+          "num_streams",
+          "ofdm_symbol",
+          "fft_bin"
+        ],
+        "expected": null
+      },
+      {
+        "tensor_name": "rx_grid",
+        "shape": [
+          32,
+          1,
+          1,
+          4,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "semantic_axes": [
+          "batch",
+          "num_rx",
+          "num_rx_ant",
+          "ofdm_symbol",
+          "fft_bin"
+        ],
+        "expected": null
+      },
+      {
+        "tensor_name": "h_freq",
+        "shape": [
+          32,
+          1,
+          1,
+          1,
+          1,
+          4,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "semantic_axes": [
+          "batch",
+          "num_rx",
+          "num_rx_ant",
+          "num_tx",
+          "num_tx_ant",
+          "ofdm_symbol",
+          "fft_bin"
+        ],
+        "expected": null
+      },
+      {
+        "tensor_name": "h_hat",
+        "shape": [
+          32,
+          1,
+          1,
+          1,
+          1,
+          4,
+          13
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "semantic_axes": [
+          "batch",
+          "num_rx",
+          "num_rx_ant",
+          "num_tx",
+          "num_streams_per_tx",
+          "ofdm_symbol",
+          "effective_subcarrier"
+        ],
+        "expected": null
+      },
+      {
+        "tensor_name": "err_var",
+        "shape": [
+          32,
+          1,
+          1,
+          1,
+          1,
+          4,
+          13
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "semantic_axes": [
+          "batch",
+          "num_rx",
+          "num_rx_ant",
+          "num_tx",
+          "num_streams_per_tx",
+          "ofdm_symbol",
+          "effective_subcarrier"
+        ],
+        "expected": null
+      },
+      {
+        "tensor_name": "x_hat",
+        "shape": [
+          32,
+          1,
+          1,
+          39
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "semantic_axes": [
+          "batch",
+          "num_tx",
+          "num_streams",
+          "data_symbols"
+        ],
+        "expected": null
+      },
+      {
+        "tensor_name": "no_eff",
+        "shape": [
+          32,
+          1,
+          1,
+          39
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "semantic_axes": [
+          "batch",
+          "num_tx",
+          "num_streams",
+          "data_symbols"
+        ],
+        "expected": null
+      },
+      {
+        "tensor_name": "hard_bits",
+        "shape": [
+          32,
+          1,
+          1,
+          78
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "semantic_axes": [
+          "batch",
+          "num_tx",
+          "num_streams",
+          "coded_bits"
+        ],
+        "expected": null
+      }
+    ]
+  },
+  "beamformed_paths": {
+    "failing_path": {
+      "path_name": "beamformed_receiver_previous_failure_path",
+      "success": false,
+      "resource_grid_meta": {
+        "fallback_used": true,
+        "fallback_reason": "num_ofdm_symbols_must_exceed_number_of_pilot_symbols_to_leave_data_re",
+        "num_users": 4,
+        "num_tx": 1,
+        "num_streams_per_tx": 4
+      },
+      "stream_management": null,
+      "failure_stage": "resource_grid_construction",
+      "exception_type": "LogicalShapeFailure",
+      "exception_message": "num_ofdm_symbols_must_exceed_number_of_pilot_symbols_to_leave_data_re",
+      "zero_dimension_origin": "num_data_symbols=0 because num_ofdm_symbols=1 and pilot_ofdm_symbol_indices=[0] leave no data OFDM symbol",
+      "tensor_trace": []
+    },
+    "native_retry_path": {
+      "path_name": "beamformed_receiver_native_retry_path",
+      "success": true,
+      "resource_grid_meta": {
+        "fallback_used": false,
+        "fallback_reason": "",
+        "num_users": 4,
+        "num_tx": 1,
+        "num_streams_per_tx": 4,
+        "fft_size": 19,
+        "num_data_symbols": 16,
+        "num_pilot_symbols": 16,
+        "effective_subcarrier_ind": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17
+        ],
+        "rx_tx_association": [
+          [
+            1
+          ],
+          [
+            1
+          ],
+          [
+            1
+          ],
+          [
+            1
+          ]
+        ]
+      },
+      "stream_management": {
+        "num_rx": 4,
+        "num_tx": 1,
+        "num_streams_per_tx": 4,
+        "detection_desired_ind": [
+          0,
+          5,
+          10,
+          15
+        ]
+      },
+      "failure_stage": "",
+      "exception_type": "",
+      "exception_message": "",
+      "tensor_trace": [
+        {
+          "tensor_name": "H_f",
+          "shape": [
+            16,
+            16,
+            4,
+            16
+          ],
+          "dtype": "torch.complex64",
+          "device": "cuda:0",
+          "semantic_axes": [
+            "batch",
+            "effective_subcarrier",
+            "user",
+            "bs_ant"
+          ],
+          "expected": null
+        },
+        {
+          "tensor_name": "F_f",
+          "shape": [
+            16,
+            16,
+            16,
+            4
+          ],
+          "dtype": "torch.complex64",
+          "device": "cuda:0",
+          "semantic_axes": [
+            "batch",
+            "effective_subcarrier",
+            "bs_ant",
+            "user"
+          ],
+          "expected": null
+        },
+        {
+          "tensor_name": "x_rg",
+          "shape": [
+            16,
+            1,
+            4,
+            2,
+            19
+          ],
+          "dtype": "torch.complex64",
+          "device": "cuda:0",
+          "semantic_axes": [
+            "batch",
+            "num_tx",
+            "num_streams",
+            "ofdm_symbol",
+            "fft_bin"
+          ],
+          "expected": null
+        },
+        {
+          "tensor_name": "tx_grid",
+          "shape": [
+            16,
+            1,
+            16,
+            2,
+            19
+          ],
+          "dtype": "torch.complex64",
+          "device": "cuda:0",
+          "semantic_axes": [
+            "batch",
+            "num_tx",
+            "num_tx_ant",
+            "ofdm_symbol",
+            "fft_bin"
+          ],
+          "expected": null
+        },
+        {
+          "tensor_name": "rx_grid",
+          "shape": [
+            16,
+            4,
+            1,
+            2,
+            19
+          ],
+          "dtype": "torch.complex64",
+          "device": "cuda:0",
+          "semantic_axes": [
+            "batch",
+            "num_rx",
+            "num_rx_ant",
+            "ofdm_symbol",
+            "fft_bin"
+          ],
+          "expected": null
+        },
+        {
+          "tensor_name": "h_hat",
+          "shape": [
+            16,
+            4,
+            1,
+            1,
+            4,
+            2,
+            16
+          ],
+          "dtype": "torch.complex64",
+          "device": "cuda:0",
+          "semantic_axes": [
+            "batch",
+            "num_rx",
+            "num_rx_ant",
+            "num_tx",
+            "num_streams_per_tx",
+            "ofdm_symbol",
+            "effective_subcarrier"
+          ],
+          "expected": null
+        },
+        {
+          "tensor_name": "err_var",
+          "shape": [
+            16,
+            4,
+            1,
+            1,
+            4,
+            2,
+            16
+          ],
+          "dtype": "torch.float32",
+          "device": "cuda:0",
+          "semantic_axes": [
+            "batch",
+            "num_rx",
+            "num_rx_ant",
+            "num_tx",
+            "num_streams_per_tx",
+            "ofdm_symbol",
+            "effective_subcarrier"
+          ],
+          "expected": null
+        },
+        {
+          "tensor_name": "x_hat",
+          "shape": [
+            16,
+            1,
+            4,
+            16
+          ],
+          "dtype": "torch.complex64",
+          "device": "cuda:0",
+          "semantic_axes": [
+            "batch",
+            "num_tx",
+            "num_streams",
+            "data_symbols"
+          ],
+          "expected": null
+        },
+        {
+          "tensor_name": "no_eff",
+          "shape": [
+            16,
+            1,
+            4,
+            16
+          ],
+          "dtype": "torch.float32",
+          "device": "cuda:0",
+          "semantic_axes": [
+            "batch",
+            "num_tx",
+            "num_streams",
+            "data_symbols"
+          ],
+          "expected": null
+        },
+        {
+          "tensor_name": "hard_bits",
+          "shape": [
+            16,
+            1,
+            4,
+            32
+          ],
+          "dtype": "torch.float32",
+          "device": "cuda:0",
+          "semantic_axes": [
+            "batch",
+            "num_tx",
+            "num_streams",
+            "coded_bits"
+          ],
+          "expected": null
+        }
+      ],
+      "channel_meta": {
+        "fallback_used": false,
+        "fallback_reason": "",
+        "used_native_channel_extraction": true,
+        "selected_data_symbol_index": 0,
+        "full_channel_shape": [
+          16,
+          4,
+          1,
+          1,
+          16,
+          2,
+          19
+        ],
+        "effective_subcarrier_ind": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17
+        ]
+      },
+      "resource_grid_bridge_meta": {
+        "fallback_used": false,
+        "fallback_reason": "",
+        "mapped_shape": [
+          16,
+          1,
+          4,
+          2,
+          19
+        ],
+        "batch_size": 16,
+        "num_users": 4
+      },
+      "tx_bridge_meta": {
+        "fallback_used": false,
+        "fallback_reason": "",
+        "effective_subcarrier_ind": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17
+        ],
+        "tx_grid_shape": [
+          16,
+          1,
+          16,
+          2,
+          19
+        ]
+      },
+      "shape_validation": {
+        "valid": true,
+        "resource_grid_num_data_symbols": 16,
+        "stream_management_num_desired_streams": 4,
+        "expected_h_hat_shape": [
+          16,
+          4,
+          1,
+          1,
+          4,
+          2,
+          16
+        ],
+        "observed_y_shape": [
+          16,
+          4,
+          1,
+          2,
+          19
+        ],
+        "observed_h_hat_shape": [
+          16,
+          4,
+          1,
+          1,
+          4,
+          2,
+          16
+        ],
+        "observed_err_var_shape": [
+          16,
+          4,
+          1,
+          1,
+          4,
+          2,
+          16
+        ],
+        "reason": ""
+      },
+      "ber": 0.0,
+      "symbol_mse": 0.042959995567798615
+    }
+  },
+  "summary": {
+    "minimal_shapes": {
+      "y": [
+        32,
+        1,
+        1,
+        4,
+        16
+      ],
+      "h_hat": [
+        32,
+        1,
+        1,
+        1,
+        1,
+        4,
+        13
+      ],
+      "err_var": [
+        32,
+        1,
+        1,
+        1,
+        1,
+        4,
+        13
+      ],
+      "x_hat": [
+        32,
+        1,
+        1,
+        39
+      ],
+      "no_eff": [
+        32,
+        1,
+        1,
+        39
+      ]
+    },
+    "beamformed_failure_stage": "resource_grid_construction",
+    "beamformed_failure_reason": "num_ofdm_symbols_must_exceed_number_of_pilot_symbols_to_leave_data_re",
+    "beamformed_zero_dimension_origin": "num_data_symbols=0 because num_ofdm_symbols=1 and pilot_ofdm_symbol_indices=[0] leave no data OFDM symbol",
+    "native_retry_success": true,
+    "native_retry_ber": 0.0,
+    "native_retry_symbol_mse": 0.042959995567798615,
+    "recommended_fix": "Use a pilot-aware downlink MU ResourceGrid with num_tx=1, num_streams_per_tx=K, rx_tx_association=ones(K,1), and num_ofdm_symbols > len(pilot_ofdm_symbol_indices)."
+  }
+}

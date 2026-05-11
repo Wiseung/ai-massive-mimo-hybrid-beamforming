@@ -397,7 +397,14 @@ Current branch status:
 - `project_rzf` and `project_wmmse_iter_5` both improve strongly over `no_precoding` in the current beamforming-chain proxy metrics
 - pilot-pattern audit shows that `LSChannelEstimator` requires a non-empty pilot pattern; `pilot_pattern=\"kronecker\"` with `pilot_ofdm_symbol_indices=[0]` is the current minimal working config
 - the minimal estimator/equalizer demo succeeds with a real Sionna pilot-based receiver chain
-- the beamformed receiver chain is still an integration boundary: if it falls back, the fallback stage is now reported explicitly instead of being described as a full native success
+- the shape-trace audit shows the earlier beamformed failure `shape '[16,1,1,0]'` came from a pilot-only grid with `num_data_symbols=0`, not from a random receiver bug
+- the StreamManagement audit shows the beamformed downlink should use `num_tx=1`, `num_streams_per_tx=K`, and `rx_tx_association=ones(K,1)`
+- the beamformed receiver chain now supports explicit `receiver-mode {proxy,native,auto}`:
+  `proxy` keeps project-side metrics only,
+  `native` requires the real Sionna receiver path,
+  `auto` tries native first and records exact fallback stage/reason if needed
+- the current `receiver-mode=auto` validation succeeds for `no_precoding`, `project_rzf`, `project_wmmse_iter_2`, and `project_wmmse_iter_5` through a real Sionna receiver path
+- fallback proxy metrics are still not described as full Sionna-native receiver results when native receiver mode is not used
 - this branch therefore should still be read as an integration experiment, not a production e2e chain
 
 ## RTX 5090 24GB Recommended Config
