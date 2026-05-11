@@ -10,6 +10,7 @@ import numpy as np
 import torch
 
 from beamforming.baselines.common import get_digital_precoder
+from beamforming.utils.sionna_channel_extraction import extract_h_f_from_sionna_channel
 from beamforming.utils.sionna_native_chain import load_component, resolve_sionna_device
 
 
@@ -357,22 +358,22 @@ def extract_effective_channel_from_sionna(
         )
         noise = torch.full((batch_size, num_users, 1), float(noise_var), dtype=torch.float32, device=device)
         _, h_freq_full = channel(dummy_x, no=noise)
-        pilot_indices = set(getattr(resource_grid.pilot_pattern, "_pilot_ofdm_symbol_indices", []) or [])
-        data_symbol_indices = [idx for idx in range(int(resource_grid.num_ofdm_symbols)) if idx not in pilot_indices]
-        if not data_symbol_indices:
-            meta.update({"fallback_used": True, "fallback_reason": "resource_grid_has_no_data_ofdm_symbol"})
+        h_f, extraction_meta, extraction_success, fallback_reason = extract_h_f_from_sionna_channel(
+            h_freq_full,
+            resource_grid=resource_grid,
+            num_users=num_users,
+            num_bs_ant=num_bs_ant,
+        )
+        meta["extraction_meta"] = extraction_meta
+        if not extraction_success or h_f is None:
+            meta.update({"fallback_used": True, "fallback_reason": fallback_reason or "native_h_f_extraction_failed"})
             return None, h_freq_full, meta
-        data_symbol_index = data_symbol_indices[0]
-        effective_subcarrier_ind = torch.as_tensor(resource_grid.effective_subcarrier_ind, device=device)
-        h_sel = h_freq_full[:, :, 0, 0, :, :, :]  # [B, K, Nt, S, F]
-        h_perm = h_sel.permute(0, 3, 4, 1, 2).contiguous()  # [B, S, F, K, Nt]
-        h_f = h_perm[:, data_symbol_index, effective_subcarrier_ind, :, :].contiguous()
         meta.update(
             {
                 "used_native_channel_extraction": True,
-                "selected_data_symbol_index": int(data_symbol_index),
+                "selected_data_symbol_index": int(extraction_meta.get("selected_data_symbol_index", 0)),
                 "full_channel_shape": [int(x) for x in h_freq_full.shape],
-                "effective_subcarrier_ind": [int(x) for x in effective_subcarrier_ind.tolist()],
+                "effective_subcarrier_ind": [int(x) for x in resource_grid.effective_subcarrier_ind],
             }
         )
         return h_f, h_freq_full, meta

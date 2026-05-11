@@ -409,6 +409,22 @@ python scripts/reproduce_sionna_native_chain_minimal.py \
 
 See [`docs/sionna_native_ofdm_link_chain.md`](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/sionna_native_ofdm_link_chain.md) for the intended beamforming insertion point and current chain limitations.
 
+Current post-`v0.4.0` next-step focus:
+
+- reduce the current `project-H_f-assisted` limitation
+- audit whether real Sionna channel tensors can be converted into project `H_f=(B,Nsc,K,Nt)`
+- keep the existing native receiver path intact while testing a more native channel bridge
+- do not reinterpret this work as a full native-only benchmark unless channel, precoder, and receiver paths are all consistently native
+
+Current channel-extraction branch result:
+
+- `OFDMChannel(return_channel=True)` can be converted into project `H_f=(B,Nsc,K,Nt)` under the current MU downlink assumptions
+- the current extraction demo succeeds with `sionna_channel_tensor_shape=[8,4,1,1,16,2,19]` and `extracted_h_f_shape=[8,16,4,16]`
+- the native-channel-assisted beamforming demo succeeds with `project_h_f_assisted=false`
+- this reduces the old project-assisted limitation, but it still does not justify a full native-only benchmark claim
+
+See [`docs/sionna_native_channel_extraction.md`](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/sionna_native_channel_extraction.md) for the extraction path, shape mapping, and current limits.
+
 Current branch status:
 
 - `RZFPrecoder` is available in Sionna 2.0.1, but its expected tensor layout is not the same as the repository's `H_f=(B,Nsc,K,Nt)` project-side precoder path

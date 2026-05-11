@@ -1,0 +1,233 @@
+{
+  "sionna_import_ok": true,
+  "sionna_version": "2.0.1",
+  "components": [
+    {
+      "name": "OFDMChannel",
+      "module_path": "sionna.phy.channel",
+      "import_ok": true,
+      "constructor_signature": "(channel_model: sionna.phy.channel.channel_model.ChannelModel, resource_grid: sionna.phy.ofdm.resource_grid.ResourceGrid, normalize_channel: bool = False, return_channel: bool = False, precision: Optional[Literal['single', 'double']] = None, device: Optional[str] = None, **kwargs) -> None",
+      "call_signature": "(self, x: torch.Tensor, no: Union[float, torch.Tensor, NoneType] = None) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]",
+      "returns_channel_tensor": true,
+      "observed_output_shape": [
+        2,
+        4,
+        1,
+        2,
+        19
+      ],
+      "channel_tensor_shape": [
+        2,
+        4,
+        1,
+        1,
+        16,
+        2,
+        19
+      ],
+      "minimal_probe_passed": true,
+      "error": null,
+      "notes": [
+        "return_channel=True returns (y, h)."
+      ]
+    },
+    {
+      "name": "ApplyOFDMChannel",
+      "module_path": "sionna.phy.channel",
+      "import_ok": true,
+      "constructor_signature": "(precision: Optional[Literal['single', 'double']] = None, device: Optional[str] = None, **kwargs) -> None",
+      "call_signature": "(self, x: torch.Tensor, h_freq: torch.Tensor, no: Union[float, torch.Tensor, NoneType] = None) -> torch.Tensor",
+      "returns_channel_tensor": false,
+      "observed_output_shape": null,
+      "channel_tensor_shape": null,
+      "minimal_probe_passed": false,
+      "error": null,
+      "notes": [
+        "ApplyOFDMChannel applies a provided channel tensor and does not generate one."
+      ]
+    },
+    {
+      "name": "RayleighBlockFading",
+      "module_path": "sionna.phy.channel",
+      "import_ok": true,
+      "constructor_signature": "(num_rx: int, num_rx_ant: int, num_tx: int, num_tx_ant: int, precision: Optional[str] = None, device: Optional[str] = None, **kwargs) -> None",
+      "call_signature": null,
+      "returns_channel_tensor": false,
+      "observed_output_shape": null,
+      "channel_tensor_shape": null,
+      "minimal_probe_passed": false,
+      "error": null,
+      "notes": []
+    },
+    {
+      "name": "GenerateOFDMChannel",
+      "module_path": "sionna.phy.channel",
+      "import_ok": true,
+      "constructor_signature": "(channel_model: sionna.phy.channel.channel_model.ChannelModel, resource_grid: sionna.phy.ofdm.resource_grid.ResourceGrid, normalize_channel: bool = False, precision: Optional[Literal['single', 'double']] = None, device: Optional[str] = None, **kwargs) -> None",
+      "call_signature": null,
+      "returns_channel_tensor": false,
+      "observed_output_shape": null,
+      "channel_tensor_shape": null,
+      "minimal_probe_passed": false,
+      "error": null,
+      "notes": [
+        "GenerateOFDMChannel is available only if present in the installed Sionna build."
+      ]
+    },
+    {
+      "name": "cir_to_ofdm_channel",
+      "module_path": "sionna.phy.channel",
+      "import_ok": true,
+      "constructor_signature": "(frequencies: torch.Tensor, a: torch.Tensor, tau: torch.Tensor, normalize: bool = False) -> torch.Tensor",
+      "call_signature": null,
+      "returns_channel_tensor": false,
+      "observed_output_shape": null,
+      "channel_tensor_shape": null,
+      "minimal_probe_passed": false,
+      "error": null,
+      "notes": []
+    },
+    {
+      "name": "subcarrier_frequencies",
+      "module_path": "sionna.phy.channel",
+      "import_ok": true,
+      "constructor_signature": "(num_subcarriers: int, subcarrier_spacing: float, precision: Optional[str] = None, device: Optional[str] = None) -> torch.Tensor",
+      "call_signature": null,
+      "returns_channel_tensor": false,
+      "observed_output_shape": null,
+      "channel_tensor_shape": null,
+      "minimal_probe_passed": false,
+      "error": null,
+      "notes": []
+    }
+  ],
+  "summary": {
+    "ofdmchannel_returns_channel_tensor": true,
+    "ofdmchannel_channel_tensor_shape": [
+      2,
+      4,
+      1,
+      1,
+      16,
+      2,
+      19
+    ],
+    "channel_tensor_axes_interpretation": [
+      "batch",
+      "rx",
+      "rx_ant",
+      "tx",
+      "tx_ant",
+      "ofdm_symbol",
+      "fft_bin"
+    ],
+    "can_convert_to_project_h_f": true,
+    "project_h_f_shape": [
+      2,
+      16,
+      4,
+      16
+    ],
+    "conversion_meta": {
+      "resource_grid_num_ofdm_symbols": 2,
+      "resource_grid_num_data_symbols": 16,
+      "resource_grid_effective_subcarrier_ind": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ],
+      "shape_assumptions": {
+        "sionna_axes": [
+          "batch",
+          "rx",
+          "rx_ant",
+          "tx",
+          "tx_ant",
+          "ofdm_symbol",
+          "fft_bin"
+        ],
+        "project_axes": [
+          "batch",
+          "subcarrier",
+          "user",
+          "bs_ant"
+        ],
+        "rx_maps_to_user": true,
+        "tx_ant_maps_to_bs_ant": true,
+        "single_tx_required": true,
+        "single_rx_ant_required": true
+      },
+      "conversion": {
+        "input_shape": [
+          2,
+          4,
+          1,
+          1,
+          16,
+          2,
+          19
+        ],
+        "assumed_sionna_axes": [
+          "batch",
+          "rx",
+          "rx_ant",
+          "tx",
+          "tx_ant",
+          "ofdm_symbol",
+          "fft_bin"
+        ],
+        "target_project_axes": [
+          "batch",
+          "subcarrier",
+          "user",
+          "bs_ant"
+        ],
+        "fallback_reason": "",
+        "selected_data_symbol_index": 0,
+        "output_shape": [
+          2,
+          16,
+          4,
+          16
+        ]
+      },
+      "validation": {
+        "valid": true,
+        "shape": [
+          2,
+          16,
+          4,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "is_complex": true,
+        "all_finite": true,
+        "norm_mean": 7.906928062438965,
+        "norm_std": 0.485321044921875,
+        "subcarrier_norm_std_mean": 0.0,
+        "fallback_reason": ""
+      },
+      "selected_data_symbol_index": 0,
+      "fallback_reason": ""
+    }
+  },
+  "recommended_extraction_path": "OFDMChannel(return_channel=True) -> extract_h_f_from_sionna_channel",
+  "notes": [
+    "Current observed OFDMChannel channel tensor axes are interpreted as batch/rx/rx_ant/tx/tx_ant/ofdm_symbol/fft_bin.",
+    "The current bridge assumes num_tx=1, rx=user, rx_ant=1, and tx_ant=Nt for MU downlink extraction.",
+    "ResourceGrid metadata for the probe: {'fallback_used': False, 'fallback_reason': '', 'num_users': 4, 'num_tx': 1, 'num_streams_per_tx': 4, 'fft_size': 19, 'num_data_symbols': 16, 'num_pilot_symbols': 16, 'effective_subcarrier_ind': [1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17], 'rx_tx_association': [[1], [1], [1], [1]]}"
+  ]
+}
