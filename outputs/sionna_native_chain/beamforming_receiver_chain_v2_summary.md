@@ -10,14 +10,13 @@
 - Used Sionna equalizer: `True`
 - Used Sionna demapper: `True`
 - Fallback used: `True`
-- shape_trace_path: `outputs/sionna_native_chain/beamforming_receiver_shape_trace_runtime.json`
 
 | Method | Native OK | BER | Symbol MSE | Effective SINR dB | Approx Sum Rate | Fallback | Stage | Reason |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- | --- |
-| no_precoding | True | 0.3486328125 | 16.060356 | -12.057552 | 0.348576 | False |  |  |
-| project_rzf | True | 0.44775390625 | 31.768276 | -15.019938 | 0.178852 | False |  |  |
-| project_wmmse_iter_2 | True | 0.455078125 | 32.501076 | -15.118979 | 0.174879 | False |  |  |
-| project_wmmse_iter_5 | True | 0.45458984375 | 14.543175 | -11.626593 | 0.383756 | False |  |  |
+| no_precoding | True | 0.35302734375 | 15.789111 | -11.983578 | 0.354384 | False |  |  |
+| project_rzf | True | 0.4541015625 | 19.762955 | -12.958519 | 0.284852 | False |  |  |
+| project_wmmse_iter_2 | True | 0.45947265625 | 17.899153 | -12.528325 | 0.313721 | False |  |  |
+| project_wmmse_iter_5 | True | 0.4599609375 | 51.372116 | -17.107276 | 0.111254 | False |  |  |
 
 ## Notes
 - Used synthetic Rayleigh frequency-domain H_f fallback because direct Sionna channel extraction was unavailable.

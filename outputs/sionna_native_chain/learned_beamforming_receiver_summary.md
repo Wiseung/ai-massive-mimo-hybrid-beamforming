@@ -7,12 +7,12 @@
 
 | Method | Type | Native OK | Teacher Inference | BER | MSE | SINR dB | Sum Rate | Fallback | Reason |
 | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
-| no_precoding | reference | True | False | 0.33447265625 | 13.186584 | -11.201323 | 0.421825 | False |  |
-| project_rzf | analytic | True | False | 0.0 | 0.040820 | 13.891314 | 18.689259 | False |  |
-| project_wmmse_iter_2 | analytic | True | False | 0.0 | 0.048855 | 13.110870 | 17.696611 | False |  |
-| project_wmmse_iter_5 | analytic | True | False | 0.0 | 0.043787 | 13.586547 | 18.300722 | False |  |
-| learned_residual_rzf | learned | True | False | 0.0 | 0.044183 | 13.547403 | 18.250900 | False |  |
-| learned_residual_wmmse_distill | learned | True | False | 0.0 | 0.043155 | 13.649725 | 18.381174 | False |  |
+| no_precoding | reference | True | False | 0.32275390625 | 153.004074 | -21.847031 | 0.037594 | False |  |
+| project_rzf | analytic | True | False | 0.0 | 0.043652 | 13.599933 | 18.317764 | False |  |
+| project_wmmse_iter_2 | analytic | True | False | 0.0 | 0.045776 | 13.393624 | 18.055357 | False |  |
+| project_wmmse_iter_5 | analytic | True | False | 0.0 | 0.043248 | 13.640367 | 18.369255 | False |  |
+| learned_residual_rzf | learned | True | False | 0.0 | 0.041295 | 13.841002 | 18.625042 | False |  |
+| learned_residual_wmmse_distill | learned | True | False | 0.0 | 0.042724 | 13.693235 | 18.436609 | False |  |
 
 ## Notes
 - Receiver chain is a real Sionna-native path, but precoder/H_f remains project-assisted.

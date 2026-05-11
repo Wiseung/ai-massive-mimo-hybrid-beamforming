@@ -79,7 +79,6 @@ def _to_md(summary: dict[str, Any]) -> list[str]:
         f"- Used Sionna equalizer: `{summary['used_sionna_equalizer']}`",
         f"- Used Sionna demapper: `{summary['used_sionna_demapper']}`",
         f"- Fallback used: `{summary['fallback_used']}`",
-        f"- shape_trace_path: `{summary.get('shape_trace_path')}`",
         "",
         "| Method | Native OK | BER | Symbol MSE | Effective SINR dB | Approx Sum Rate | Fallback | Stage | Reason |",
         "| --- | --- | ---: | ---: | ---: | ---: | --- | --- | --- |",
@@ -396,9 +395,8 @@ def main() -> None:
         rows.append(row)
 
     if args.trace_shapes:
-        shape_trace_path = out_path.with_name("beamforming_receiver_shape_trace_runtime.json")
+        shape_trace_path = out_path.parent / "debug" / "beamforming_receiver_shape_trace_runtime.json"
         write_json(shape_trace_path, shape_trace_payload)
-        summary["shape_trace_path"] = str(shape_trace_path)
 
     summary.update(
         {

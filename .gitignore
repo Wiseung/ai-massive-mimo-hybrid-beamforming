@@ -16,6 +16,7 @@ outputs/metrics/
 outputs/reports/
 outputs/figures/
 outputs/splits/
+outputs/**/debug/
 reports/generated/
 deepmimo_scenarios/
 *.pt

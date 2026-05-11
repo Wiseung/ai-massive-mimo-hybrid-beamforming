@@ -16,7 +16,7 @@
   "native_failure_stage": "",
   "native_failure_reason": "",
   "fallback_used": true,
-  "shape_trace_path": "outputs/sionna_native_chain/beamforming_receiver_shape_trace_runtime.json",
+  "shape_trace_path": null,
   "methods_successful_under_native_receiver": [
     "no_precoding",
     "project_rzf",
@@ -43,10 +43,10 @@
       "fallback_used": false,
       "fallback_stage": "",
       "fallback_reason": "",
-      "ber_if_available": 0.3486328125,
-      "symbol_mse": 16.06035614013672,
-      "effective_sinr_db": -12.057552337646484,
-      "approximate_sum_rate": 0.3485757112503052,
+      "ber_if_available": 0.35302734375,
+      "symbol_mse": 15.789111137390137,
+      "effective_sinr_db": -11.983578205108643,
+      "approximate_sum_rate": 0.35438376665115356,
       "power_norm": 1.0,
       "power_violation": 0.0,
       "runtime_ms": 0.0
@@ -62,13 +62,13 @@
       "fallback_used": false,
       "fallback_stage": "",
       "fallback_reason": "",
-      "ber_if_available": 0.44775390625,
-      "symbol_mse": 31.76827621459961,
-      "effective_sinr_db": -15.019937753677368,
-      "approximate_sum_rate": 0.17885179817676544,
+      "ber_if_available": 0.4541015625,
+      "symbol_mse": 19.762954711914062,
+      "effective_sinr_db": -12.958519458770752,
+      "approximate_sum_rate": 0.2848522663116455,
       "power_norm": 1.0,
-      "power_violation": 6.076879799365997e-08,
-      "runtime_ms": 13.899667013902217
+      "power_violation": 7.12461769580841e-08,
+      "runtime_ms": 16.061202972196043
     },
     {
       "method": "project_wmmse_iter_2",
@@ -81,13 +81,13 @@
       "fallback_used": false,
       "fallback_stage": "",
       "fallback_reason": "",
-      "ber_if_available": 0.455078125,
-      "symbol_mse": 32.501075744628906,
-      "effective_sinr_db": -15.118979215621948,
-      "approximate_sum_rate": 0.17487949132919312,
+      "ber_if_available": 0.45947265625,
+      "symbol_mse": 17.899152755737305,
+      "effective_sinr_db": -12.528325319290161,
+      "approximate_sum_rate": 0.313720703125,
       "power_norm": 1.0,
-      "power_violation": 5.2619725465774536e-08,
-      "runtime_ms": 175.4026690032333
+      "power_violation": 4.516914486885071e-08,
+      "runtime_ms": 315.81886304775253
     },
     {
       "method": "project_wmmse_iter_5",
@@ -100,13 +100,13 @@
       "fallback_used": false,
       "fallback_stage": "",
       "fallback_reason": "",
-      "ber_if_available": 0.45458984375,
-      "symbol_mse": 14.543174743652344,
-      "effective_sinr_db": -11.626592874526978,
-      "approximate_sum_rate": 0.38375574350357056,
+      "ber_if_available": 0.4599609375,
+      "symbol_mse": 51.37211608886719,
+      "effective_sinr_db": -17.10727572441101,
+      "approximate_sum_rate": 0.1112535372376442,
       "power_norm": 1.0,
       "power_violation": 4.260800778865814e-08,
-      "runtime_ms": 339.23265198245645
+      "runtime_ms": 899.9578399816528
     }
   ]
 }

@@ -196,9 +196,8 @@ def main() -> None:
         rows.append(native_result)
 
     if args.trace_shapes:
-        shape_trace_path = out_path.with_name("learned_beamforming_receiver_trace.json")
+        shape_trace_path = out_path.parent / "debug" / "learned_beamforming_receiver_trace.json"
         write_json(shape_trace_path, trace_payload)
-        summary["shape_trace_path"] = str(shape_trace_path)
 
     summary.update(
         {

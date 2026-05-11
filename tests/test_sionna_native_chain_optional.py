@@ -236,3 +236,25 @@ def test_sionna_native_learned_chain_runs(tmp_path: Path) -> None:
         cwd=repo_root,
     )
     assert (tmp_path / "learned_compare" / "native_learned_comparison.md").exists()
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_sionna_native_chain_manifest_and_minimal_repro_run(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    manifest_out = tmp_path / "native_chain_artifact_manifest.json"
+    repro_out = tmp_path / "sionna_native_chain_minimal_summary.json"
+    subprocess.run(
+        [sys.executable, "scripts/generate_sionna_native_chain_artifact_manifest.py", "--out", str(manifest_out)],
+        check=True,
+        cwd=repo_root,
+    )
+    manifest_payload = json.loads(manifest_out.read_text(encoding="utf-8"))
+    assert manifest_payload["artifacts"]
+    subprocess.run(
+        [sys.executable, "scripts/reproduce_sionna_native_chain_minimal.py", "--out", str(repro_out)],
+        check=True,
+        cwd=repo_root,
+    )
+    repro_payload = json.loads(repro_out.read_text(encoding="utf-8"))
+    assert repro_payload["status"] == "ok"
+    assert repro_payload["baseline_receiver_check"]["used_sionna_channel"] is True

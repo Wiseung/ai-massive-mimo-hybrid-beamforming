@@ -8,6 +8,7 @@ This phase extends the optional Sionna work toward a more Sionna-native OFDM lin
 - Sionna-first OFDM baseline chain
 - frequency-domain, per-subcarrier processing first
 - synthetic/channel-level only
+- `v0.4.0` candidate integration only
 - no Sionna RT
 - no ray tracing
 - no 5G NR full stack
@@ -199,6 +200,51 @@ This means the next mainline recommendation is still:
 - keep `residual_rzf` as the clean primary learned insertion
 - keep `residual_wmmse_distill` as a documented secondary variant
 - continue to describe the setup as synthetic/project-H_f-assisted native receiver benchmarking
+
+## Compact Native-Chain Result Table
+
+Current one-shot comparison at the validated insertion point:
+
+| Method | Native receiver success | Teacher inference | Approx sum-rate | Gap vs `project_rzf` | Gap vs `project_wmmse_iter_5` |
+| --- | --- | --- | ---: | ---: | ---: |
+| `project_rzf` | `true` | `false` | `18.689259` | `0.000000%` | `+2.122005%` |
+| `project_wmmse_iter_5` | `true` | `false` | `18.300722` | `-2.077917%` | `0.000000%` |
+| `learned_residual_rzf` | `true` | `false` | `18.250900` | `-2.345509%` | `-0.272240%` |
+| `learned_residual_wmmse_distill` | `true` | `false` | `18.381174` | `-1.648458%` | `+0.439611%` |
+
+Key reading rules:
+
+- the receiver path above is genuinely native Sionna
+- the `H_f` / precoder side is still project-assisted
+- this is not a full native-only benchmark
+- the small positive gap of `learned_residual_wmmse_distill` over `project_wmmse_iter_5` in this one-shot run is not enough to claim a stable learned `> WMMSE-iter5` result
+
+## v0.4.0 Candidate Status
+
+Current candidate scope includes:
+
+- native OFDM baseline chain
+- pilot pattern audit
+- minimal estimator/equalizer success demo
+- beamformed receiver shape bridge
+- analytic and learned beamformer insertion into the native receiver path
+- lightweight SNR mini benchmark
+- native-chain artifact manifest
+- minimal reviewer reproduction command
+
+Current candidate does not include:
+
+- Sionna RT
+- ray tracing
+- 5G NR full stack
+- a full native-only benchmark
+- production e2e deployment
+
+## Runtime Trace Handling
+
+- the receiver scripts can emit runtime trace JSON for debugging and auditability
+- these traces are treated as debug-support artifacts when referenced by committed summaries
+- release-facing documentation should rely on the committed summaries and audits first, not on runtime trace files alone
 
 ## Learned Beamformer Insertion Recommendation
 

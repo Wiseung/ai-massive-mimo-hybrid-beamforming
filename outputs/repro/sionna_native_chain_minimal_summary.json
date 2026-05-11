@@ -1,0 +1,29 @@
+{
+  "status": "ok",
+  "sionna_import_ok": true,
+  "sionna_version": "2.0.1",
+  "baseline_receiver_check": {
+    "native_receiver_success": true,
+    "used_sionna_channel": true,
+    "used_sionna_estimator": true,
+    "used_sionna_equalizer": true,
+    "used_sionna_demapper": true,
+    "project_h_f_assisted": true
+  },
+  "learned_checkpoint_found": true,
+  "learned_receiver_check": {
+    "native_receiver_success": true,
+    "used_sionna_channel": true,
+    "used_sionna_estimator": true,
+    "used_sionna_equalizer": true,
+    "used_sionna_demapper": true,
+    "teacher_used_during_inference": false,
+    "project_h_f_assisted": true,
+    "checkpoint_path": "/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/outputs/runs/sionna_ofdm_residual_rzf/best.pt"
+  },
+  "notes": [
+    "This is a reviewer-oriented minimal reproduction check for the native receiver chain.",
+    "It does not download data and does not train any model.",
+    "The receiver path is real Sionna, while the precoder/H_f side remains project-assisted where noted."
+  ]
+}
