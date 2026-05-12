@@ -442,6 +442,8 @@ Current supported summary:
 - learned `learned_residual_rzf` and `learned_residual_wmmse_distill` now support `return_precoder_output=True`
 - learned `PrecoderOutput` artifacts explicitly preserve `teacher_used_during_inference=false`
 - the native receiver bridge accepts `PrecoderOutput` directly
+- `ExtractedCSI` is the preferred input interface and `PrecoderOutput` is the preferred output interface
+- raw `H_f` and raw `F_f` remain backward-compatible fallbacks
 - raw `F_f` remains a backward-compatible fallback
 - same-batch raw-`F_f` vs `PrecoderOutput` validation now reuses one shared CSI object, one shared raw `F_f` per method, one shared bit/symbol batch, one shared noise realization, and one shared native receiver configuration
 - the old raw-`F_f` vs `PrecoderOutput` ranking mismatch is now explicitly explained as a cross-run comparison artifact rather than `PrecoderOutput` bug evidence
@@ -459,6 +461,7 @@ Compact PrecoderOutput table:
 | same-batch raw-vs-PrecoderOutput equivalence | `passed` | shared-realization validation gives exact metric agreement within tolerance |
 | previous raw-vs-PrecoderOutput mismatch root cause | `cross_run_comparison_without_shared_csi_and_precoder_realization` | prior mismatch came from independent reruns |
 | strict raw-vs-PrecoderOutput equivalence claim on cross-run artifact | `false` | only the new same-batch validation can justify the strict claim |
+| current v0.8.0 candidate status | `release hardening` | manifest, minimal reproduction, release notes, and PR text are prepared for the bridge |
 
 PrecoderOutput same-batch interpretation:
 
@@ -507,6 +510,12 @@ python scripts/compare_raw_ff_vs_precoder_output.py \
   --raw outputs/sionna_channel_extraction/csi_backed_beamforming_metrics.csv \
   --precoder-output outputs/sionna_channel_extraction/unified_csi_precoder_metrics.csv \
   --out outputs/sionna_channel_extraction
+
+python scripts/generate_sionna_precoder_interface_artifact_manifest.py \
+  --out outputs/sionna_channel_extraction/precoder_interface_artifact_manifest.json
+
+python scripts/reproduce_sionna_precoder_interface_minimal.py \
+  --out outputs/repro/sionna_precoder_interface_minimal_summary.json
 ```
 
 ## CSI Consumer Unification Status
