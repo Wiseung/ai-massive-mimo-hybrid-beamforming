@@ -671,8 +671,11 @@ Current native precoder API probe status:
 - its native contract remains resource-grid-centric and higher rank than project `H_f=(B,Nsc,K,Nt)`
 - the current adapter path can map one `ExtractedCSI` object into a minimal native RZF probe
 - the current adapter path can convert the native RZF output back into `PrecoderOutput`
-- if the converted `PrecoderOutput` is used, the current native receiver bridge can be attempted without relabeling the path as full native-only
-- recommended next step remains adapter bridge / compatibility mapping, not project-side precoder replacement
+- same-realization validation now shows the converted native output is receiver-compatible but still `close_but_different` from `project_rzf`, not strictly equivalent
+- quick `seed={1,2,3}` / `snr={0,5,10,15,20}` sweep keeps `RZFPrecoder` callable, convertible, and receiver-compatible on all evaluated rows
+- `sionna_rzf_precoder` can now be included as an optional native method in the unified CSI + PrecoderOutput demo path
+- `sionna_native_precoder=true` is acceptable for the adapter-produced native method output, but `project_rzf` strict equivalence is still `false`
+- recommended next step remains release hardening around the optional native-method bridge, not project-side precoder replacement
 - no Sionna RT
 - no ray tracing
 - no 5G NR full stack

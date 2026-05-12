@@ -27,12 +27,14 @@ from beamforming.utils.sionna_native_learned_beamforming import (
     load_learned_beamformer_checkpoint,
     run_native_receiver_with_precoder,
 )
+from beamforming.utils.sionna_precoder_api_bridge import run_sionna_rzf_precoder_probe
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", required=True)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--include-sionna-rzf", action="store_true")
     return parser.parse_args()
 
 
@@ -55,6 +57,10 @@ def _md(summary: dict[str, Any]) -> list[str]:
         f"- all_receiver_consumers_accept_precoder_output: `{summary['all_receiver_consumers_accept_precoder_output']}`",
         f"- native_receiver_success: `{summary['native_receiver_success']}`",
         f"- no_new_fallback_introduced: `{summary['no_new_fallback_introduced']}`",
+        f"- sionna_rzf_available: `{summary['sionna_rzf_available']}`",
+        f"- sionna_rzf_callable: `{summary['sionna_rzf_callable']}`",
+        f"- sionna_rzf_evaluated: `{summary['sionna_rzf_evaluated']}`",
+        f"- sionna_rzf_skipped_reason: `{summary['sionna_rzf_skipped_reason']}`",
         "",
         f"- failed_methods: `{summary['failed_methods']}`",
         f"- methods_evaluated: `{summary['methods_evaluated']}`",
@@ -95,6 +101,11 @@ def main() -> None:
         "native_receiver_success": False,
         "teacher_used_during_inference": False,
         "no_new_fallback_introduced": True,
+        "sionna_rzf_requested": bool(args.include_sionna_rzf),
+        "sionna_rzf_available": False,
+        "sionna_rzf_callable": False,
+        "sionna_rzf_evaluated": False,
+        "sionna_rzf_skipped_reason": "",
         "project_h_f_assisted": False,
         "extracted_h_f_used": True,
         "full_native_only": False,
@@ -228,6 +239,50 @@ def main() -> None:
         row["full_native_only"] = False
         row["precoder_summary"] = summarize_precoder_input(precoder_output)
         rows.append(row)
+
+    if args.include_sionna_rzf:
+        probe = run_sionna_rzf_precoder_probe(
+            csi,
+            project_noise_var=context.noise_var,
+            device=device,
+        )
+        summary["sionna_rzf_available"] = bool(probe.get("sionna_rzf_available", False))
+        summary["sionna_rzf_callable"] = bool(probe.get("sionna_rzf_callable", False))
+        if probe.get("converted_to_precoder_output") and probe.get("sionna_precoder_output") is not None:
+            summary["methods_evaluated"].append("sionna_rzf_precoder")
+            summary["sionna_rzf_evaluated"] = True
+            method_context = clone_native_receiver_context(
+                context,
+                h_f=context.h_f,
+                csi=csi,
+                h_full=context.h_full,
+                context_meta_updates={
+                    "csi_interface_used": True,
+                    "project_h_f_assisted": False,
+                    "extracted_h_f_used": True,
+                    "full_native_only": False,
+                    "csi_summary": csi.summary_dict(),
+                },
+            )
+            row, _, _ = run_native_receiver_with_precoder(
+                method="sionna_rzf_precoder",
+                method_type="native_optional",
+                precoder_f=probe["sionna_precoder_output"],
+                context=method_context,
+                runtime_ms=0.0,
+                checkpoint_path=None,
+                teacher_used_during_inference=False,
+                trace_shapes=False,
+            )
+            row["input_type"] = "ExtractedCSI"
+            row["csi_interface_used"] = True
+            row["project_h_f_assisted"] = False
+            row["extracted_h_f_used"] = True
+            row["full_native_only"] = False
+            row["precoder_summary"] = summarize_precoder_input(probe["sionna_precoder_output"])
+            rows.append(row)
+        else:
+            summary["sionna_rzf_skipped_reason"] = str(probe.get("fallback_reason", "sionna_rzf_probe_failed"))
 
     summary["metrics"] = rows
     summary["all_precoders_emit_precoder_output"] = bool(rows) and all(

@@ -508,6 +508,28 @@ Current recommendation:
 - keep `project_rzf` as the clean mainline precoder path
 - treat `RZFPrecoder` as an optional native reference path behind explicit adapter logic
 - use the bridge result to map future shape / stream-management integration cost
+- same-realization validation currently supports `sionna_rzf_precoder` as an optional method because:
+  - one shared `ExtractedCSI` object is reused
+  - the converted native output enters the native receiver path successfully
+  - semantic compatibility passes under the shared realization
+  - but strict numerical equivalence still does not pass
+
+Current semantic-alignment result:
+
+- same-realization comparison:
+  - `relationship_status = close_but_different`
+  - `semantic_compatibility_passed = true`
+  - `strict_equivalence_claim_allowed = false`
+  - `max_abs_diff_f_f_if_comparable = 0.061414435505867004`
+  - `abs_diff_sum_rate = 0.09229850769042969`
+  - `abs_diff_symbol_mse = 0.0006549134850502014`
+  - `abs_diff_sinr_db = 0.07219910621643066`
+- quick seed/SNR sweep (`seeds=1,2,3`, `snr=0,5,10,15,20 dB`):
+  - `RZFPrecoder` is callable on all evaluated rows
+  - conversion to `PrecoderOutput` succeeds on all evaluated rows
+  - native receiver success is true on all evaluated rows
+  - all rows remain `close_but_different`
+  - this supports optional-native-method integration, not a strict-equivalence claim
 
 Boundary remains unchanged:
 

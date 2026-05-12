@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 import numpy as np
 import torch
 
 from beamforming.utils.complex_ops import normalize_power
-from beamforming.utils.csi_interface import ExtractedCSI, as_project_h_f, summarize_csi_input
+from beamforming.utils.csi_interface import ExtractedCSI, as_project_h_f, summarize_csi_input, tensor_signature
 from beamforming.utils.precoder_interface import PrecoderOutput, build_precoder_output, compare_precoder_outputs
 from beamforming.utils.sionna_native_beamforming_chain import compute_project_precoder_per_subcarrier, summarize_receiver_config
 from beamforming.utils.sionna_native_chain import load_component, resolve_sionna_device
+
+
+STRICT_EQUIVALENCE_TOL = 1e-6
 
 
 def _fallback(
@@ -31,6 +35,35 @@ def _fallback(
     if extra:
         payload.update(extra)
     return payload
+
+
+def _power_norm_mean(value: Any) -> float | None:
+    if isinstance(value, dict):
+        mean = value.get("mean")
+        return float(mean) if mean is not None else None
+    if isinstance(value, (float, int)):
+        return float(value)
+    return None
+
+
+def _primary_difference_label(
+    *,
+    max_abs_diff_f_f_if_comparable: float | None,
+    abs_diff_sum_rate: float | None,
+    abs_diff_symbol_mse: float | None,
+    abs_diff_sinr_db: float | None,
+    tol: float,
+) -> str:
+    candidates = [
+        ("f_f_elements", max_abs_diff_f_f_if_comparable),
+        ("sum_rate", abs_diff_sum_rate),
+        ("symbol_mse", abs_diff_symbol_mse),
+        ("sinr_db", abs_diff_sinr_db),
+    ]
+    significant = [(name, float(value)) for name, value in candidates if value is not None and float(value) > tol]
+    if not significant:
+        return "none"
+    return max(significant, key=lambda item: item[1])[0]
 
 
 def map_extracted_csi_to_sionna_precoder_inputs(
@@ -381,3 +414,219 @@ def run_sionna_rzf_precoder_probe(
         }
     )
     return payload
+
+
+def evaluate_project_vs_sionna_rzf_same_realization(
+    *,
+    context: Any,
+    device: torch.device,
+    strict_tolerance: float = STRICT_EQUIVALENCE_TOL,
+) -> dict[str, Any]:
+    """Evaluate project RZF and Sionna RZFPrecoder on one shared realization."""
+
+    from beamforming.utils.sionna_native_learned_beamforming import clone_native_receiver_context, run_native_receiver_with_precoder
+
+    csi = getattr(context, "csi", None)
+    if csi is None:
+        raise ValueError("native_receiver_context_requires_extracted_csi_for_same_realization_check")
+
+    project_output = compute_project_precoder_per_subcarrier(
+        "rzf",
+        csi,
+        float(context.noise_var),
+        return_precoder_output=True,
+    )
+    probe = run_sionna_rzf_precoder_probe(
+        csi,
+        project_noise_var=float(context.noise_var),
+        device=device,
+    )
+    project_power_norm = _power_norm_mean(project_output.power_norm)
+    result: dict[str, Any] = {
+        "comparison_type": "same_realization_comparison",
+        "same_batch_comparison": True,
+        "same_csi_object_used": True,
+        "same_symbols_used": True,
+        "same_receiver_config_used": True,
+        "same_noise_config_used": True,
+        "sionna_rzf_available": bool(probe.get("sionna_rzf_available", False)),
+        "sionna_rzf_callable": bool(probe.get("sionna_rzf_callable", False)),
+        "sionna_precoder_success": bool(probe.get("sionna_precoder_success", False)),
+        "converted_to_precoder_output": bool(probe.get("converted_to_precoder_output", False)),
+        "project_f_f_shape": [int(x) for x in project_output.f_f.shape],
+        "project_precoder_output_shape": [int(x) for x in project_output.f_f.shape],
+        "sionna_precoder_output_shape": probe.get("sionna_output_shape"),
+        "converted_precoder_output_shape": None,
+        "power_norm_project": project_power_norm,
+        "power_norm_sionna": None,
+        "power_norm_gap": None,
+        "max_abs_diff_f_f_if_comparable": None,
+        "project_sum_rate": None,
+        "sionna_sum_rate": None,
+        "abs_diff_sum_rate": None,
+        "rel_diff_sum_rate": None,
+        "project_symbol_mse": None,
+        "sionna_symbol_mse": None,
+        "abs_diff_symbol_mse": None,
+        "project_sinr_db": None,
+        "sionna_sinr_db": None,
+        "abs_diff_sinr_db": None,
+        "strict_equivalence_claim_allowed": False,
+        "semantic_compatibility_passed": False,
+        "relationship_status": "incompatible",
+        "difference_primary_axis": "probe_unavailable",
+        "difference_summary": "",
+        "project_tensor_signature": tensor_signature(project_output.f_f),
+        "sionna_tensor_signature": None,
+        "native_receiver_success_project": False,
+        "native_receiver_success_sionna": False,
+        "project_row": None,
+        "sionna_row": None,
+        "probe_summary": {
+            "fallback_used": bool(probe.get("fallback_used", True)),
+            "fallback_reason": str(probe.get("fallback_reason", "")),
+            "recommended_next_step": str(probe.get("recommended_next_step", "")),
+        },
+        "comparison": None,
+        "receiver_config": context.context_meta.get("receiver_config")
+        or probe.get("shape_mapping", {}).get("receiver_config")
+        or {},
+    }
+    if not probe.get("converted_to_precoder_output") or probe.get("sionna_precoder_output") is None:
+        result["difference_summary"] = str(probe.get("fallback_reason", "sionna_rzf_probe_failed"))
+        return result
+
+    sionna_precoder_output = probe["sionna_precoder_output"]
+    sionna_power_norm = _power_norm_mean(sionna_precoder_output.power_norm)
+    comparison = compare_precoder_outputs(project_output, sionna_precoder_output)
+    result.update(
+        {
+            "converted_precoder_output_shape": [int(x) for x in sionna_precoder_output.f_f.shape],
+            "power_norm_sionna": sionna_power_norm,
+            "power_norm_gap": None
+            if project_power_norm is None or sionna_power_norm is None
+            else abs(project_power_norm - sionna_power_norm),
+            "max_abs_diff_f_f_if_comparable": comparison.get("max_abs_diff"),
+            "sionna_tensor_signature": tensor_signature(sionna_precoder_output.f_f),
+            "comparison": comparison,
+        }
+    )
+
+    context_updates = {
+        "shared_rx_noise_grid": context.context_meta.get("shared_rx_noise_grid"),
+        "csi_interface_used": True,
+        "project_h_f_assisted": False,
+        "extracted_h_f_used": True,
+        "full_native_only": False,
+        "csi_summary": csi.summary_dict(),
+        "receiver_config": result["receiver_config"],
+    }
+    project_context = clone_native_receiver_context(
+        context,
+        h_f=context.h_f,
+        csi=csi,
+        h_full=context.h_full,
+        context_meta_updates=context_updates,
+    )
+    sionna_context = clone_native_receiver_context(
+        context,
+        h_f=context.h_f,
+        csi=csi,
+        h_full=context.h_full,
+        context_meta_updates=context_updates,
+    )
+    project_row, _, _ = run_native_receiver_with_precoder(
+        method="project_rzf",
+        method_type="analytic",
+        precoder_f=project_output,
+        context=project_context,
+        runtime_ms=0.0,
+        checkpoint_path=None,
+        teacher_used_during_inference=False,
+        trace_shapes=False,
+    )
+    sionna_row, _, _ = run_native_receiver_with_precoder(
+        method="sionna_rzf_precoder",
+        method_type="native_optional",
+        precoder_f=sionna_precoder_output,
+        context=sionna_context,
+        runtime_ms=0.0,
+        checkpoint_path=None,
+        teacher_used_during_inference=False,
+        trace_shapes=False,
+    )
+    result["project_row"] = project_row
+    result["sionna_row"] = sionna_row
+    result["native_receiver_success_project"] = bool(project_row.get("native_receiver_success", False))
+    result["native_receiver_success_sionna"] = bool(sionna_row.get("native_receiver_success", False))
+    if not result["native_receiver_success_project"] or not result["native_receiver_success_sionna"]:
+        result["difference_primary_axis"] = "native_receiver_path"
+        result["difference_summary"] = (
+            f"project_native_ok={result['native_receiver_success_project']}, "
+            f"sionna_native_ok={result['native_receiver_success_sionna']}"
+        )
+        return result
+
+    project_sum_rate = float(project_row["approximate_sum_rate"])
+    sionna_sum_rate = float(sionna_row["approximate_sum_rate"])
+    project_symbol_mse = float(project_row["symbol_mse"])
+    sionna_symbol_mse = float(sionna_row["symbol_mse"])
+    project_sinr_db = float(project_row["effective_sinr_db"])
+    sionna_sinr_db = float(sionna_row["effective_sinr_db"])
+    abs_diff_sum_rate = abs(project_sum_rate - sionna_sum_rate)
+    abs_diff_symbol_mse = abs(project_symbol_mse - sionna_symbol_mse)
+    abs_diff_sinr_db = abs(project_sinr_db - sionna_sinr_db)
+    rel_diff_sum_rate = 0.0 if abs(project_sum_rate) <= strict_tolerance else abs_diff_sum_rate / abs(project_sum_rate)
+    strict_equivalence_claim_allowed = bool(
+        (comparison.get("max_abs_diff") or math.inf) <= strict_tolerance
+        and abs_diff_sum_rate <= strict_tolerance
+        and abs_diff_symbol_mse <= strict_tolerance
+        and abs_diff_sinr_db <= strict_tolerance
+    )
+    semantic_compatibility_passed = bool(
+        comparison.get("same_shape")
+        and result["native_receiver_success_project"]
+        and result["native_receiver_success_sionna"]
+        and result["power_norm_gap"] is not None
+        and result["power_norm_gap"] <= 1e-6
+    )
+    relationship_status = "incompatible"
+    if semantic_compatibility_passed and strict_equivalence_claim_allowed:
+        relationship_status = "strict_equivalent"
+    elif semantic_compatibility_passed:
+        relationship_status = "close_but_different"
+
+    difference_primary_axis = _primary_difference_label(
+        max_abs_diff_f_f_if_comparable=comparison.get("max_abs_diff"),
+        abs_diff_sum_rate=abs_diff_sum_rate,
+        abs_diff_symbol_mse=abs_diff_symbol_mse,
+        abs_diff_sinr_db=abs_diff_sinr_db,
+        tol=strict_tolerance,
+    )
+    result.update(
+        {
+            "project_sum_rate": project_sum_rate,
+            "sionna_sum_rate": sionna_sum_rate,
+            "abs_diff_sum_rate": abs_diff_sum_rate,
+            "rel_diff_sum_rate": rel_diff_sum_rate,
+            "project_symbol_mse": project_symbol_mse,
+            "sionna_symbol_mse": sionna_symbol_mse,
+            "abs_diff_symbol_mse": abs_diff_symbol_mse,
+            "project_sinr_db": project_sinr_db,
+            "sionna_sinr_db": sionna_sinr_db,
+            "abs_diff_sinr_db": abs_diff_sinr_db,
+            "strict_equivalence_claim_allowed": strict_equivalence_claim_allowed,
+            "semantic_compatibility_passed": semantic_compatibility_passed,
+            "relationship_status": relationship_status,
+            "difference_primary_axis": difference_primary_axis,
+            "difference_summary": (
+                "same-realization validation passes strict equivalence"
+                if strict_equivalence_claim_allowed
+                else (
+                    "Sionna native RZF is shape/power/receiver compatible under one shared realization, "
+                    "but it remains numerically different from project_rzf."
+                )
+            ),
+        }
+    )
+    return result

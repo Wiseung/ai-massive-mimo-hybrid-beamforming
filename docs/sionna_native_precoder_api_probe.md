@@ -134,6 +134,79 @@ Recommended interpretation:
 - the current branch reduces uncertainty around native-precoder integration cost
 - the current branch does not yet remove the project-side precoder bridge limitation
 
+## Same-realization semantic alignment
+
+The next validation step is stricter than the earlier probe:
+
+- reuse one `ExtractedCSI` object
+- reuse one shared symbol batch
+- reuse one shared native receiver configuration
+- reuse one shared noise configuration
+
+Current same-realization result:
+
+- `sionna_rzf_available = true`
+- `sionna_rzf_callable = true`
+- `converted_to_precoder_output = true`
+- `native_receiver_success_project = true`
+- `native_receiver_success_sionna = true`
+- `relationship_status = close_but_different`
+- `semantic_compatibility_passed = true`
+- `strict_equivalence_claim_allowed = false`
+
+Current measured differences on the validated shared realization:
+
+- `max_abs_diff_f_f_if_comparable = 0.061414435505867004`
+- `abs_diff_sum_rate = 0.09229850769042969`
+- `abs_diff_symbol_mse = 0.0006549134850502014`
+- `abs_diff_sinr_db = 0.07219910621643066`
+
+Interpretation:
+
+- the native method is compatible enough to keep as an optional adapter-backed method
+- the project bridge and native bridge are still not strictly numerically equivalent
+- the correct wording is `close but different`, not `strict equivalent`
+
+## Quick SNR / seed sweep
+
+The quick sweep checks whether the semantic gap behaves consistently across:
+
+- `seeds = 1,2,3`
+- `snr = 0,5,10,15,20 dB`
+
+Current quick result:
+
+- `RZFPrecoder` is callable on all evaluated rows
+- conversion to `PrecoderOutput` succeeds on all evaluated rows
+- native receiver success is true on all evaluated rows
+- semantic compatibility passes on all evaluated rows
+- strict numerical equivalence is still false on all evaluated rows
+- all evaluated rows remain `close_but_different`
+
+This means:
+
+- `sionna_rzf_precoder` can now be included as an optional native method
+- the adapter appears stable enough for release-hardening-level integration
+- it still does not support a strict equivalence claim against `project_rzf`
+
+## Optional native method status
+
+Current method-level interpretation:
+
+- `method = sionna_rzf_precoder`
+- `source = sionna_rzf_precoder`
+- `sionna_native_precoder = true`
+- `project_side_precoder = false`
+- `full_native_only = false`
+
+This status is valid for the adapter-produced native output object itself.
+
+It is **not** the same as claiming:
+
+- project-side precoder replacement is complete
+- `project_rzf` and `sionna_rzf_precoder` are strictly equivalent
+- the benchmark is now full native-only
+
 ## Current boundary
 
 The supported boundary remains:
