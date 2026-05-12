@@ -557,6 +557,14 @@ Contract-aware interpretation:
   - not strict equivalent
   - not full native-only benchmark
 
+## v1.0.0-rc1 Interface-first Overview
+
+Current RC overview:
+
+- `Sionna OFDMChannel -> ExtractedCSI -> PrecoderOutput -> native receiver path`
+- channel extraction, CSI interface, CSI consumers, precoder output, optional native precoder bridge, and contract hardening are now documented as one interface-first stack
+- this is still a release candidate for interfaces and reproducibility, not a production or full-native benchmark claim
+
 Boundary remains unchanged:
 
 - not full native-only benchmark

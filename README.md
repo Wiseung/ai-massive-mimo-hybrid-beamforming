@@ -702,6 +702,25 @@ Native precoder contract status:
 - `strict_equivalence_claim_allowed` remains `false`
 - the method remains an optional native method bridge, not a mainline native replacement
 
+Current `v1.0.0-rc1` candidate status:
+
+- interface-first Sionna bridge release candidate
+- text-chain view:
+  `Sionna OFDMChannel -> ExtractedCSI -> PrecoderOutput -> native receiver path`
+- contract-hardened native precoder bridge is included
+- the current RC is still not a production system and not a full native-only benchmark
+
+Compact release-candidate table:
+
+| Item | Current result | Interpretation |
+| --- | --- | --- |
+| `ExtractedCSI` | `supported` | interface-first CSI layer is established |
+| CSI consumers | `supported` | high-priority CSI consumer gaps are closed |
+| `PrecoderOutput` | `supported` | standardized output interface is established |
+| Sionna `RZFPrecoder` optional method | `supported` | callable, convertible, and receiver-compatible as optional bridge |
+| contract validation | `passed` | native bridge contract is explicit and validated |
+| regression matrix | `passed` | skip/fallback semantics are hardened and auditable |
+
 Current `v0.4.0` candidate comparison at the validated native insertion point:
 
 | Method | Native receiver success | Teacher inference | Approx sum-rate | Gap vs `project_rzf` | Gap vs `project_wmmse_iter_5` |

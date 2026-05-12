@@ -270,6 +270,20 @@ Current hardened rules are:
   - record `native_receiver_success = false`
   - do not claim receiver-compatible success
 
+## v1.0.0-rc1 Candidate View
+
+Current RC framing is:
+
+- interface-first bridge candidate
+- optional Sionna dependency only
+- contract-hardened optional native method
+- not a mainline native replacement
+- not full native-only
+
+End-to-end interface text chain:
+
+- `Sionna OFDMChannel -> ExtractedCSI -> PrecoderOutput -> native receiver path`
+
 ## Current boundary
 
 The supported boundary remains:
