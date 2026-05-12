@@ -381,6 +381,89 @@ The current supported summary is:
 - no 5G NR full stack
 - optional dependency only
 
+## PrecoderOutput Interface Motivation
+
+The `v0.7.0` consumer-unification phase made `ExtractedCSI` the preferred input interface for high-priority CSI consumers, but the project still passed raw `F_f=(B,Nsc,Nt,K)` tensors directly across analytic precoders, learned beamformers, and native receiver scripts.
+
+The next interface-hardening step is to standardize that output side as well so that:
+
+- analytic project precoders emit one validated `PrecoderOutput` schema
+- learned beamformer inference emits the same validated schema without losing checkpoint or teacher provenance
+- native receiver paths consume a reusable container instead of ad hoc raw tensor wiring
+- raw `F_f` remains available as a backward-compatible fallback where older scripts still expect it
+
+## PrecoderOutput Schema
+
+Current normalized fields:
+
+- `f_f`: complex torch tensor with shape `(B,Nsc,Nt,K)`
+- `source`: one of `project_rzf`, `project_wmmse_iter_5`, `learned_residual_rzf`, `learned_residual_wmmse_distill`, `sionna_rzf_future`
+- `method`
+- `input_csi_summary`
+- `axes = {B:0, Nsc:1, Nt:2, K:3}`
+- `shape = {B, Nsc, Nt, K}`
+- `num_users`
+- `num_bs_ant`
+- `num_subcarriers`
+- `power_normalized`
+- `power_norm`
+- `teacher_used_during_inference`
+- `project_side_precoder`
+- `sionna_native_precoder`
+- `full_native_only`
+- `metadata`
+
+Current provenance metadata includes:
+
+- `input_csi_source`
+- `input_h_f_shape`
+- `checkpoint_path`
+- `skipped_missing_checkpoint`
+- `teacher_used_during_inference`
+- `fallback_reason`
+
+## CSI + PrecoderOutput Unified Flow
+
+The current preferred bridge now becomes:
+
+- `ExtractedCSI -> PrecoderOutput -> native receiver path`
+
+This means the mainline Sionna-assisted workflow can now keep:
+
+- one shared CSI object as the preferred `H_f` input
+- one standardized precoder container as the preferred `F_f` output
+- one native receiver bridge that consumes either container-first interfaces or raw fallbacks when explicitly requested
+
+## Current PrecoderOutput Status
+
+Current supported summary:
+
+- analytic `project_rzf` and `project_wmmse_iter_5` now support `return_precoder_output=True`
+- learned `learned_residual_rzf` and `learned_residual_wmmse_distill` now support `return_precoder_output=True`
+- learned `PrecoderOutput` artifacts explicitly preserve `teacher_used_during_inference=false`
+- the native receiver bridge accepts `PrecoderOutput` directly
+- raw `F_f` remains a backward-compatible fallback
+- this still does not change the benchmark boundary to full native-only
+
+Compact PrecoderOutput table:
+
+| Item | Current result | Interpretation |
+| --- | --- | --- |
+| PrecoderOutput schema | `implemented` | standardized project-side `F_f=(B,Nsc,Nt,K)` output container |
+| analytic methods emit PrecoderOutput | `supported` | project `RZF/WMMSE` outputs now have a reusable bridge format |
+| learned methods emit PrecoderOutput | `supported` | learned residual methods keep checkpoint and teacher provenance in one object |
+| native receiver consumes PrecoderOutput | `supported` | receiver path accepts standardized output object directly |
+| raw F_f fallback | `retained` | older scripts/tests can still use legacy raw tensors |
+| strict raw-vs-PrecoderOutput equivalence claim | `false` | current comparison artifact remains cross-run unless explicitly same-batch |
+
+Boundary remains:
+
+- not full native-only benchmark
+- no Sionna RT
+- no ray tracing
+- no 5G NR full stack
+- optional dependency only
+
 Current consumer-unification validation commands:
 
 ```bash

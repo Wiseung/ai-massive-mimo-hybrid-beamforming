@@ -4,6 +4,9 @@
   "receiver_mode": "auto",
   "seed": 0,
   "csi_interface_used": true,
+  "precoder_interface_supported": true,
+  "precoder_interface_requested": false,
+  "precoder_interface_used": false,
   "csi_source": "sionna_ofdm_channel",
   "project_h_f_assisted": false,
   "extracted_h_f_used": true,
@@ -75,8 +78,8 @@
       "dtype": "torch.complex64",
       "is_complex": true,
       "all_finite": true,
-      "norm_mean": 7.932548522949219,
-      "norm_std": 0.5392782092094421,
+      "norm_mean": 7.815947532653809,
+      "norm_std": 0.318203330039978,
       "subcarrier_norm_std_mean": 0.0,
       "fallback_reason": ""
     },
@@ -192,8 +195,8 @@
         "dtype": "torch.complex64",
         "is_complex": true,
         "all_finite": true,
-        "norm_mean": 7.932548522949219,
-        "norm_std": 0.5392782092094421,
+        "norm_mean": 7.815947532653809,
+        "norm_std": 0.318203330039978,
         "subcarrier_norm_std_mean": 0.0,
         "fallback_reason": ""
       }
@@ -214,13 +217,20 @@
     "full_native_only": false,
     "source": "sionna_ofdm_channel",
     "source_component": "OFDMChannel(return_channel=True)",
-    "tensor_signature": "8fe60a451310be30a1a75e69de24fd061c9cf59b0b64283efb6898cb78121efc"
+    "tensor_signature": "adfe92d1c9b9dd0b988110f6f0757b99afd9c064d615c04bb5c7aa572f5d2956"
   },
   "metrics": [
     {
       "method": "project_rzf",
       "method_type": "analytic",
       "checkpoint_path": null,
+      "precoder_interface_used": false,
+      "precoder_input_type": "raw_f_f",
+      "precoder_source": null,
+      "project_side_precoder": null,
+      "sionna_native_precoder": null,
+      "full_native_only": false,
+      "power_normalized": null,
       "native_receiver_success": true,
       "used_sionna_resource_grid": true,
       "used_sionna_channel": true,
@@ -232,22 +242,51 @@
       "fallback_stage": "",
       "fallback_reason": "",
       "ber_if_available": 0.0,
-      "symbol_mse": 0.039898812770843506,
-      "effective_sinr_db": 13.990399837493896,
-      "approximate_sum_rate": 18.815813064575195,
-      "power_norm": 1.0,
+      "symbol_mse": 0.04189607501029968,
+      "effective_sinr_db": 13.778266906738281,
+      "approximate_sum_rate": 18.54500961303711,
+      "power_norm": 0.9999999403953552,
       "runtime_ms": 0.0,
       "csi_interface_used": true,
       "input_type": "ExtractedCSI",
       "extraction_success": true,
       "project_h_f_assisted": false,
       "extracted_h_f_used": true,
-      "full_native_only": false
+      "precoder_summary": {
+        "input_type": "raw_f_f",
+        "f_f_shape": [
+          16,
+          16,
+          16,
+          4
+        ],
+        "precoder_interface_used": false,
+        "method": null,
+        "source": null,
+        "project_side_precoder": null,
+        "sionna_native_precoder": null,
+        "full_native_only": false,
+        "teacher_used_during_inference": false,
+        "power_normalized": null,
+        "power_norm": {
+          "mean": 0.9999999403953552,
+          "std": 1.1733185800721913e-07,
+          "max_abs_deviation_from_one": 2.384185791015625e-07
+        },
+        "tensor_signature": "6eb8ce89b10ba4ee9b013835acbe85a40a613551dc3b25aa7c214c8977b58564"
+      }
     },
     {
       "method": "project_wmmse_iter_5",
       "method_type": "analytic",
       "checkpoint_path": null,
+      "precoder_interface_used": false,
+      "precoder_input_type": "raw_f_f",
+      "precoder_source": null,
+      "project_side_precoder": null,
+      "sionna_native_precoder": null,
+      "full_native_only": false,
+      "power_normalized": null,
       "native_receiver_success": true,
       "used_sionna_resource_grid": true,
       "used_sionna_channel": true,
@@ -259,9 +298,9 @@
       "fallback_stage": "",
       "fallback_reason": "",
       "ber_if_available": 0.0,
-      "symbol_mse": 0.04226379469037056,
-      "effective_sinr_db": 13.740314245223999,
-      "approximate_sum_rate": 18.49661636352539,
+      "symbol_mse": 0.043365515768527985,
+      "effective_sinr_db": 13.628554344177246,
+      "approximate_sum_rate": 18.354209899902344,
       "power_norm": 1.0,
       "runtime_ms": 0.0,
       "csi_interface_used": true,
@@ -269,12 +308,41 @@
       "extraction_success": true,
       "project_h_f_assisted": false,
       "extracted_h_f_used": true,
-      "full_native_only": false
+      "precoder_summary": {
+        "input_type": "raw_f_f",
+        "f_f_shape": [
+          16,
+          16,
+          16,
+          4
+        ],
+        "precoder_interface_used": false,
+        "method": null,
+        "source": null,
+        "project_side_precoder": null,
+        "sionna_native_precoder": null,
+        "full_native_only": false,
+        "teacher_used_during_inference": false,
+        "power_normalized": null,
+        "power_norm": {
+          "mean": 1.0,
+          "std": 4.470348358154297e-08,
+          "max_abs_deviation_from_one": 1.1920928955078125e-07
+        },
+        "tensor_signature": "b4bb9a3b02fd55d3759209b96b186dd9c70c7a0a1b0ccfbb27c4b09e9841daae"
+      }
     },
     {
       "method": "learned_residual_rzf",
       "method_type": "learned",
       "checkpoint_path": "/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/outputs/runs/sionna_ofdm_residual_rzf/best.pt",
+      "precoder_interface_used": false,
+      "precoder_input_type": "raw_f_f",
+      "precoder_source": null,
+      "project_side_precoder": null,
+      "sionna_native_precoder": null,
+      "full_native_only": false,
+      "power_normalized": null,
       "native_receiver_success": true,
       "used_sionna_resource_grid": true,
       "used_sionna_channel": true,
@@ -286,22 +354,51 @@
       "fallback_stage": "",
       "fallback_reason": "",
       "ber_if_available": 0.0,
-      "symbol_mse": 0.03989206627011299,
-      "effective_sinr_db": 13.99113416671753,
-      "approximate_sum_rate": 18.81675148010254,
+      "symbol_mse": 0.04188160225749016,
+      "effective_sinr_db": 13.77976655960083,
+      "approximate_sum_rate": 18.54692268371582,
       "power_norm": 1.0,
-      "runtime_ms": 77.2203000378795,
+      "runtime_ms": 77.23742799134925,
       "csi_interface_used": true,
       "input_type": "ExtractedCSI",
       "extraction_success": true,
       "project_h_f_assisted": false,
       "extracted_h_f_used": true,
-      "full_native_only": false
+      "precoder_summary": {
+        "input_type": "raw_f_f",
+        "f_f_shape": [
+          16,
+          16,
+          16,
+          4
+        ],
+        "precoder_interface_used": false,
+        "method": null,
+        "source": null,
+        "project_side_precoder": null,
+        "sionna_native_precoder": null,
+        "full_native_only": false,
+        "teacher_used_during_inference": false,
+        "power_normalized": null,
+        "power_norm": {
+          "mean": 1.0,
+          "std": 7.300048565639372e-08,
+          "max_abs_deviation_from_one": 2.384185791015625e-07
+        },
+        "tensor_signature": "b46c7e5ce43673358c106af957ba43e04b4ba894f67ae2b80527ab59e4058430"
+      }
     },
     {
       "method": "learned_residual_wmmse_distill",
       "method_type": "learned",
       "checkpoint_path": "/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/outputs/runs/sionna_ofdm_residual_wmmse_distill/best.pt",
+      "precoder_interface_used": false,
+      "precoder_input_type": "raw_f_f",
+      "precoder_source": null,
+      "project_side_precoder": null,
+      "sionna_native_precoder": null,
+      "full_native_only": false,
+      "power_normalized": null,
       "native_receiver_success": true,
       "used_sionna_resource_grid": true,
       "used_sionna_channel": true,
@@ -313,17 +410,39 @@
       "fallback_stage": "",
       "fallback_reason": "",
       "ber_if_available": 0.0,
-      "symbol_mse": 0.03989583998918533,
-      "effective_sinr_db": 13.990724086761475,
-      "approximate_sum_rate": 18.816226959228516,
+      "symbol_mse": 0.04188382253050804,
+      "effective_sinr_db": 13.779537677764893,
+      "approximate_sum_rate": 18.546630859375,
       "power_norm": 1.0,
-      "runtime_ms": 2.640057005919516,
+      "runtime_ms": 2.7808689628727734,
       "csi_interface_used": true,
       "input_type": "ExtractedCSI",
       "extraction_success": true,
       "project_h_f_assisted": false,
       "extracted_h_f_used": true,
-      "full_native_only": false
+      "precoder_summary": {
+        "input_type": "raw_f_f",
+        "f_f_shape": [
+          16,
+          16,
+          16,
+          4
+        ],
+        "precoder_interface_used": false,
+        "method": null,
+        "source": null,
+        "project_side_precoder": null,
+        "sionna_native_precoder": null,
+        "full_native_only": false,
+        "teacher_used_during_inference": false,
+        "power_normalized": null,
+        "power_norm": {
+          "mean": 1.0,
+          "std": 7.146346092667955e-08,
+          "max_abs_deviation_from_one": 2.384185791015625e-07
+        },
+        "tensor_signature": "b688c7832a678bf10fdb44b927ec64573e7ad65fbf17f29047fa770761db6acf"
+      }
     }
   ]
 }

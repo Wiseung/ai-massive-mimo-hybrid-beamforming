@@ -11,6 +11,7 @@ import torch
 
 from beamforming.models.factory import build_model
 from beamforming.utils.csi_interface import ExtractedCSI, as_project_h_f
+from beamforming.utils.precoder_interface import PrecoderOutput, as_project_f_f, build_precoder_output
 from beamforming.utils.sionna_native_beamforming_chain import (
     apply_project_precoder_to_sionna_grid,
     build_pilot_aware_multiuser_resource_grid,
@@ -134,7 +135,8 @@ def infer_learned_precoder(
     snr_db: torch.Tensor,
     *,
     native_receiver_path: bool,
-) -> tuple[torch.Tensor, dict[str, Any], float]:
+    return_precoder_output: bool = False,
+) -> tuple[torch.Tensor | PrecoderOutput, dict[str, Any], float]:
     h_f_tensor, csi_input_meta = as_project_h_f(h_f)
     start = perf_counter()
     with torch.no_grad():
@@ -171,6 +173,26 @@ def infer_learned_precoder(
         "all_finite": bool(torch.isfinite(precoder.real).all() and torch.isfinite(precoder.imag).all()),
         "inference_inputs": outputs.get("inference_inputs"),
     }
+    if return_precoder_output:
+        precoder_output = build_precoder_output(
+            f_f=precoder,
+            source=bundle.method_name,
+            method=bundle.method_name,
+            input_csi=h_f if isinstance(h_f, (ExtractedCSI, dict)) else {"h_f": h_f_tensor, **csi_input_meta},
+            project_side_precoder=True,
+            sionna_native_precoder=False,
+            teacher_used_during_inference=bool(meta["teacher_used_during_inference"]),
+            power_normalized=True,
+            checkpoint_path=str(bundle.checkpoint_path),
+            skipped_missing_checkpoint=False,
+            fallback_reason="",
+            full_native_only=False,
+            metadata={"inference_inputs": outputs.get("inference_inputs")},
+        )
+        meta["precoder_interface_used"] = True
+        meta["precoder_summary"] = precoder_output.summary_dict()
+        return precoder_output, meta, runtime_ms
+    meta["precoder_interface_used"] = False
     return precoder, meta, runtime_ms
 
 
@@ -310,7 +332,7 @@ def run_native_receiver_with_precoder(
     *,
     method: str,
     method_type: str,
-    precoder_f: torch.Tensor,
+    precoder_f: PrecoderOutput | torch.Tensor | dict[str, Any],
     context: NativeReceiverContext,
     runtime_ms: float,
     checkpoint_path: str | None,
@@ -322,17 +344,26 @@ def run_native_receiver_with_precoder(
     LMMSEEqualizer, _, _ = load_component("LMMSEEqualizer")
     Demapper, _, _ = load_component("Demapper")
 
+    precoder_tensor, precoder_meta = as_project_f_f(precoder_f, validate=False)
+    teacher_flag = bool(teacher_used_during_inference or precoder_meta.get("teacher_used_during_inference", False))
     row: dict[str, Any] = {
         "method": method,
         "method_type": method_type,
         "checkpoint_path": checkpoint_path,
+        "precoder_interface_used": bool(precoder_meta.get("precoder_interface_used")),
+        "precoder_input_type": precoder_meta.get("input_type"),
+        "precoder_source": precoder_meta.get("source"),
+        "project_side_precoder": precoder_meta.get("project_side_precoder"),
+        "sionna_native_precoder": precoder_meta.get("sionna_native_precoder"),
+        "full_native_only": precoder_meta.get("full_native_only", False),
+        "power_normalized": precoder_meta.get("power_normalized"),
         "native_receiver_success": False,
         "used_sionna_resource_grid": True,
         "used_sionna_channel": False,
         "used_sionna_estimator": False,
         "used_sionna_equalizer": False,
         "used_sionna_demapper": False,
-        "teacher_used_during_inference": bool(teacher_used_during_inference),
+        "teacher_used_during_inference": teacher_flag,
         "fallback_used": True,
         "fallback_stage": "",
         "fallback_reason": "",
@@ -340,7 +371,7 @@ def run_native_receiver_with_precoder(
         "symbol_mse": float("nan"),
         "effective_sinr_db": float("nan"),
         "approximate_sum_rate": float("nan"),
-        "power_norm": float(torch.mean((torch.abs(precoder_f) ** 2).sum(dim=(-2, -1))).item()),
+        "power_norm": float(torch.mean((torch.abs(precoder_tensor) ** 2).sum(dim=(-2, -1))).item()),
         "runtime_ms": float(runtime_ms),
     }
     trace: list[dict[str, Any]] = []
@@ -373,7 +404,7 @@ def run_native_receiver_with_precoder(
                 describe_tensor("stream_symbols", context.stream_symbols, ["batch", "effective_subcarrier", "user"]),
                 describe_tensor("x_rg", x_rg, ["batch", "num_tx", "num_streams", "ofdm_symbol", "fft_bin"]),
                 describe_tensor("H_f", context.h_f, ["batch", "effective_subcarrier", "user", "bs_ant"]),
-                describe_tensor("F_f", precoder_f, ["batch", "effective_subcarrier", "bs_ant", "user"]),
+                describe_tensor("F_f", precoder_tensor, ["batch", "effective_subcarrier", "bs_ant", "user"]),
                 describe_tensor("tx_grid", tx_grid, ["batch", "num_tx", "num_tx_ant", "ofdm_symbol", "fft_bin"]),
             ]
         )
