@@ -107,3 +107,5 @@ def test_shared_sionna_ofdm_batch_summary_dict() -> None:
     summary = batch.summary_dict()
     assert summary["seed"] == 0
     assert summary["extracted_h_f_shape"] == [2, 3, 4, 5]
+    assert summary["bits_signature"] is not None
+    assert summary["channel_tensor_signature"] is not None

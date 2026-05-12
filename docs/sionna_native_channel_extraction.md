@@ -22,7 +22,7 @@ from Sionna-native channel tensors so the existing project precoder and learned-
 
 ## Current Status
 
-This document now tracks the published `v0.5.0` state together with the follow-on CSI-interface standardization branch for the optional Sionna-native channel-extraction bridge.
+This document now tracks the published `v0.5.0` state together with the `v0.6.0` candidate branch for provenance-aware CSI interface hardening on top of the optional Sionna-native channel-extraction bridge.
 
 Compact result table:
 
@@ -351,7 +351,30 @@ The supported wording remains:
 
 - cross-run comparison is not a strict equivalence test
 - same-batch equivalence is the valid place to claim numerical consistency
+- CSI interface improves provenance clarity and deterministic reuse under shared realization
 - native-channel-assisted plus native-receiver-assisted
+- not full native-only benchmark
+- no Sionna RT
+- no ray tracing
+- no 5G NR full stack
+- optional dependency only
+
+## v0.6.0 Candidate Status
+
+Compact CSI result table:
+
+| Item | Current result | Interpretation |
+| --- | --- | --- |
+| CSI audit | `passed` | `ExtractedCSI` provenance is complete enough for current project and learned consumers |
+| CSI-backed beamforming | `native_receiver_success=true` | CSI-backed path enters native receiver chain successfully |
+| same-batch equivalence | `passed` | raw extracted-H and CSI-backed paths are numerically consistent under one shared realization |
+| previous mismatch root cause | `cross_run_comparison_without_shared_realization` | earlier mismatch was cross-run comparison, not CSI-interface bug evidence |
+
+The current supported summary is:
+
+- same-batch equivalence passed
+- previous mismatch was cross-run comparison
+- CSI interface improves provenance and deterministic reuse
 - not full native-only benchmark
 - no Sionna RT
 - no ray tracing
