@@ -259,6 +259,60 @@ def test_audit_csi_raw_comparison_mismatch_runs(tmp_path: Path) -> None:
 
 
 @pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_audit_csi_consumers_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "csi_consumer_audit.json"
+    subprocess.run(
+        [sys.executable, "scripts/audit_csi_consumers.py", "--out", str(out_path)],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["total_consumers_audited"] >= 1
+    assert "priority_migration_targets" in payload
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_demo_unified_csi_consumers_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "unified_csi_consumers_summary.json"
+    subprocess.run(
+        [sys.executable, "scripts/demo_unified_csi_consumers.py", "--out", str(out_path)],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["status"] in {"ok", "skipped", "failed"}
+    assert "all_consumers_accept_csi" in payload
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_compare_unified_csi_consumers_runs_if_inputs_exist(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    baseline = repo_root / "outputs/sionna_channel_extraction/csi_backed_beamforming_metrics.csv"
+    unified = repo_root / "outputs/sionna_channel_extraction/unified_csi_consumers_metrics.csv"
+    if not (baseline.exists() and unified.exists()):
+        pytest.skip("Required baseline/unified artifacts not present")
+    out_dir = tmp_path / "unified_compare"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/compare_unified_csi_consumers.py",
+            "--baseline",
+            str(baseline),
+            "--unified",
+            str(unified),
+            "--out",
+            str(out_dir),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    assert (out_dir / "unified_csi_consumer_comparison.csv").exists()
+    assert (out_dir / "unified_csi_consumer_comparison.md").exists()
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
 def test_generate_sionna_csi_interface_artifact_manifest_runs(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     out_path = tmp_path / "csi_interface_artifact_manifest.json"

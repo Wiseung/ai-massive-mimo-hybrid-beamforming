@@ -483,6 +483,25 @@ Compact CSI result table:
 | same-batch equivalence | `passed` | raw extracted-H and CSI-backed paths are numerically consistent under shared realization |
 | previous mismatch root cause | `cross_run_comparison_without_shared_realization` | earlier mismatch was cross-run, not CSI-interface bug evidence |
 
+Current CSI consumer-unification status:
+
+- `ExtractedCSI` is now the preferred input interface for key analytic and learned consumers
+- `compute_project_precoder_per_subcarrier(...)` accepts `ExtractedCSI`, raw `H_f`, and dict inputs with `h_f`
+- `infer_learned_precoder(...)` accepts `ExtractedCSI` directly and records CSI provenance in inference metadata
+- the unified CSI consumer demo reuses one shared `ExtractedCSI` object across analytic, learned, and native-receiver consumers
+- raw `H_f` remains as a backward-compatible fallback for older scripts and tests
+- this improves provenance clarity and consumer consistency, but still does not make the system full native-only
+
+Compact CSI consumer-unification table:
+
+| Item | Current result | Interpretation |
+| --- | --- | --- |
+| CSI consumer audit | `completed` | key remaining raw-only paths are now mostly limited to older fallback/demo flows |
+| analytic consumers | `ExtractedCSI + raw fallback` | project `RZF/WMMSE` interfaces now accept standardized CSI |
+| learned consumers | `ExtractedCSI + raw fallback` | learned inference accepts CSI directly with `teacher_used_during_inference=false` |
+| unified CSI demo | `same CSI object reused` | one `ExtractedCSI` drives analytic, learned, and native receiver paths |
+| unified vs baseline comparison | `cross-run comparison only` | confirms no new fallback and consistent CSI acceptance, but should not be read as a same-batch equivalence claim |
+
 Current CSI-interface validation commands:
 
 ```bash

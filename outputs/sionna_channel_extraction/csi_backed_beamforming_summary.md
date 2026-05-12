@@ -9,7 +9,7 @@
 
 | Method | Native OK | Teacher Inference | Sum Rate | Fallback | Reason |
 | --- | --- | --- | ---: | --- | --- |
-| project_rzf | True | False | 18.564106 | False |  |
-| project_wmmse_iter_5 | True | False | 17.828186 | False |  |
-| learned_residual_rzf | True | False | 18.394684 | False |  |
-| learned_residual_wmmse_distill | True | False | 18.430624 | False |  |
+| project_rzf | True | False | 18.815813 | False |  |
+| project_wmmse_iter_5 | True | False | 18.496616 | False |  |
+| learned_residual_rzf | True | False | 18.816751 | False |  |
+| learned_residual_wmmse_distill | True | False | 18.816227 | False |  |

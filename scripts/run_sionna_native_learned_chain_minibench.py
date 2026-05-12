@@ -13,6 +13,7 @@ import torch
 
 add_src_to_path()
 
+from beamforming.utils.csi_interface import summarize_csi_input
 from beamforming.utils.sionna_env import collect_sionna_env_info
 from beamforming.utils.sionna_native_beamforming_chain import compute_project_precoder_per_subcarrier, time_function
 from beamforming.utils.sionna_native_learned_beamforming import (
@@ -51,9 +52,11 @@ def main() -> None:
             snr_db=snr_db,
             device=device,
         )
+        csi_input = context.csi if context.csi is not None else context.h_f
+        input_summary = summarize_csi_input(csi_input)
         for method in methods:
             if method.startswith("project_"):
-                precoder_f, runtime_ms = time_function(compute_project_precoder_per_subcarrier, method.removeprefix("project_"), context.h_f, context.noise_var)
+                precoder_f, runtime_ms = time_function(compute_project_precoder_per_subcarrier, method.removeprefix("project_"), csi_input, context.noise_var)
                 teacher_flag = False
                 ckpt_path = None
             else:
@@ -64,6 +67,8 @@ def main() -> None:
                             "snr_db": snr_db,
                             "method": method,
                             "native_receiver_success": False,
+                            "input_type": input_summary["input_type"],
+                            "csi_interface_used": bool(input_summary["csi_interface_used"]),
                             "teacher_used_during_inference": False,
                             "fallback_used": True,
                             "fallback_stage": "checkpoint",
@@ -76,7 +81,7 @@ def main() -> None:
                     continue
                 bundle = load_learned_beamformer_checkpoint(ckpt_path, device, method_name=method)
                 snr_tensor = torch.full((context.h_f.size(0),), context.snr_db, dtype=torch.float32, device=device)
-                precoder_f, infer_meta, runtime_ms = infer_learned_precoder(bundle, context.h_f, snr_tensor, native_receiver_path=True)
+                precoder_f, infer_meta, runtime_ms = infer_learned_precoder(bundle, csi_input, snr_tensor, native_receiver_path=True)
                 teacher_flag = bool(infer_meta["teacher_used_during_inference"])
             result, _, _ = run_native_receiver_with_precoder(
                 method=method,
@@ -89,6 +94,8 @@ def main() -> None:
                 trace_shapes=False,
             )
             result["snr_db"] = snr_db
+            result["input_type"] = input_summary["input_type"]
+            result["csi_interface_used"] = bool(input_summary["csi_interface_used"])
             rows.append(result)
 
     frame = pd.DataFrame(rows)

@@ -380,3 +380,34 @@ The current supported summary is:
 - no ray tracing
 - no 5G NR full stack
 - optional dependency only
+
+## CSI Consumer Unification Status
+
+The next interface-hardening step is to make `ExtractedCSI` the preferred input for all important `H_f=(B,Nsc,K,Nt)` consumers while keeping raw `H_f` as a backward-compatible fallback.
+
+Current audited state:
+
+- analytic precoders now accept `ExtractedCSI`, raw `H_f`, or dict inputs containing `h_f`
+- learned beamformer inference now accepts `ExtractedCSI` directly and records provenance-oriented input metadata
+- CSI-backed and native-channel-assisted beamforming scripts now summarize `input_type`, `csi_interface_used`, `project_h_f_assisted`, `extracted_h_f_used`, and `full_native_only`
+- older benchmark/minibench paths may still keep raw-`H_f` fallback behavior, but the preferred path is CSI-backed
+
+Compact unification table:
+
+| Consumer group | Current support | Notes |
+| --- | --- | --- |
+| analytic precoder consumers | `ExtractedCSI + raw fallback` | `compute_project_precoder_per_subcarrier(...)` normalizes inputs through `as_project_h_f(...)` |
+| learned beamformer consumers | `ExtractedCSI + raw fallback` | `infer_learned_precoder(...)` accepts CSI directly and keeps `teacher_used_during_inference=false` |
+| native receiver chain scripts | `CSI-first where available` | summaries now report CSI provenance fields explicitly |
+| comparison / benchmark scripts | `CSI-first with fallback retained` | same-batch equivalence remains the only valid strict-equivalence claim path |
+| docs / README command examples | `CSI-backed path preferred` | raw tensor path remains documented only as fallback / legacy compatibility |
+
+The supported interpretation remains unchanged:
+
+- CSI consumer unification improves provenance clarity and deterministic reuse
+- unified-vs-baseline reruns are currently cross-run comparisons and may differ numerically unless they share one realization fixture
+- it does not introduce a new claim of full native-only benchmarking
+- no Sionna RT
+- no ray tracing
+- no 5G NR full stack
+- optional dependency only

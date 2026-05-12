@@ -10,7 +10,7 @@ import numpy as np
 import torch
 
 from beamforming.baselines.common import get_digital_precoder
-from beamforming.utils.csi_interface import SharedSionnaOFDMBatch, tensor_signature
+from beamforming.utils.csi_interface import ExtractedCSI, SharedSionnaOFDMBatch, as_project_h_f, tensor_signature
 from beamforming.utils.sionna_channel_extraction import create_shared_sionna_ofdm_batch, extract_h_f_from_sionna_channel
 from beamforming.utils.sionna_native_chain import load_component, resolve_sionna_device
 
@@ -79,10 +79,15 @@ def build_frequency_domain_channel(
 
 def compute_project_precoder_per_subcarrier(
     method: str,
-    channel_f: torch.Tensor,
+    channel_f: ExtractedCSI | torch.Tensor | dict[str, Any],
     noise_var: float | torch.Tensor,
 ) -> torch.Tensor:
-    """Compute project precoders with output shape ``(B, Nsc, Nt, K)``."""
+    """Compute project precoders with output shape ``(B, Nsc, Nt, K)``.
+
+    ``channel_f`` may be a raw project-side ``H_f`` tensor, an ``ExtractedCSI``
+    object, or a dict containing ``"h_f"`` plus optional provenance metadata.
+    """
+    channel_f, _ = as_project_h_f(channel_f)
     precoders = []
     for sc in range(channel_f.size(1)):
         precoders.append(get_digital_precoder(method, channel_f[:, sc, :, :], noise_var=noise_var))

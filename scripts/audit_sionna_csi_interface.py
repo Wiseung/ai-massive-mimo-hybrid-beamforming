@@ -11,6 +11,7 @@ import torch
 
 add_src_to_path()
 
+from beamforming.utils.csi_interface import summarize_csi_input
 from beamforming.utils.sionna_env import collect_sionna_env_info
 from beamforming.utils.sionna_native_beamforming_chain import compute_project_precoder_per_subcarrier
 from beamforming.utils.sionna_native_chain import write_json, write_markdown
@@ -104,6 +105,7 @@ def main() -> None:
         {
             "status": "ok",
             "csi_interface_used": True,
+            "csi_input_summary": summarize_csi_input(csi),
             "h_f_shape_ok": summary["h_f_shape"] == [8, 16, 4, 16],
             "axes_metadata_complete": summary["axes"] == {"B": 0, "Nsc": 1, "K": 2, "Nt": 3},
             "original_sionna_h_shape_present": bool(metadata.get("original_sionna_h_shape")),
@@ -117,7 +119,7 @@ def main() -> None:
     )
 
     try:
-        precoder = compute_project_precoder_per_subcarrier("rzf", csi.to_project_h_f(), context.noise_var)
+        precoder = compute_project_precoder_per_subcarrier("rzf", csi, context.noise_var)
         payload["project_rzf_consumes_csi"] = list(precoder.shape) == [8, 16, 16, 4]
     except Exception as exc:
         payload["notes"].append(f"project_rzf consumption failed: {type(exc).__name__}: {exc}")
@@ -127,7 +129,7 @@ def main() -> None:
         try:
             bundle = load_learned_beamformer_checkpoint(ckpt, device, method_name="learned_residual_rzf")
             snr_tensor = torch.full((csi.h_f.size(0),), context.snr_db, dtype=torch.float32, device=device)
-            _, infer_meta, _ = infer_learned_precoder(bundle, csi.to_project_h_f(), snr_tensor, native_receiver_path=True)
+            _, infer_meta, _ = infer_learned_precoder(bundle, csi, snr_tensor, native_receiver_path=True)
             payload["learned_residual_rzf_consumes_csi"] = True
             payload["teacher_used_during_inference"] = bool(infer_meta["teacher_used_during_inference"])
         except Exception as exc:
