@@ -645,6 +645,9 @@ Current branch status:
 
 - `RZFPrecoder` is available in Sionna 2.0.1, but its expected tensor layout is not the same as the repository's `H_f=(B,Nsc,K,Nt)` project-side precoder path
 - current clean mainline remains project frequency-domain precoder insertion
+- current native-precoder probe branch adds an adapter-focused audit path for `ExtractedCSI -> Sionna RZFPrecoder input -> PrecoderOutput`
+- current native-precoder interpretation remains compatibility mapping only: direct replacement is not yet the supported mainline
+- current probe shows `RZFPrecoder` is callable, can be converted into `PrecoderOutput`, and can enter the current native receiver path through the adapter bridge
 - `project_rzf` and `project_wmmse_iter_5` both improve strongly over `no_precoding` in the current beamforming-chain proxy metrics
 - pilot-pattern audit shows that `LSChannelEstimator` requires a non-empty pilot pattern; `pilot_pattern=\"kronecker\"` with `pilot_ofdm_symbol_indices=[0]` is the current minimal working config
 - the minimal estimator/equalizer demo succeeds with a real Sionna pilot-based receiver chain
@@ -661,6 +664,34 @@ Current branch status:
 - both learned methods enter a real Sionna receiver path while still consuming project-assisted `H_f` / precoder inputs
 - fallback proxy metrics are still not described as full Sionna-native receiver results when native receiver mode is not used
 - this branch therefore should still be read as an integration experiment, not a production e2e chain
+
+Current native precoder API probe status:
+
+- `sionna.phy.ofdm.RZFPrecoder` is callable on the current Sionna 2.0.1 install
+- its native contract remains resource-grid-centric and higher rank than project `H_f=(B,Nsc,K,Nt)`
+- the current adapter path can map one `ExtractedCSI` object into a minimal native RZF probe
+- the current adapter path can convert the native RZF output back into `PrecoderOutput`
+- same-realization validation now shows the converted native output is receiver-compatible but still `close_but_different` from `project_rzf`, not strictly equivalent
+- quick `seed={1,2,3}` / `snr={0,5,10,15,20}` sweep keeps `RZFPrecoder` callable, convertible, and receiver-compatible on all evaluated rows
+- `sionna_rzf_precoder` can now be included as an optional native method in the unified CSI + PrecoderOutput demo path
+- `sionna_native_precoder=true` is acceptable for the adapter-produced native method output, but `project_rzf` strict equivalence is still `false`
+- current `v0.9.0` candidate focus is release hardening around the optional native-method bridge, not project-side precoder replacement
+- no Sionna RT
+- no ray tracing
+- no 5G NR full stack
+- optional dependency only
+
+Compact native precoder table:
+
+| Item | Current result | Interpretation |
+| --- | --- | --- |
+| `sionna_rzf_available` | `true` | installed Sionna exposes `RZFPrecoder` |
+| `sionna_rzf_callable` | `true` | minimal native call path works on the current environment |
+| `converted_to_precoder_output` | `true` | native output can be mapped into project `F_f=(B,Nsc,Nt,K)` |
+| `native_receiver_success` | `true` | converted native output enters the current native receiver path |
+| `relationship_status` | `close_but_different` | same-realization semantics align, but not strict equivalence |
+| `strict_equivalence_claim_allowed` | `false` | do not label `project_rzf` and Sionna RZF as strictly equivalent |
+| `full_native_only` | `false` | still not a full native-only benchmark |
 
 Current `v0.4.0` candidate comparison at the validated native insertion point:
 

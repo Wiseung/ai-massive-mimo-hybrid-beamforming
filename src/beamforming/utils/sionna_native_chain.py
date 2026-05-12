@@ -14,6 +14,8 @@ COMPONENT_SPECS: dict[str, list[str]] = {
     "ResourceGrid": ["sionna.phy.ofdm"],
     "ResourceGridMapper": ["sionna.phy.ofdm"],
     "ResourceGridDemapper": ["sionna.phy.ofdm"],
+    "RZFPrecoder": ["sionna.phy.ofdm"],
+    "PrecodedChannel": ["sionna.phy.ofdm"],
     "OFDMChannel": ["sionna.phy.channel", "sionna.phy.ofdm"],
     "ApplyOFDMChannel": ["sionna.phy.channel", "sionna.phy.ofdm"],
     "LSChannelEstimator": ["sionna.phy.ofdm"],

@@ -11,6 +11,11 @@
   "native_receiver_success": true,
   "teacher_used_during_inference": false,
   "no_new_fallback_introduced": true,
+  "sionna_rzf_requested": true,
+  "sionna_rzf_available": true,
+  "sionna_rzf_callable": true,
+  "sionna_rzf_evaluated": true,
+  "sionna_rzf_skipped_reason": "",
   "project_h_f_assisted": false,
   "extracted_h_f_used": true,
   "full_native_only": false,
@@ -19,7 +24,8 @@
     "project_rzf",
     "project_wmmse_iter_5",
     "learned_residual_rzf",
-    "learned_residual_wmmse_distill"
+    "learned_residual_wmmse_distill",
+    "sionna_rzf_precoder"
   ],
   "csi_summary": {
     "source": "sionna_ofdm_channel",
@@ -79,8 +85,8 @@
       "dtype": "torch.complex64",
       "is_complex": true,
       "all_finite": true,
-      "norm_mean": 8.193143844604492,
-      "norm_std": 0.3443675637245178,
+      "norm_mean": 7.735164642333984,
+      "norm_std": 0.4025730490684509,
       "subcarrier_norm_std_mean": 0.0,
       "fallback_reason": ""
     },
@@ -196,8 +202,8 @@
         "dtype": "torch.complex64",
         "is_complex": true,
         "all_finite": true,
-        "norm_mean": 8.193143844604492,
-        "norm_std": 0.3443675637245178,
+        "norm_mean": 7.735164642333984,
+        "norm_std": 0.4025730490684509,
         "subcarrier_norm_std_mean": 0.0,
         "fallback_reason": ""
       }
@@ -217,7 +223,7 @@
     "full_native_only": false,
     "source": "sionna_ofdm_channel",
     "source_component": "OFDMChannel(return_channel=True)",
-    "tensor_signature": "2357d91b987e93f6628ef721b6238117fe94156d31e7d558aded1ca5737e471d"
+    "tensor_signature": "16ba7bcfeda4efa5ce6711b038099636505f93fb169491fe91991d38cc8190bc"
   },
   "metrics": [
     {
@@ -242,9 +248,9 @@
       "fallback_stage": "",
       "fallback_reason": "",
       "ber_if_available": 0.0,
-      "symbol_mse": 0.03821823373436928,
-      "effective_sinr_db": 14.17729377746582,
-      "approximate_sum_rate": 19.054819107055664,
+      "symbol_mse": 0.043293483555316925,
+      "effective_sinr_db": 13.635774850845337,
+      "approximate_sum_rate": 18.363405227661133,
       "power_norm": 1.0,
       "runtime_ms": 0.0,
       "input_type": "ExtractedCSI",
@@ -269,10 +275,10 @@
         "power_normalized": true,
         "power_norm": {
           "mean": 1.0,
-          "std": 9.365234632241481e-08,
+          "std": 1.1000650346204566e-07,
           "max_abs_deviation_from_one": 2.384185791015625e-07
         },
-        "tensor_signature": "035b4a6276f29797beda5ebfe62d371a2e136bdad4d3e9084a3b617351a9c9cd"
+        "tensor_signature": "000f6fedacae93697d3868e0d271818eaaad42889010968cff9417197d4aafc3"
       }
     },
     {
@@ -297,9 +303,9 @@
       "fallback_stage": "",
       "fallback_reason": "",
       "ber_if_available": 0.0,
-      "symbol_mse": 0.04095093160867691,
-      "effective_sinr_db": 13.87736201286316,
-      "approximate_sum_rate": 18.67144775390625,
+      "symbol_mse": 0.048036009073257446,
+      "effective_sinr_db": 13.184330463409424,
+      "approximate_sum_rate": 17.78971290588379,
       "power_norm": 1.0,
       "runtime_ms": 0.0,
       "input_type": "ExtractedCSI",
@@ -324,10 +330,10 @@
         "power_normalized": true,
         "power_norm": {
           "mean": 1.0,
-          "std": 5.67419320418594e-08,
+          "std": 4.3443975528134615e-08,
           "max_abs_deviation_from_one": 1.1920928955078125e-07
         },
-        "tensor_signature": "a62744ee169fb9676740f0a2c07a8df561a702e4390df5721b6711ea70736ee6"
+        "tensor_signature": "4bff79c8de36129a820de47316a73affbda58b9bb126b1a77e6c970194f7764a"
       }
     },
     {
@@ -352,11 +358,11 @@
       "fallback_stage": "",
       "fallback_reason": "",
       "ber_if_available": 0.0,
-      "symbol_mse": 0.03822624683380127,
-      "effective_sinr_db": 14.176383018493652,
-      "approximate_sum_rate": 19.053653717041016,
+      "symbol_mse": 0.04329804331064224,
+      "effective_sinr_db": 13.635317087173462,
+      "approximate_sum_rate": 18.362823486328125,
       "power_norm": 1.0,
-      "runtime_ms": 77.93305499944836,
+      "runtime_ms": 79.88268102053553,
       "input_type": "ExtractedCSI",
       "csi_interface_used": true,
       "project_h_f_assisted": false,
@@ -379,10 +385,10 @@
         "power_normalized": true,
         "power_norm": {
           "mean": 1.0,
-          "std": 4.942156195397729e-08,
-          "max_abs_deviation_from_one": 1.1920928955078125e-07
+          "std": 1.0106459313874439e-07,
+          "max_abs_deviation_from_one": 2.384185791015625e-07
         },
-        "tensor_signature": "7f82f85a18ebc320095309139b334ee7b64a049776e8ecf2431c05677e556c43"
+        "tensor_signature": "5e2640c7bf70c406574ef2b43ce176f32e00574380ba413991041f0fe0c6d7a7"
       }
     },
     {
@@ -407,11 +413,11 @@
       "fallback_stage": "",
       "fallback_reason": "",
       "ber_if_available": 0.0,
-      "symbol_mse": 0.03822094947099686,
-      "effective_sinr_db": 14.176985025405884,
-      "approximate_sum_rate": 19.054424285888672,
+      "symbol_mse": 0.043284252285957336,
+      "effective_sinr_db": 13.636699914932251,
+      "approximate_sum_rate": 18.36458396911621,
       "power_norm": 1.0,
-      "runtime_ms": 2.6601830031722784,
+      "runtime_ms": 3.307573962956667,
       "input_type": "ExtractedCSI",
       "csi_interface_used": true,
       "project_h_f_assisted": false,
@@ -434,10 +440,65 @@
         "power_normalized": true,
         "power_norm": {
           "mean": 1.0,
-          "std": 1.2377833513710357e-07,
+          "std": 6.580174272130535e-08,
+          "max_abs_deviation_from_one": 1.1920928955078125e-07
+        },
+        "tensor_signature": "cea2435b571542cc473547af6e99404619a1634724d482d81b15dd151d10cdbc"
+      }
+    },
+    {
+      "method": "sionna_rzf_precoder",
+      "method_type": "native_optional",
+      "checkpoint_path": null,
+      "precoder_interface_used": true,
+      "precoder_input_type": "PrecoderOutput",
+      "precoder_source": "sionna_rzf_precoder",
+      "project_side_precoder": false,
+      "sionna_native_precoder": true,
+      "full_native_only": false,
+      "power_normalized": true,
+      "native_receiver_success": true,
+      "used_sionna_resource_grid": true,
+      "used_sionna_channel": true,
+      "used_sionna_estimator": true,
+      "used_sionna_equalizer": true,
+      "used_sionna_demapper": true,
+      "teacher_used_during_inference": false,
+      "fallback_used": false,
+      "fallback_stage": "",
+      "fallback_reason": "",
+      "ber_if_available": 0.0,
+      "symbol_mse": 0.044213294982910156,
+      "effective_sinr_db": 13.544471263885498,
+      "approximate_sum_rate": 18.247169494628906,
+      "power_norm": 1.0,
+      "runtime_ms": 0.0,
+      "input_type": "ExtractedCSI",
+      "csi_interface_used": true,
+      "project_h_f_assisted": false,
+      "extracted_h_f_used": true,
+      "precoder_summary": {
+        "input_type": "PrecoderOutput",
+        "f_f_shape": [
+          16,
+          16,
+          16,
+          4
+        ],
+        "precoder_interface_used": true,
+        "method": "sionna_rzf_precoder",
+        "source": "sionna_rzf_precoder",
+        "project_side_precoder": false,
+        "sionna_native_precoder": true,
+        "full_native_only": false,
+        "teacher_used_during_inference": false,
+        "power_normalized": true,
+        "power_norm": {
+          "mean": 1.0,
+          "std": 9.185692562141412e-08,
           "max_abs_deviation_from_one": 2.384185791015625e-07
         },
-        "tensor_signature": "aef8ee64045a187a28230e5606c40c8ce37cb93c91c183818b135e3c11d80f58"
+        "tensor_signature": "1a2a1dc97c90a8cd380154d0ce57c95285f29c92131ce510dc18e5eb8a7a160e"
       }
     }
   ]

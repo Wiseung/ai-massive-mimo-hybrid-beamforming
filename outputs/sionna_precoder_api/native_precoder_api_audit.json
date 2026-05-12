@@ -1,0 +1,405 @@
+{
+  "seed": 0,
+  "sionna_import_ok": true,
+  "sionna_version": "2.0.1",
+  "targets": [
+    {
+      "name": "RZFPrecoder",
+      "module_path": "sionna.phy.ofdm",
+      "import_ok": true,
+      "constructor_signature": "(resource_grid: 'sionna.phy.ofdm.ResourceGrid', stream_management: 'sionna.phy.mimo.StreamManagement', return_effective_channel: bool = False, precision: Optional[Literal['single', 'double']] = None, device: Optional[str] = None, **kwargs) -> None",
+      "call_signature": "(self, x: torch.Tensor, h: torch.Tensor, alpha: Union[float, torch.Tensor] = 0.0) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]",
+      "expected_input_shape": "[B, num_tx, num_streams_per_tx, num_ofdm_symbols, fft_size] plus h=[B, num_rx, num_rx_ant, num_tx, num_tx_ant, num_ofdm_symbols, fft_size]",
+      "expected_output_shape": "[B, num_tx, num_tx_ant, num_ofdm_symbols, fft_size] plus optional h_eff",
+      "stream_management_requirements": {
+        "num_tx": 1,
+        "num_streams_per_tx": "K",
+        "rx_tx_association": "ones(K,1)"
+      },
+      "resource_grid_requirements": {
+        "resource_grid_required": true,
+        "pilot_pattern_required_for_receiver_path": true
+      },
+      "minimal_callable_probe_passed": true,
+      "can_consume_extracted_csi_directly": false,
+      "can_emit_precoder_output_compatible_f_f": true,
+      "error": null,
+      "notes": [
+        "Probe output shapes: x_precoded=(4, 1, 16, 4, 16), h_eff=(4, 4, 1, 1, 4, 4, 16)",
+        "Converted native output to PrecoderOutput via adapter after axis remap and project power renormalization."
+      ]
+    },
+    {
+      "name": "PrecodedChannel",
+      "module_path": "sionna.phy.ofdm",
+      "import_ok": true,
+      "constructor_signature": "(resource_grid: 'sionna.phy.ofdm.ResourceGrid', stream_management: 'sionna.phy.mimo.StreamManagement', precision: Optional[Literal['single', 'double']] = None, device: Optional[str] = None, **kwargs) -> None",
+      "call_signature": "(self, h: torch.Tensor, tx_power: torch.Tensor, h_hat: Optional[torch.Tensor] = None, **kwargs) -> torch.Tensor",
+      "expected_input_shape": "h=[B, num_rx, num_rx_ant, num_tx, num_tx_ant, num_ofdm_symbols, fft_size], tx_power=[B, num_tx, num_streams_per_tx, num_ofdm_symbols, fft_size]",
+      "expected_output_shape": "h_eff=[B, num_rx, num_rx_ant, num_tx, num_streams_per_tx, num_ofdm_symbols, num_effective_subcarriers]",
+      "stream_management_requirements": null,
+      "resource_grid_requirements": null,
+      "minimal_callable_probe_passed": false,
+      "can_consume_extracted_csi_directly": false,
+      "can_emit_precoder_output_compatible_f_f": false,
+      "error": null,
+      "notes": []
+    },
+    {
+      "name": "StreamManagement",
+      "module_path": "sionna.phy.mimo",
+      "import_ok": true,
+      "constructor_signature": "(rx_tx_association: numpy.ndarray, num_streams_per_tx: int) -> None",
+      "call_signature": "unavailable: AttributeError: type object 'StreamManagement' has no attribute 'call'",
+      "expected_input_shape": "rx_tx_association ndarray plus num_streams_per_tx",
+      "expected_output_shape": "stream-management object",
+      "stream_management_requirements": null,
+      "resource_grid_requirements": null,
+      "minimal_callable_probe_passed": false,
+      "can_consume_extracted_csi_directly": false,
+      "can_emit_precoder_output_compatible_f_f": false,
+      "error": null,
+      "notes": []
+    }
+  ],
+  "mimo_precoding_module_available": true,
+  "ofdm_precoding_module_available": true,
+  "sample_bridge": {
+    "csi_summary": {
+      "input_type": "ExtractedCSI",
+      "h_f_shape": [
+        4,
+        16,
+        4,
+        16
+      ],
+      "csi_interface_used": true,
+      "project_h_f_assisted": false,
+      "extracted_h_f_used": true,
+      "full_native_only": false,
+      "source": "sionna_ofdm_channel",
+      "source_component": "OFDMChannel(return_channel=True)",
+      "tensor_signature": "09a4615a43710f009a7a0760efeb7b6b1bd7199ed8f10ec575bddfbf5bf6302c"
+    },
+    "mapping_success": true,
+    "fallback_reason": "",
+    "shape_assumptions": {
+      "project_h_f_shape": [
+        4,
+        16,
+        4,
+        16
+      ],
+      "project_axes": {
+        "B": 0,
+        "Nsc": 1,
+        "K": 2,
+        "Nt": 3
+      },
+      "sionna_rzf_x_shape": [
+        4,
+        1,
+        4,
+        4,
+        16
+      ],
+      "sionna_rzf_h_shape": [
+        4,
+        4,
+        1,
+        1,
+        16,
+        4,
+        16
+      ],
+      "one_tx_assumed": true,
+      "one_rx_ant_per_user_assumed": true,
+      "num_streams_per_tx_equals_num_users": true,
+      "ofdm_symbol_axis_replicated_from_single_extracted_symbol": true,
+      "fft_axis_matches_extracted_effective_subcarriers_only": true
+    },
+    "receiver_config": {
+      "resource_grid_num_ofdm_symbols": 4,
+      "resource_grid_fft_size": 16,
+      "resource_grid_num_data_symbols": 64,
+      "resource_grid_num_pilot_symbols": 0,
+      "resource_grid_num_streams_per_tx": 4,
+      "resource_grid_num_tx": 1,
+      "effective_subcarrier_indices": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ],
+      "selected_ofdm_symbol": 1,
+      "stream_management_num_rx": 4,
+      "stream_management_num_tx": 1,
+      "stream_management_num_streams_per_tx": 4,
+      "stream_management_num_desired_streams": 4
+    },
+    "probe_success": true,
+    "sionna_output_shape": [
+      4,
+      1,
+      16,
+      4,
+      16
+    ],
+    "effective_channel_shape": [
+      4,
+      4,
+      1,
+      1,
+      4,
+      4,
+      16
+    ],
+    "conversion": {
+      "success": true,
+      "fallback_used": false,
+      "fallback_reason": "",
+      "shape_assumptions": {
+        "expected_sionna_output_rank": 5,
+        "expected_sionna_axes": [
+          "B",
+          "num_tx",
+          "Nt",
+          "num_ofdm_symbols",
+          "fft_size"
+        ],
+        "target_project_axes": [
+          "B",
+          "Nsc",
+          "Nt",
+          "K"
+        ],
+        "mapping_rule": "tx=0 then permute to (B, fft_size, Nt, num_ofdm_symbols)",
+        "requires_num_ofdm_symbols_equals_num_users": true,
+        "requires_fft_size_equals_num_subcarriers": true
+      },
+      "power_norm_before_normalization": 3.999999761581421,
+      "power_norm_after_normalization": 1.0000001192092896
+    },
+    "comparison": {
+      "project_method": "project_rzf",
+      "project_shape": [
+        4,
+        16,
+        16,
+        4
+      ],
+      "project_power_norm": {
+        "mean": 1.0,
+        "std": 4.71216097253091e-08,
+        "max_abs_deviation_from_one": 1.1920928955078125e-07
+      },
+      "project_csi_interface_used": true,
+      "project_input_type": "ExtractedCSI",
+      "sionna_summary": {
+        "source": "sionna_rzf_precoder",
+        "method": "sionna_rzf_precoder",
+        "input_csi_summary": {
+          "input_type": "ExtractedCSI",
+          "h_f_shape": [
+            4,
+            16,
+            4,
+            16
+          ],
+          "csi_interface_used": true,
+          "project_h_f_assisted": false,
+          "extracted_h_f_used": true,
+          "full_native_only": false,
+          "source": "sionna_ofdm_channel",
+          "source_component": "OFDMChannel(return_channel=True)",
+          "tensor_signature": "09a4615a43710f009a7a0760efeb7b6b1bd7199ed8f10ec575bddfbf5bf6302c"
+        },
+        "axes": {
+          "B": 0,
+          "Nsc": 1,
+          "Nt": 2,
+          "K": 3
+        },
+        "shape": {
+          "B": 4,
+          "Nsc": 16,
+          "Nt": 16,
+          "K": 4
+        },
+        "f_f_shape": [
+          4,
+          16,
+          16,
+          4
+        ],
+        "dtype": "torch.complex64",
+        "num_users": 4,
+        "num_bs_ant": 16,
+        "num_subcarriers": 16,
+        "power_normalized": true,
+        "power_norm": {
+          "mean": 1.0000001192092896,
+          "std": 1.1920928955078125e-07,
+          "max_abs_deviation_from_one": 2.384185791015625e-07
+        },
+        "teacher_used_during_inference": false,
+        "project_side_precoder": false,
+        "sionna_native_precoder": true,
+        "full_native_only": false,
+        "validation": {
+          "valid": true,
+          "shape": [
+            4,
+            16,
+            16,
+            4
+          ],
+          "dtype": "torch.complex64",
+          "is_complex": true,
+          "all_finite": true,
+          "power_summary": {
+            "mean": 1.0000001192092896,
+            "std": 1.1920928955078125e-07,
+            "max_abs_deviation_from_one": 2.384185791015625e-07
+          },
+          "fallback_reason": ""
+        },
+        "metadata": {
+          "source_component": "RZFPrecoder",
+          "shape_assumptions": {
+            "expected_sionna_output_rank": 5,
+            "expected_sionna_axes": [
+              "B",
+              "num_tx",
+              "Nt",
+              "num_ofdm_symbols",
+              "fft_size"
+            ],
+            "target_project_axes": [
+              "B",
+              "Nsc",
+              "Nt",
+              "K"
+            ],
+            "mapping_rule": "tx=0 then permute to (B, fft_size, Nt, num_ofdm_symbols)",
+            "requires_num_ofdm_symbols_equals_num_users": true,
+            "requires_fft_size_equals_num_subcarriers": true
+          },
+          "raw_sionna_output_shape": [
+            4,
+            1,
+            16,
+            4,
+            16
+          ],
+          "converted_project_f_f_shape": [
+            4,
+            16,
+            16,
+            4
+          ],
+          "native_project_power_before_normalization": 3.999999761581421,
+          "native_project_power_after_normalization": 1.0000001192092896,
+          "input_csi_source": "sionna_ofdm_channel",
+          "input_h_f_shape": [
+            4,
+            16,
+            4,
+            16
+          ],
+          "fallback_reason": "",
+          "checkpoint_path": null,
+          "skipped_missing_checkpoint": false,
+          "teacher_used_during_inference": false
+        }
+      },
+      "shape_compatible": true,
+      "power_norm_close": true,
+      "max_abs_diff": 0.04955916479229927,
+      "comparison_valid": true,
+      "fallback_reason": "",
+      "comparison": {
+        "same_shape": true,
+        "same_tensor_signature": false,
+        "max_abs_diff": 0.04955916479229927,
+        "same_input_type": true,
+        "same_precoder_interface_used": true,
+        "same_method": false,
+        "same_source": false,
+        "same_project_side_precoder": false,
+        "same_teacher_used_during_inference": true,
+        "a": {
+          "input_type": "PrecoderOutput",
+          "f_f_shape": [
+            4,
+            16,
+            16,
+            4
+          ],
+          "precoder_interface_used": true,
+          "method": "project_rzf",
+          "source": "project_rzf",
+          "project_side_precoder": true,
+          "sionna_native_precoder": false,
+          "full_native_only": false,
+          "teacher_used_during_inference": false,
+          "power_normalized": true,
+          "power_norm": {
+            "mean": 1.0,
+            "std": 4.71216097253091e-08,
+            "max_abs_deviation_from_one": 1.1920928955078125e-07
+          },
+          "tensor_signature": "cd33db963230098367457166676d4fa694dc545120656ac75b3e2284b9d4029e"
+        },
+        "b": {
+          "input_type": "PrecoderOutput",
+          "f_f_shape": [
+            4,
+            16,
+            16,
+            4
+          ],
+          "precoder_interface_used": true,
+          "method": "sionna_rzf_precoder",
+          "source": "sionna_rzf_precoder",
+          "project_side_precoder": false,
+          "sionna_native_precoder": true,
+          "full_native_only": false,
+          "teacher_used_during_inference": false,
+          "power_normalized": true,
+          "power_norm": {
+            "mean": 1.0000001192092896,
+            "std": 1.1920928955078125e-07,
+            "max_abs_deviation_from_one": 2.384185791015625e-07
+          },
+          "tensor_signature": "06b80fb6e1da93bf090c5e51f768c495a3cc3bf7c51e4c825668ead57b746dfb"
+        }
+      }
+    }
+  },
+  "summary": {
+    "sionna_rzf_precoder_available": true,
+    "rzf_expected_input_shape": "[B, num_tx, num_streams_per_tx, num_ofdm_symbols, fft_size] plus h=[B, num_rx, num_rx_ant, num_tx, num_tx_ant, num_ofdm_symbols, fft_size]",
+    "rzf_expected_output_shape": "[B, num_tx, num_tx_ant, num_ofdm_symbols, fft_size] plus optional h_eff",
+    "compatible_with_current_interfaces": true,
+    "recommended_next_step": "adapter_bridge"
+  },
+  "notes": [
+    "RZFPrecoder exists in Sionna 2.0.1 and is callable on the current install.",
+    "Its native input contract is resource-grid-centric and higher rank than the project's H_f=(B,Nsc,K,Nt) path.",
+    "Current adapter can map one ExtractedCSI object into a probe-only native call path and convert the native output into PrecoderOutput.",
+    "This does not replace the project-side precoder mainline and does not justify a full native-only benchmark claim."
+  ]
+}
