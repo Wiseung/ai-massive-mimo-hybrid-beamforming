@@ -693,6 +693,15 @@ Compact native precoder table:
 | `strict_equivalence_claim_allowed` | `false` | do not label `project_rzf` and Sionna RZF as strictly equivalent |
 | `full_native_only` | `false` | still not a full native-only benchmark |
 
+Native precoder contract status:
+
+- the bridge now exposes an explicit `SionnaNativePrecoderContract`
+- the contract records native input/output tensor expectations, required `ResourceGrid` / `StreamManagement` settings, relationship metadata, skip policy, and fallback policy
+- `sionna_native_precoder=true` is only valid for the adapter-generated Sionna output object
+- `relationship_status` remains `close_but_different`
+- `strict_equivalence_claim_allowed` remains `false`
+- the method remains an optional native method bridge, not a mainline native replacement
+
 Current `v0.4.0` candidate comparison at the validated native insertion point:
 
 | Method | Native receiver success | Teacher inference | Approx sum-rate | Gap vs `project_rzf` | Gap vs `project_wmmse_iter_5` |

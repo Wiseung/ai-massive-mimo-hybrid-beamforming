@@ -1,0 +1,600 @@
+{
+  "status": "ok",
+  "sionna_import_ok": true,
+  "sionna_version": "2.0.1",
+  "contract_valid": true,
+  "sionna_rzf_available": true,
+  "sionna_rzf_callable": true,
+  "converted_to_precoder_output": true,
+  "relationship_status": "close_but_different",
+  "strict_equivalence_claim_allowed": false,
+  "semantic_compatibility_passed": true,
+  "sionna_native_precoder": true,
+  "project_side_precoder": false,
+  "full_native_only": false,
+  "fallback_used": false,
+  "fallback_reason": "",
+  "contract": {
+    "method_name": "sionna_rzf_precoder",
+    "sionna_component": "sionna.phy.ofdm.RZFPrecoder",
+    "sionna_version": "2.0.1",
+    "callable": true,
+    "input_contract": {
+      "native_x": "[B, num_tx, num_streams_per_tx, num_ofdm_symbols, fft_size]",
+      "native_h": "[B, num_rx, num_rx_ant, num_tx, num_tx_ant, num_ofdm_symbols, fft_size]",
+      "project_h_f": "(B,Nsc,K,Nt)",
+      "adapter_required": true,
+      "direct_drop_in_supported": false
+    },
+    "output_contract": {
+      "native_x_precoded": "[B, num_tx, num_tx_ant, num_ofdm_symbols, fft_size]",
+      "project_f_f": "(B,Nsc,Nt,K)",
+      "adapter_required": true,
+      "direct_drop_in_supported": false
+    },
+    "required_resource_grid_config": {
+      "probe_only_resource_grid": true,
+      "num_ofdm_symbols": 4,
+      "fft_size": 16,
+      "num_tx": 1,
+      "num_streams_per_tx": 4,
+      "pilot_pattern": null,
+      "dc_null": false,
+      "num_data_symbols": 64
+    },
+    "required_stream_management_config": {
+      "rx_tx_association": [
+        [
+          1
+        ],
+        [
+          1
+        ],
+        [
+          1
+        ],
+        [
+          1
+        ]
+      ],
+      "num_streams_per_tx": 4,
+      "num_tx": 1,
+      "num_rx": 4
+    },
+    "expected_x_shape": [
+      "B",
+      "num_tx",
+      "num_streams_per_tx",
+      "num_ofdm_symbols",
+      "fft_size"
+    ],
+    "expected_h_shape": [
+      "B",
+      "num_rx",
+      "num_rx_ant",
+      "num_tx",
+      "num_tx_ant",
+      "num_ofdm_symbols",
+      "fft_size"
+    ],
+    "expected_x_precoded_shape": [
+      "B",
+      "num_tx",
+      "num_tx_ant",
+      "num_ofdm_symbols",
+      "fft_size"
+    ],
+    "converted_precoder_output_shape": [
+      8,
+      16,
+      16,
+      4
+    ],
+    "relationship_to_project_rzf": "close_but_different",
+    "strict_equivalence_claim_allowed": false,
+    "semantic_compatibility_passed": true,
+    "project_side_precoder": false,
+    "sionna_native_precoder": true,
+    "full_native_only": false,
+    "skip_policy": {
+      "sionna_not_installed": "skip_method_without_failing_demo",
+      "rzf_precoder_unavailable": "skip_method_without_failing_demo",
+      "rzf_precoder_not_callable": "skip_method_without_failing_demo",
+      "adapter_failure": "skip_method_without_failing_demo"
+    },
+    "fallback_policy": {
+      "do_not_alias_project_rzf_as_sionna_rzf_precoder": true,
+      "keep_probe_result_even_if_receiver_fails": true,
+      "receiver_failure_records_native_receiver_success_false": true,
+      "full_native_only_remains_false": true
+    },
+    "metadata": {
+      "shape_mapping": {
+        "project_h_f_shape": [
+          8,
+          16,
+          4,
+          16
+        ],
+        "project_axes": {
+          "B": 0,
+          "Nsc": 1,
+          "K": 2,
+          "Nt": 3
+        },
+        "sionna_rzf_x_shape": [
+          8,
+          1,
+          4,
+          4,
+          16
+        ],
+        "sionna_rzf_h_shape": [
+          8,
+          4,
+          1,
+          1,
+          16,
+          4,
+          16
+        ],
+        "one_tx_assumed": true,
+        "one_rx_ant_per_user_assumed": true,
+        "num_streams_per_tx_equals_num_users": true,
+        "ofdm_symbol_axis_replicated_from_single_extracted_symbol": true,
+        "fft_axis_matches_extracted_effective_subcarriers_only": true
+      },
+      "comparison": {
+        "project_method": "project_rzf",
+        "project_shape": [
+          8,
+          16,
+          16,
+          4
+        ],
+        "project_power_norm": {
+          "mean": 1.0,
+          "std": 9.996002603429588e-08,
+          "max_abs_deviation_from_one": 2.384185791015625e-07
+        },
+        "project_csi_interface_used": true,
+        "project_input_type": "ExtractedCSI",
+        "sionna_summary": {
+          "source": "sionna_rzf_precoder",
+          "method": "sionna_rzf_precoder",
+          "input_csi_summary": {
+            "input_type": "ExtractedCSI",
+            "h_f_shape": [
+              8,
+              16,
+              4,
+              16
+            ],
+            "csi_interface_used": true,
+            "project_h_f_assisted": false,
+            "extracted_h_f_used": true,
+            "full_native_only": false,
+            "source": "sionna_ofdm_channel",
+            "source_component": "OFDMChannel(return_channel=True)",
+            "tensor_signature": "f8cd1f6ee08e8fb3de50e35ff3a4bcc3d60c8231b88b270b771da950f43d9ed5"
+          },
+          "axes": {
+            "B": 0,
+            "Nsc": 1,
+            "Nt": 2,
+            "K": 3
+          },
+          "shape": {
+            "B": 8,
+            "Nsc": 16,
+            "Nt": 16,
+            "K": 4
+          },
+          "f_f_shape": [
+            8,
+            16,
+            16,
+            4
+          ],
+          "dtype": "torch.complex64",
+          "num_users": 4,
+          "num_bs_ant": 16,
+          "num_subcarriers": 16,
+          "power_normalized": true,
+          "power_norm": {
+            "mean": 1.0,
+            "std": 1.0323827126512697e-07,
+            "max_abs_deviation_from_one": 2.384185791015625e-07
+          },
+          "teacher_used_during_inference": false,
+          "project_side_precoder": false,
+          "sionna_native_precoder": true,
+          "full_native_only": false,
+          "validation": {
+            "valid": true,
+            "shape": [
+              8,
+              16,
+              16,
+              4
+            ],
+            "dtype": "torch.complex64",
+            "is_complex": true,
+            "all_finite": true,
+            "power_summary": {
+              "mean": 1.0,
+              "std": 1.0323827126512697e-07,
+              "max_abs_deviation_from_one": 2.384185791015625e-07
+            },
+            "fallback_reason": ""
+          },
+          "metadata": {
+            "effective_channel_shape": [
+              8,
+              4,
+              1,
+              1,
+              4,
+              4,
+              16
+            ],
+            "mapping_receiver_config": {
+              "resource_grid_num_ofdm_symbols": 4,
+              "resource_grid_fft_size": 16,
+              "resource_grid_num_data_symbols": 64,
+              "resource_grid_num_pilot_symbols": 0,
+              "resource_grid_num_streams_per_tx": 4,
+              "resource_grid_num_tx": 1,
+              "effective_subcarrier_indices": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17
+              ],
+              "selected_ofdm_symbol": 1,
+              "stream_management_num_rx": 4,
+              "stream_management_num_tx": 1,
+              "stream_management_num_streams_per_tx": 4,
+              "stream_management_num_desired_streams": 4
+            },
+            "source_component": "RZFPrecoder",
+            "shape_assumptions": {
+              "expected_sionna_output_rank": 5,
+              "expected_sionna_axes": [
+                "B",
+                "num_tx",
+                "Nt",
+                "num_ofdm_symbols",
+                "fft_size"
+              ],
+              "target_project_axes": [
+                "B",
+                "Nsc",
+                "Nt",
+                "K"
+              ],
+              "mapping_rule": "tx=0 then permute to (B, fft_size, Nt, num_ofdm_symbols)",
+              "requires_num_ofdm_symbols_equals_num_users": true,
+              "requires_fft_size_equals_num_subcarriers": true
+            },
+            "raw_sionna_output_shape": [
+              8,
+              1,
+              16,
+              4,
+              16
+            ],
+            "converted_project_f_f_shape": [
+              8,
+              16,
+              16,
+              4
+            ],
+            "native_project_power_before_normalization": 4.0,
+            "native_project_power_after_normalization": 1.0,
+            "input_csi_source": "sionna_ofdm_channel",
+            "input_h_f_shape": [
+              8,
+              16,
+              4,
+              16
+            ],
+            "fallback_reason": "",
+            "native_precoder_contract": {
+              "method_name": "sionna_rzf_precoder",
+              "sionna_component": "sionna.phy.ofdm.RZFPrecoder",
+              "sionna_version": "2.0.1",
+              "callable": true,
+              "input_contract": {
+                "native_x": "[B, num_tx, num_streams_per_tx, num_ofdm_symbols, fft_size]",
+                "native_h": "[B, num_rx, num_rx_ant, num_tx, num_tx_ant, num_ofdm_symbols, fft_size]",
+                "project_h_f": "(B,Nsc,K,Nt)",
+                "adapter_required": true,
+                "direct_drop_in_supported": false
+              },
+              "output_contract": {
+                "native_x_precoded": "[B, num_tx, num_tx_ant, num_ofdm_symbols, fft_size]",
+                "project_f_f": "(B,Nsc,Nt,K)",
+                "adapter_required": true,
+                "direct_drop_in_supported": false
+              },
+              "required_resource_grid_config": {
+                "num_tx": 1,
+                "pilot_pattern": null,
+                "dc_null": false,
+                "probe_only_resource_grid": true
+              },
+              "required_stream_management_config": {
+                "rx_tx_association": "ones((K,1))",
+                "num_streams_per_tx": "K",
+                "num_tx": 1
+              },
+              "expected_x_shape": [
+                "B",
+                "num_tx",
+                "num_streams_per_tx",
+                "num_ofdm_symbols",
+                "fft_size"
+              ],
+              "expected_h_shape": [
+                "B",
+                "num_rx",
+                "num_rx_ant",
+                "num_tx",
+                "num_tx_ant",
+                "num_ofdm_symbols",
+                "fft_size"
+              ],
+              "expected_x_precoded_shape": [
+                "B",
+                "num_tx",
+                "num_tx_ant",
+                "num_ofdm_symbols",
+                "fft_size"
+              ],
+              "converted_precoder_output_shape": [
+                8,
+                16,
+                16,
+                4
+              ],
+              "relationship_to_project_rzf": "close_but_different",
+              "strict_equivalence_claim_allowed": false,
+              "semantic_compatibility_passed": true,
+              "project_side_precoder": false,
+              "sionna_native_precoder": true,
+              "full_native_only": false,
+              "skip_policy": {
+                "sionna_not_installed": "skip_method_without_failing_demo",
+                "rzf_precoder_unavailable": "skip_method_without_failing_demo",
+                "rzf_precoder_not_callable": "skip_method_without_failing_demo",
+                "adapter_failure": "skip_method_without_failing_demo"
+              },
+              "fallback_policy": {
+                "do_not_alias_project_rzf_as_sionna_rzf_precoder": true,
+                "keep_probe_result_even_if_receiver_fails": true,
+                "receiver_failure_records_native_receiver_success_false": true,
+                "full_native_only_remains_false": true
+              },
+              "metadata": {
+                "shape_assumptions": {
+                  "expected_sionna_output_rank": 5,
+                  "expected_sionna_axes": [
+                    "B",
+                    "num_tx",
+                    "Nt",
+                    "num_ofdm_symbols",
+                    "fft_size"
+                  ],
+                  "target_project_axes": [
+                    "B",
+                    "Nsc",
+                    "Nt",
+                    "K"
+                  ],
+                  "mapping_rule": "tx=0 then permute to (B, fft_size, Nt, num_ofdm_symbols)",
+                  "requires_num_ofdm_symbols_equals_num_users": true,
+                  "requires_fft_size_equals_num_subcarriers": true
+                },
+                "source_component": "RZFPrecoder"
+              },
+              "validation": {
+                "valid": true,
+                "fallback_reason": ""
+              }
+            },
+            "checkpoint_path": null,
+            "skipped_missing_checkpoint": false,
+            "teacher_used_during_inference": false
+          }
+        },
+        "shape_compatible": true,
+        "power_norm_close": true,
+        "max_abs_diff": 0.055185142904520035,
+        "comparison_valid": true,
+        "fallback_reason": "",
+        "comparison": {
+          "same_shape": true,
+          "same_tensor_signature": false,
+          "max_abs_diff": 0.055185142904520035,
+          "same_input_type": true,
+          "same_precoder_interface_used": true,
+          "same_method": false,
+          "same_source": false,
+          "same_project_side_precoder": false,
+          "same_teacher_used_during_inference": true,
+          "a": {
+            "input_type": "PrecoderOutput",
+            "f_f_shape": [
+              8,
+              16,
+              16,
+              4
+            ],
+            "precoder_interface_used": true,
+            "method": "project_rzf",
+            "source": "project_rzf",
+            "project_side_precoder": true,
+            "sionna_native_precoder": false,
+            "full_native_only": false,
+            "teacher_used_during_inference": false,
+            "power_normalized": true,
+            "power_norm": {
+              "mean": 1.0,
+              "std": 9.996002603429588e-08,
+              "max_abs_deviation_from_one": 2.384185791015625e-07
+            },
+            "tensor_signature": "a47666c4d02a24cb01afd8086999ea73449467c8069ff421a8d6c267cfb9858b",
+            "relationship_status": null,
+            "strict_equivalence_claim_allowed": null,
+            "native_precoder_contract": null
+          },
+          "b": {
+            "input_type": "PrecoderOutput",
+            "f_f_shape": [
+              8,
+              16,
+              16,
+              4
+            ],
+            "precoder_interface_used": true,
+            "method": "sionna_rzf_precoder",
+            "source": "sionna_rzf_precoder",
+            "project_side_precoder": false,
+            "sionna_native_precoder": true,
+            "full_native_only": false,
+            "teacher_used_during_inference": false,
+            "power_normalized": true,
+            "power_norm": {
+              "mean": 1.0,
+              "std": 1.0323827126512697e-07,
+              "max_abs_deviation_from_one": 2.384185791015625e-07
+            },
+            "tensor_signature": "b2ed0dbfda76392ec24b2aa00932c5967be44a6504d9852c0e08febb94bdd694",
+            "relationship_status": "close_but_different",
+            "strict_equivalence_claim_allowed": false,
+            "native_precoder_contract": {
+              "method_name": "sionna_rzf_precoder",
+              "sionna_component": "sionna.phy.ofdm.RZFPrecoder",
+              "sionna_version": "2.0.1",
+              "callable": true,
+              "input_contract": {
+                "native_x": "[B, num_tx, num_streams_per_tx, num_ofdm_symbols, fft_size]",
+                "native_h": "[B, num_rx, num_rx_ant, num_tx, num_tx_ant, num_ofdm_symbols, fft_size]",
+                "project_h_f": "(B,Nsc,K,Nt)",
+                "adapter_required": true,
+                "direct_drop_in_supported": false
+              },
+              "output_contract": {
+                "native_x_precoded": "[B, num_tx, num_tx_ant, num_ofdm_symbols, fft_size]",
+                "project_f_f": "(B,Nsc,Nt,K)",
+                "adapter_required": true,
+                "direct_drop_in_supported": false
+              },
+              "required_resource_grid_config": {
+                "num_tx": 1,
+                "pilot_pattern": null,
+                "dc_null": false,
+                "probe_only_resource_grid": true
+              },
+              "required_stream_management_config": {
+                "rx_tx_association": "ones((K,1))",
+                "num_streams_per_tx": "K",
+                "num_tx": 1
+              },
+              "expected_x_shape": [
+                "B",
+                "num_tx",
+                "num_streams_per_tx",
+                "num_ofdm_symbols",
+                "fft_size"
+              ],
+              "expected_h_shape": [
+                "B",
+                "num_rx",
+                "num_rx_ant",
+                "num_tx",
+                "num_tx_ant",
+                "num_ofdm_symbols",
+                "fft_size"
+              ],
+              "expected_x_precoded_shape": [
+                "B",
+                "num_tx",
+                "num_tx_ant",
+                "num_ofdm_symbols",
+                "fft_size"
+              ],
+              "converted_precoder_output_shape": [
+                8,
+                16,
+                16,
+                4
+              ],
+              "relationship_to_project_rzf": "close_but_different",
+              "strict_equivalence_claim_allowed": false,
+              "semantic_compatibility_passed": true,
+              "project_side_precoder": false,
+              "sionna_native_precoder": true,
+              "full_native_only": false,
+              "skip_policy": {
+                "sionna_not_installed": "skip_method_without_failing_demo",
+                "rzf_precoder_unavailable": "skip_method_without_failing_demo",
+                "rzf_precoder_not_callable": "skip_method_without_failing_demo",
+                "adapter_failure": "skip_method_without_failing_demo"
+              },
+              "fallback_policy": {
+                "do_not_alias_project_rzf_as_sionna_rzf_precoder": true,
+                "keep_probe_result_even_if_receiver_fails": true,
+                "receiver_failure_records_native_receiver_success_false": true,
+                "full_native_only_remains_false": true
+              },
+              "metadata": {
+                "shape_assumptions": {
+                  "expected_sionna_output_rank": 5,
+                  "expected_sionna_axes": [
+                    "B",
+                    "num_tx",
+                    "Nt",
+                    "num_ofdm_symbols",
+                    "fft_size"
+                  ],
+                  "target_project_axes": [
+                    "B",
+                    "Nsc",
+                    "Nt",
+                    "K"
+                  ],
+                  "mapping_rule": "tx=0 then permute to (B, fft_size, Nt, num_ofdm_symbols)",
+                  "requires_num_ofdm_symbols_equals_num_users": true,
+                  "requires_fft_size_equals_num_subcarriers": true
+                },
+                "source_component": "RZFPrecoder"
+              },
+              "validation": {
+                "valid": true,
+                "fallback_reason": ""
+              }
+            }
+          }
+        }
+      }
+    },
+    "validation": {
+      "valid": true,
+      "fallback_reason": ""
+    }
+  }
+}

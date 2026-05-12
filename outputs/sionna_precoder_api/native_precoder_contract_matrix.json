@@ -1,0 +1,80 @@
+{
+  "status": "ok",
+  "sionna_import_ok": true,
+  "scenarios": [
+    {
+      "scenario": "normal_available",
+      "sionna_rzf_available": true,
+      "sionna_rzf_callable": true,
+      "converted_to_precoder_output": true,
+      "sionna_rzf_skipped": false,
+      "fallback_used": false,
+      "fallback_reason": "",
+      "relationship_status": "close_but_different",
+      "strict_equivalence_claim_allowed": false,
+      "project_rzf_aliasing_detected": false,
+      "contract_valid": true,
+      "native_receiver_success": true
+    },
+    {
+      "scenario": "force_missing_sionna",
+      "sionna_rzf_available": false,
+      "sionna_rzf_callable": false,
+      "converted_to_precoder_output": false,
+      "sionna_rzf_skipped": true,
+      "fallback_used": true,
+      "fallback_reason": "sionna_not_installed",
+      "relationship_status": "not_evaluated",
+      "strict_equivalence_claim_allowed": false,
+      "project_rzf_aliasing_detected": false,
+      "contract_valid": true,
+      "native_receiver_success": false
+    },
+    {
+      "scenario": "force_rzf_unavailable",
+      "sionna_rzf_available": false,
+      "sionna_rzf_callable": false,
+      "converted_to_precoder_output": false,
+      "sionna_rzf_skipped": true,
+      "fallback_used": true,
+      "fallback_reason": "rzf_precoder_unavailable",
+      "relationship_status": "not_evaluated",
+      "strict_equivalence_claim_allowed": false,
+      "project_rzf_aliasing_detected": false,
+      "contract_valid": true,
+      "native_receiver_success": false
+    },
+    {
+      "scenario": "force_adapter_failure",
+      "sionna_rzf_available": true,
+      "sionna_rzf_callable": true,
+      "converted_to_precoder_output": false,
+      "sionna_rzf_skipped": true,
+      "fallback_used": true,
+      "fallback_reason": "adapter_failure",
+      "relationship_status": "not_evaluated",
+      "strict_equivalence_claim_allowed": false,
+      "project_rzf_aliasing_detected": false,
+      "contract_valid": true,
+      "native_receiver_success": false
+    },
+    {
+      "scenario": "force_receiver_failure",
+      "sionna_rzf_available": true,
+      "sionna_rzf_callable": true,
+      "converted_to_precoder_output": true,
+      "sionna_rzf_skipped": false,
+      "fallback_used": false,
+      "fallback_reason": "forced_receiver_failure_for_contract_matrix",
+      "relationship_status": "close_but_different",
+      "strict_equivalence_claim_allowed": false,
+      "project_rzf_aliasing_detected": false,
+      "contract_valid": true,
+      "native_receiver_success": false
+    }
+  ],
+  "all_scenarios_contract_compliant": true,
+  "aliasing_project_rzf_detected": false,
+  "all_failure_scenarios_have_reason": true,
+  "successful_scenario_relationship_status": "close_but_different"
+}

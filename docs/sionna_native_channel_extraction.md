@@ -543,6 +543,20 @@ Compact native precoder table:
 | `strict_equivalence_claim_allowed` | `false` | do not claim strict equivalence to `project_rzf` |
 | `full_native_only` | `false` | benchmark boundary remains non-native-only |
 
+Contract-aware interpretation:
+
+- the optional native method now has an explicit contract schema
+- the schema hardens:
+  - expected native input/output tensor layouts
+  - adapter-required alignment to `ExtractedCSI` and `PrecoderOutput`
+  - skip/fallback policy
+  - comparison semantics
+- the successful contract-aware path still remains:
+  - optional method bridge
+  - `close_but_different`
+  - not strict equivalent
+  - not full native-only benchmark
+
 Boundary remains unchanged:
 
 - not full native-only benchmark
