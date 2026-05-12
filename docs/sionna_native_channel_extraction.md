@@ -531,6 +531,18 @@ Current semantic-alignment result:
   - all rows remain `close_but_different`
   - this supports optional-native-method integration, not a strict-equivalence claim
 
+Compact native precoder table:
+
+| Item | Current result | Interpretation |
+| --- | --- | --- |
+| `sionna_rzf_available` | `true` | current Sionna install exposes `RZFPrecoder` |
+| `sionna_rzf_callable` | `true` | minimal native precoder call works |
+| `converted_to_precoder_output` | `true` | native output can be bridged back to project `PrecoderOutput` |
+| `native_receiver_success` | `true` | optional native method enters the receiver path |
+| `relationship_status` | `close_but_different` | semantic alignment passes without strict value match |
+| `strict_equivalence_claim_allowed` | `false` | do not claim strict equivalence to `project_rzf` |
+| `full_native_only` | `false` | benchmark boundary remains non-native-only |
+
 Boundary remains unchanged:
 
 - not full native-only benchmark

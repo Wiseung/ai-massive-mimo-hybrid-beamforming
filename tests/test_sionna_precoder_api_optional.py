@@ -117,3 +117,41 @@ def test_compare_project_vs_sionna_precoder_runs_if_inputs_exist(tmp_path: Path)
     assert (out_dir / "project_vs_sionna_precoder_comparison_v2.csv").exists()
     md_text = (out_dir / "project_vs_sionna_precoder_comparison_v2.md").read_text(encoding="utf-8")
     assert "full native-only benchmark: `False`" in md_text
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_generate_sionna_native_precoder_artifact_manifest_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "native_precoder_artifact_manifest.json"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/generate_sionna_native_precoder_artifact_manifest.py",
+            "--out",
+            str(out_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert "artifacts" in payload
+    assert any(row["name"] == "sionna_rzf_same_realization" for row in payload["artifacts"])
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_reproduce_sionna_native_precoder_minimal_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "sionna_native_precoder_minimal_summary.json"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/reproduce_sionna_native_precoder_minimal.py",
+            "--out",
+            str(out_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["status"] in {"ok", "skipped"}
+    assert "sionna_rzf_callable" in payload

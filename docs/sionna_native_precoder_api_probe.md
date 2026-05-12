@@ -207,6 +207,28 @@ It is **not** the same as claiming:
 - `project_rzf` and `sionna_rzf_precoder` are strictly equivalent
 - the benchmark is now full native-only
 
+## v0.9.0 Candidate Status
+
+Current `v0.9.0` candidate interpretation:
+
+- `sionna_rzf_precoder` is now a release-hardened optional native method bridge candidate
+- the native output can be converted to `PrecoderOutput`
+- the converted output can enter the current native receiver path
+- the same-realization relationship remains `close_but_different`
+- strict equivalence to `project_rzf` is still not supported
+
+Compact native precoder table:
+
+| Item | Current result | Interpretation |
+| --- | --- | --- |
+| `sionna_rzf_available` | `true` | native `RZFPrecoder` exists on the current Sionna install |
+| `sionna_rzf_callable` | `true` | native call path is operational |
+| `converted_to_precoder_output` | `true` | adapter bridge maps native output into project schema |
+| `native_receiver_success` | `true` | converted native output traverses the current receiver path |
+| `relationship_status` | `close_but_different` | semantic alignment is strong enough for optional integration |
+| `strict_equivalence_claim_allowed` | `false` | no strict project_rzf equivalence claim |
+| `full_native_only` | `false` | still not a full native-only benchmark |
+
 ## Current boundary
 
 The supported boundary remains:
