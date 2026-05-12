@@ -12,6 +12,7 @@ from beamforming.utils.sionna_native_learned_beamforming import (
     infer_learned_precoder,
     load_learned_beamformer_checkpoint,
 )
+from beamforming.utils.precoder_interface import PrecoderOutput, compare_precoder_outputs
 
 
 def _make_csi(h_f: torch.Tensor) -> ExtractedCSI:
@@ -73,3 +74,59 @@ def test_native_learned_wmmse_distill_teacher_flag_false() -> None:
     assert meta["input_type"] == "ExtractedCSI"
     assert meta["source"] == "synthetic_project"
     assert meta["source_component"] == "unit_test"
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_native_learned_precoder_can_emit_precoder_output() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    ckpt = default_checkpoint_path("learned_residual_rzf", repo_root)
+    if not ckpt.exists():
+        pytest.skip("Residual-RZF checkpoint not available")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    bundle = load_learned_beamformer_checkpoint(ckpt, device, method_name="learned_residual_rzf")
+    h_f = torch.randn(1, 8, 4, 16, dtype=torch.complex64, device=device)
+    h_f = (h_f + 1j * torch.randn_like(h_f)) / torch.sqrt(torch.tensor(2.0, device=device))
+    csi = _make_csi(h_f)
+    snr_db = torch.tensor([10.0], dtype=torch.float32, device=device)
+    precoder, meta, _ = infer_learned_precoder(
+        bundle,
+        csi,
+        snr_db,
+        native_receiver_path=True,
+        return_precoder_output=True,
+    )
+    assert isinstance(precoder, PrecoderOutput)
+    assert list(precoder.f_f.shape) == [1, 8, 16, 4]
+    assert meta["precoder_interface_used"] is True
+    assert meta["precoder_summary"]["teacher_used_during_inference"] is False
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_native_learned_precoder_raw_and_precoder_output_match_same_input() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    ckpt = default_checkpoint_path("learned_residual_rzf", repo_root)
+    if not ckpt.exists():
+        pytest.skip("Residual-RZF checkpoint not available")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    bundle = load_learned_beamformer_checkpoint(ckpt, device, method_name="learned_residual_rzf")
+    h_f = torch.randn(1, 8, 4, 16, dtype=torch.complex64, device=device)
+    h_f = (h_f + 1j * torch.randn_like(h_f)) / torch.sqrt(torch.tensor(2.0, device=device))
+    csi = _make_csi(h_f)
+    snr_db = torch.tensor([10.0], dtype=torch.float32, device=device)
+    raw_precoder, _, _ = infer_learned_precoder(
+        bundle,
+        csi,
+        snr_db,
+        native_receiver_path=True,
+        return_precoder_output=False,
+    )
+    precoder_output, _, _ = infer_learned_precoder(
+        bundle,
+        csi,
+        snr_db,
+        native_receiver_path=True,
+        return_precoder_output=True,
+    )
+    comparison = compare_precoder_outputs(raw_precoder, precoder_output)
+    assert comparison["same_tensor_signature"] is True
+    assert comparison["max_abs_diff"] == pytest.approx(0.0)

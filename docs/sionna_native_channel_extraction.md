@@ -381,6 +381,104 @@ The current supported summary is:
 - no 5G NR full stack
 - optional dependency only
 
+## PrecoderOutput Interface Motivation
+
+The `v0.7.0` consumer-unification phase made `ExtractedCSI` the preferred input interface for high-priority CSI consumers, but the project still passed raw `F_f=(B,Nsc,Nt,K)` tensors directly across analytic precoders, learned beamformers, and native receiver scripts.
+
+The next interface-hardening step is to standardize that output side as well so that:
+
+- analytic project precoders emit one validated `PrecoderOutput` schema
+- learned beamformer inference emits the same validated schema without losing checkpoint or teacher provenance
+- native receiver paths consume a reusable container instead of ad hoc raw tensor wiring
+- raw `F_f` remains available as a backward-compatible fallback where older scripts still expect it
+
+## PrecoderOutput Schema
+
+Current normalized fields:
+
+- `f_f`: complex torch tensor with shape `(B,Nsc,Nt,K)`
+- `source`: one of `project_rzf`, `project_wmmse_iter_5`, `learned_residual_rzf`, `learned_residual_wmmse_distill`, `sionna_rzf_future`
+- `method`
+- `input_csi_summary`
+- `axes = {B:0, Nsc:1, Nt:2, K:3}`
+- `shape = {B, Nsc, Nt, K}`
+- `num_users`
+- `num_bs_ant`
+- `num_subcarriers`
+- `power_normalized`
+- `power_norm`
+- `teacher_used_during_inference`
+- `project_side_precoder`
+- `sionna_native_precoder`
+- `full_native_only`
+- `metadata`
+
+Current provenance metadata includes:
+
+- `input_csi_source`
+- `input_h_f_shape`
+- `checkpoint_path`
+- `skipped_missing_checkpoint`
+- `teacher_used_during_inference`
+- `fallback_reason`
+
+## CSI + PrecoderOutput Unified Flow
+
+The current preferred bridge now becomes:
+
+- `ExtractedCSI -> PrecoderOutput -> native receiver path`
+
+This means the mainline Sionna-assisted workflow can now keep:
+
+- one shared CSI object as the preferred `H_f` input
+- one standardized precoder container as the preferred `F_f` output
+- one native receiver bridge that consumes either container-first interfaces or raw fallbacks when explicitly requested
+
+## Current PrecoderOutput Status
+
+Current supported summary:
+
+- analytic `project_rzf` and `project_wmmse_iter_5` now support `return_precoder_output=True`
+- learned `learned_residual_rzf` and `learned_residual_wmmse_distill` now support `return_precoder_output=True`
+- learned `PrecoderOutput` artifacts explicitly preserve `teacher_used_during_inference=false`
+- the native receiver bridge accepts `PrecoderOutput` directly
+- `ExtractedCSI` is the preferred input interface and `PrecoderOutput` is the preferred output interface
+- raw `H_f` and raw `F_f` remain backward-compatible fallbacks
+- raw `F_f` remains a backward-compatible fallback
+- same-batch raw-`F_f` vs `PrecoderOutput` validation now reuses one shared CSI object, one shared raw `F_f` per method, one shared bit/symbol batch, one shared noise realization, and one shared native receiver configuration
+- the old raw-`F_f` vs `PrecoderOutput` ranking mismatch is now explicitly explained as a cross-run comparison artifact rather than `PrecoderOutput` bug evidence
+- this still does not change the benchmark boundary to full native-only
+
+Compact PrecoderOutput table:
+
+| Item | Current result | Interpretation |
+| --- | --- | --- |
+| PrecoderOutput schema | `implemented` | standardized project-side `F_f=(B,Nsc,Nt,K)` output container |
+| analytic methods emit PrecoderOutput | `supported` | project `RZF/WMMSE` outputs now have a reusable bridge format |
+| learned methods emit PrecoderOutput | `supported` | learned residual methods keep checkpoint and teacher provenance in one object |
+| native receiver consumes PrecoderOutput | `supported` | receiver path accepts standardized output object directly |
+| raw F_f fallback | `retained` | older scripts/tests can still use legacy raw tensors |
+| same-batch raw-vs-PrecoderOutput equivalence | `passed` | shared-realization validation gives exact metric agreement within tolerance |
+| previous raw-vs-PrecoderOutput mismatch root cause | `cross_run_comparison_without_shared_csi_and_precoder_realization` | prior mismatch came from independent reruns |
+| strict raw-vs-PrecoderOutput equivalence claim on cross-run artifact | `false` | only the new same-batch validation can justify the strict claim |
+| current v0.8.0 candidate status | `release hardening` | manifest, minimal reproduction, release notes, and PR text are prepared for the bridge |
+
+PrecoderOutput same-batch interpretation:
+
+- `PrecoderOutput.f_f` is numerically identical to the corresponding raw `F_f` under one shared realization
+- native receiver metrics are numerically consistent under one shared CSI / `F_f` / symbol / noise / receiver-config fixture
+- the old cross-run comparison remains useful for artifact-level auditing, but it is not a strict equivalence test
+- no new fallback is introduced by this bridge
+- this still does not change the boundary to full native-only
+
+Boundary remains:
+
+- not full native-only benchmark
+- no Sionna RT
+- no ray tracing
+- no 5G NR full stack
+- optional dependency only
+
 Current consumer-unification validation commands:
 
 ```bash
@@ -400,6 +498,24 @@ python scripts/generate_sionna_csi_consumer_artifact_manifest.py \
 
 python scripts/reproduce_sionna_csi_consumer_minimal.py \
   --out outputs/repro/sionna_csi_consumer_minimal_summary.json
+python scripts/validate_precoder_output_same_batch_equivalence.py \
+  --out outputs/sionna_channel_extraction/precoder_output_same_batch_equivalence.json
+
+python scripts/audit_precoder_output_comparison_mismatch.py \
+  --raw outputs/sionna_channel_extraction/csi_backed_beamforming_metrics.csv \
+  --precoder-output outputs/sionna_channel_extraction/unified_csi_precoder_metrics.csv \
+  --out outputs/sionna_channel_extraction
+
+python scripts/compare_raw_ff_vs_precoder_output.py \
+  --raw outputs/sionna_channel_extraction/csi_backed_beamforming_metrics.csv \
+  --precoder-output outputs/sionna_channel_extraction/unified_csi_precoder_metrics.csv \
+  --out outputs/sionna_channel_extraction
+
+python scripts/generate_sionna_precoder_interface_artifact_manifest.py \
+  --out outputs/sionna_channel_extraction/precoder_interface_artifact_manifest.json
+
+python scripts/reproduce_sionna_precoder_interface_minimal.py \
+  --out outputs/repro/sionna_precoder_interface_minimal_summary.json
 ```
 
 ## CSI Consumer Unification Status

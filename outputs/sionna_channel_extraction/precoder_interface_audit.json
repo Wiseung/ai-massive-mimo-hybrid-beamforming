@@ -1,0 +1,166 @@
+{
+  "audit": [
+    {
+      "file": "src/beamforming/utils/sionna_native_beamforming_chain.py",
+      "function_or_script": "compute_project_precoder_per_subcarrier",
+      "current_output_type": "both",
+      "current_input_type": "both",
+      "should_support_precoder_output": true,
+      "migration_priority": "high",
+      "recommended_change": "Prefer return_precoder_output=True in new scripts while preserving raw F_f fallback.",
+      "backwards_compatibility_required": true
+    },
+    {
+      "file": "src/beamforming/utils/sionna_native_beamforming_chain.py",
+      "function_or_script": "apply_project_precoder_to_sionna_grid",
+      "current_output_type": "unknown",
+      "current_input_type": "both",
+      "should_support_precoder_output": true,
+      "migration_priority": "high",
+      "recommended_change": "Consume PrecoderOutput via as_project_f_f() and keep raw tensor compatibility.",
+      "backwards_compatibility_required": true
+    },
+    {
+      "file": "src/beamforming/utils/sionna_native_learned_beamforming.py",
+      "function_or_script": "infer_learned_precoder",
+      "current_output_type": "both",
+      "current_input_type": "both",
+      "should_support_precoder_output": true,
+      "migration_priority": "high",
+      "recommended_change": "Emit PrecoderOutput for learned inference and preserve teacher_used_during_inference=false provenance.",
+      "backwards_compatibility_required": true
+    },
+    {
+      "file": "src/beamforming/utils/sionna_native_learned_beamforming.py",
+      "function_or_script": "run_native_receiver_with_precoder",
+      "current_output_type": "unknown",
+      "current_input_type": "both",
+      "should_support_precoder_output": true,
+      "migration_priority": "high",
+      "recommended_change": "Prefer PrecoderOutput in receiver-chain entrypoints and surface interface metadata in rows.",
+      "backwards_compatibility_required": true
+    },
+    {
+      "file": "scripts/sionna_csi_backed_beamforming_chain.py",
+      "function_or_script": "main",
+      "current_output_type": "both",
+      "current_input_type": "both",
+      "should_support_precoder_output": true,
+      "migration_priority": "high",
+      "recommended_change": "Default to PrecoderOutput and keep --raw-f-f fallback for compatibility comparisons.",
+      "backwards_compatibility_required": true
+    },
+    {
+      "file": "scripts/demo_unified_csi_consumers.py",
+      "function_or_script": "main",
+      "current_output_type": "PrecoderOutput",
+      "current_input_type": "PrecoderOutput",
+      "should_support_precoder_output": true,
+      "migration_priority": "high",
+      "recommended_change": "Use one shared ExtractedCSI object and require all evaluated methods to emit PrecoderOutput.",
+      "backwards_compatibility_required": false
+    },
+    {
+      "file": "scripts/sionna_native_ofdm_learned_beamforming_chain.py",
+      "function_or_script": "main",
+      "current_output_type": "both",
+      "current_input_type": "both",
+      "should_support_precoder_output": true,
+      "migration_priority": "medium",
+      "recommended_change": "Record precoder interface provenance for analytic and learned paths while preserving raw F_f fallback semantics.",
+      "backwards_compatibility_required": true
+    },
+    {
+      "file": "scripts/sionna_native_channel_beamforming_chain.py",
+      "function_or_script": "main",
+      "current_output_type": "raw_f_f",
+      "current_input_type": "raw_f_f",
+      "should_support_precoder_output": true,
+      "migration_priority": "medium",
+      "recommended_change": "Optional future migration to PrecoderOutput if this legacy extracted-H script remains a maintained path.",
+      "backwards_compatibility_required": true
+    },
+    {
+      "file": "scripts/validate_csi_same_batch_equivalence.py",
+      "function_or_script": "main",
+      "current_output_type": "raw_f_f",
+      "current_input_type": "raw_f_f",
+      "should_support_precoder_output": false,
+      "migration_priority": "low",
+      "recommended_change": "Keep same-batch equivalence focused on raw-vs-CSI H_f path unless a dedicated raw-vs-PrecoderOutput same-batch test is added.",
+      "backwards_compatibility_required": true
+    },
+    {
+      "file": "scripts/demo_unified_csi_and_precoder_interfaces.py",
+      "function_or_script": "main",
+      "current_output_type": "PrecoderOutput",
+      "current_input_type": "PrecoderOutput",
+      "should_support_precoder_output": true,
+      "migration_priority": "high",
+      "recommended_change": "Serve as the main unified demo for ExtractedCSI -> PrecoderOutput -> native receiver flow.",
+      "backwards_compatibility_required": false
+    },
+    {
+      "file": "tests/test_precoder_interface.py",
+      "function_or_script": "schema tests",
+      "current_output_type": "PrecoderOutput",
+      "current_input_type": "PrecoderOutput",
+      "should_support_precoder_output": true,
+      "migration_priority": "low",
+      "recommended_change": "Keep schema and provenance validation independent from optional Sionna runtime.",
+      "backwards_compatibility_required": false
+    },
+    {
+      "file": "tests/test_precoder_input_adapters.py",
+      "function_or_script": "adapter tests",
+      "current_output_type": "both",
+      "current_input_type": "both",
+      "should_support_precoder_output": true,
+      "migration_priority": "low",
+      "recommended_change": "Preserve raw tensor fallback while keeping PrecoderOutput as the preferred interface.",
+      "backwards_compatibility_required": false
+    },
+    {
+      "file": "README.md",
+      "function_or_script": "Sionna optional docs",
+      "current_output_type": "both",
+      "current_input_type": "both",
+      "should_support_precoder_output": true,
+      "migration_priority": "medium",
+      "recommended_change": "Document PrecoderOutput as preferred output while keeping raw F_f as backward-compatible fallback.",
+      "backwards_compatibility_required": true
+    },
+    {
+      "file": "docs/sionna_native_channel_extraction.md",
+      "function_or_script": "CSI/precoder bridge docs",
+      "current_output_type": "both",
+      "current_input_type": "both",
+      "should_support_precoder_output": true,
+      "migration_priority": "medium",
+      "recommended_change": "Add ExtractedCSI -> PrecoderOutput -> native receiver flow and cross-run comparison caveat.",
+      "backwards_compatibility_required": true
+    }
+  ],
+  "total_consumers_audited": 14,
+  "raw_only_high_priority_paths": 0,
+  "already_support_both": 9,
+  "raw_only_key_paths": [
+    "scripts/sionna_native_channel_beamforming_chain.py::main"
+  ],
+  "already_support_precoder_output_paths": [
+    "src/beamforming/utils/sionna_native_beamforming_chain.py::compute_project_precoder_per_subcarrier",
+    "src/beamforming/utils/sionna_native_beamforming_chain.py::apply_project_precoder_to_sionna_grid",
+    "src/beamforming/utils/sionna_native_learned_beamforming.py::infer_learned_precoder",
+    "src/beamforming/utils/sionna_native_learned_beamforming.py::run_native_receiver_with_precoder",
+    "scripts/sionna_csi_backed_beamforming_chain.py::main",
+    "scripts/demo_unified_csi_consumers.py::main",
+    "scripts/sionna_native_ofdm_learned_beamforming_chain.py::main",
+    "scripts/demo_unified_csi_and_precoder_interfaces.py::main",
+    "tests/test_precoder_interface.py::schema tests",
+    "tests/test_precoder_input_adapters.py::adapter tests",
+    "README.md::Sionna optional docs",
+    "docs/sionna_native_channel_extraction.md::CSI/precoder bridge docs"
+  ],
+  "high_priority_raw_only_gap": false,
+  "learned_teacher_flag_all_false": true
+}

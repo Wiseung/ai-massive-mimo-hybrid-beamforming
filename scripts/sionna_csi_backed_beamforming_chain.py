@@ -14,6 +14,7 @@ import torch
 add_src_to_path()
 
 from beamforming.utils.csi_interface import as_project_h_f, summarize_csi_input
+from beamforming.utils.precoder_interface import summarize_precoder_input
 from beamforming.utils.sionna_env import collect_sionna_env_info
 from beamforming.utils.sionna_native_beamforming_chain import compute_project_precoder_per_subcarrier
 from beamforming.utils.sionna_native_chain import write_json, write_markdown
@@ -33,6 +34,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--out", required=True)
     parser.add_argument("--receiver-mode", choices=["proxy", "native", "auto"], default="auto")
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument(
+        "--raw-f-f",
+        action="store_true",
+        help="Use the legacy raw F_f tensor path instead of the preferred PrecoderOutput interface.",
+    )
     return parser.parse_args()
 
 
@@ -54,15 +60,16 @@ def _md(summary: dict[str, Any]) -> list[str]:
         f"- extracted_h_f_used: `{summary['extracted_h_f_used']}`",
         f"- full_native_only: `{summary['full_native_only']}`",
         f"- native_receiver_success: `{summary['native_receiver_success']}`",
+        f"- precoder_interface_used: `{summary['precoder_interface_used']}`",
         "",
-        "| Method | Native OK | Teacher Inference | Sum Rate | Fallback | Reason |",
-        "| --- | --- | --- | ---: | --- | --- |",
+        "| Method | Precoder Input | Native OK | Teacher Inference | Sum Rate | Fallback | Reason |",
+        "| --- | --- | --- | --- | ---: | --- | --- |",
     ]
     for row in summary["metrics"]:
         sum_rate = row["approximate_sum_rate"]
         sum_rate_text = "nan" if sum_rate != sum_rate else f"{sum_rate:.6f}"
         lines.append(
-            f"| {row['method']} | {row['native_receiver_success']} | {row['teacher_used_during_inference']} | "
+            f"| {row['method']} | {row.get('precoder_input_type')} | {row['native_receiver_success']} | {row['teacher_used_during_inference']} | "
             f"{sum_rate_text} | {row['fallback_used']} | {row['fallback_reason']} |"
         )
     return lines
@@ -84,6 +91,9 @@ def main() -> None:
         "receiver_mode": args.receiver_mode,
         "seed": int(args.seed),
         "csi_interface_used": True,
+        "precoder_interface_supported": True,
+        "precoder_interface_requested": not bool(args.raw_f_f),
+        "precoder_interface_used": False,
         "csi_source": "sionna_ofdm_channel",
         "project_h_f_assisted": False,
         "extracted_h_f_used": True,
@@ -97,6 +107,7 @@ def main() -> None:
         "csi_input_summary": None,
         "metrics": [],
     }
+    use_precoder_output = not bool(args.raw_f_f)
     if not env["sionna_import_ok"]:
         write_json(out_path, summary)
         write_markdown(md_path, _md(summary))
@@ -140,7 +151,12 @@ def main() -> None:
         teacher_flag = False
         runtime_ms = 0.0
         if method_type == "analytic":
-            precoder = compute_project_precoder_per_subcarrier(method.removeprefix("project_"), csi_input, context.noise_var)
+            precoder = compute_project_precoder_per_subcarrier(
+                method.removeprefix("project_"),
+                csi_input,
+                context.noise_var,
+                return_precoder_output=use_precoder_output,
+            )
         else:
             ckpt = default_checkpoint_path(method, repo_root)
             if not ckpt.exists():
@@ -158,6 +174,11 @@ def main() -> None:
                         "full_native_only": False,
                         "native_receiver_success": False,
                         "teacher_used_during_inference": False,
+                        "precoder_interface_used": bool(use_precoder_output),
+                        "precoder_input_type": "PrecoderOutput" if use_precoder_output else "raw_f_f",
+                        "precoder_source": method,
+                        "project_side_precoder": True,
+                        "sionna_native_precoder": False,
                         "fallback_used": True,
                         "fallback_stage": "checkpoint",
                         "fallback_reason": "skipped_missing_checkpoint",
@@ -172,7 +193,13 @@ def main() -> None:
                 continue
             bundle = load_learned_beamformer_checkpoint(ckpt, device, method_name=method)
             snr_tensor = torch.full((h_f.size(0),), context.snr_db, dtype=torch.float32, device=device)
-            precoder, infer_meta, runtime_ms = infer_learned_precoder(bundle, csi_input, snr_tensor, native_receiver_path=True)
+            precoder, infer_meta, runtime_ms = infer_learned_precoder(
+                bundle,
+                csi_input,
+                snr_tensor,
+                native_receiver_path=True,
+                return_precoder_output=use_precoder_output,
+            )
             checkpoint_path = str(ckpt)
             teacher_flag = bool(infer_meta["teacher_used_during_inference"])
 
@@ -204,11 +231,13 @@ def main() -> None:
         row["project_h_f_assisted"] = False
         row["extracted_h_f_used"] = True
         row["full_native_only"] = False
+        row["precoder_summary"] = summarize_precoder_input(precoder)
         rows.append(row)
 
     summary["metrics"] = rows
     summary["native_receiver_success"] = any(bool(row["native_receiver_success"]) for row in rows)
     summary["teacher_used_during_inference"] = any(bool(row["teacher_used_during_inference"]) for row in rows)
+    summary["precoder_interface_used"] = bool(rows) and all(bool(row.get("precoder_interface_used")) for row in rows if row["fallback_reason"] != "skipped_missing_checkpoint")
     _write_csv(csv_path, rows)
     write_json(out_path, summary)
     write_markdown(md_path, _md(summary))

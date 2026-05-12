@@ -14,6 +14,7 @@ import torch
 add_src_to_path()
 
 from beamforming.utils.csi_interface import summarize_csi_input
+from beamforming.utils.precoder_interface import summarize_precoder_input
 from beamforming.utils.sionna_env import collect_sionna_env_info
 from beamforming.utils.sionna_native_beamforming_chain import compute_project_precoder_per_subcarrier, evaluate_ofdm_beamforming_outputs, time_function
 from beamforming.utils.sionna_native_chain import write_json, write_markdown
@@ -102,6 +103,7 @@ def main() -> None:
         "used_sionna_demapper": False,
         "shape_trace_path": None,
         "csi_interface_used": False,
+        "precoder_interface_used": True,
         "input_type": "raw_h_f",
         "project_h_f_assisted": True,
         "extracted_h_f_used": False,
@@ -153,7 +155,13 @@ def main() -> None:
             teacher_flag = False
             checkpoint_path = None
         elif method.startswith("project_"):
-            precoder_f, runtime_ms = time_function(compute_project_precoder_per_subcarrier, method.removeprefix("project_"), csi_input, context.noise_var)
+            precoder_f, runtime_ms = time_function(
+                compute_project_precoder_per_subcarrier,
+                method.removeprefix("project_"),
+                csi_input,
+                context.noise_var,
+                return_precoder_output=True,
+            )
             teacher_flag = False
             checkpoint_path = None
         else:
@@ -172,6 +180,11 @@ def main() -> None:
                         "used_sionna_equalizer": False,
                         "used_sionna_demapper": False,
                         "teacher_used_during_inference": False,
+                        "precoder_interface_used": True,
+                        "precoder_input_type": "PrecoderOutput",
+                        "precoder_source": method,
+                        "project_side_precoder": True,
+                        "sionna_native_precoder": False,
                         "fallback_used": True,
                         "fallback_stage": "checkpoint",
                         "fallback_reason": "skipped_missing_checkpoint",
@@ -186,7 +199,13 @@ def main() -> None:
                 continue
             bundle = load_learned_beamformer_checkpoint(ckpt, device, method_name=method)
             snr_tensor = torch.full((context.h_f.size(0),), context.snr_db, dtype=torch.float32, device=device)
-            precoder_f, infer_meta, runtime_ms = infer_learned_precoder(bundle, csi_input, snr_tensor, native_receiver_path=True)
+            precoder_f, infer_meta, runtime_ms = infer_learned_precoder(
+                bundle,
+                csi_input,
+                snr_tensor,
+                native_receiver_path=True,
+                return_precoder_output=True,
+            )
             teacher_flag = bool(infer_meta["teacher_used_during_inference"])
             checkpoint_path = str(ckpt)
 
@@ -212,6 +231,7 @@ def main() -> None:
         native_result["project_h_f_assisted"] = bool(context.context_meta.get("project_h_f_assisted", True))
         native_result["extracted_h_f_used"] = bool(context.context_meta.get("extracted_h_f_used", False))
         native_result["full_native_only"] = False
+        native_result["precoder_summary"] = summarize_precoder_input(precoder_f)
         rows.append(native_result)
 
     if args.trace_shapes:

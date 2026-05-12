@@ -11,6 +11,7 @@ import torch
 
 from beamforming.baselines.common import get_digital_precoder
 from beamforming.utils.csi_interface import ExtractedCSI, SharedSionnaOFDMBatch, as_project_h_f, tensor_signature
+from beamforming.utils.precoder_interface import PrecoderOutput, as_project_f_f, build_precoder_output
 from beamforming.utils.sionna_channel_extraction import create_shared_sionna_ofdm_batch, extract_h_f_from_sionna_channel
 from beamforming.utils.sionna_native_chain import load_component, resolve_sionna_device
 
@@ -81,17 +82,36 @@ def compute_project_precoder_per_subcarrier(
     method: str,
     channel_f: ExtractedCSI | torch.Tensor | dict[str, Any],
     noise_var: float | torch.Tensor,
-) -> torch.Tensor:
+    *,
+    return_precoder_output: bool = False,
+) -> torch.Tensor | PrecoderOutput:
     """Compute project precoders with output shape ``(B, Nsc, Nt, K)``.
 
     ``channel_f`` may be a raw project-side ``H_f`` tensor, an ``ExtractedCSI``
     object, or a dict containing ``"h_f"`` plus optional provenance metadata.
     """
-    channel_f, _ = as_project_h_f(channel_f)
+    channel_f_tensor, channel_meta = as_project_h_f(channel_f)
     precoders = []
-    for sc in range(channel_f.size(1)):
-        precoders.append(get_digital_precoder(method, channel_f[:, sc, :, :], noise_var=noise_var))
-    return torch.stack(precoders, dim=1)
+    for sc in range(channel_f_tensor.size(1)):
+        precoders.append(get_digital_precoder(method, channel_f_tensor[:, sc, :, :], noise_var=noise_var))
+    precoder_f = torch.stack(precoders, dim=1)
+    if not return_precoder_output:
+        return precoder_f
+    source = f"project_{method}"
+    input_csi = channel_f if isinstance(channel_f, (ExtractedCSI, dict)) else {"h_f": channel_f_tensor, **channel_meta}
+    noise_value = float(torch.as_tensor(noise_var).detach().float().mean().item())
+    return build_precoder_output(
+        f_f=precoder_f,
+        source=source,
+        method=source,
+        input_csi=input_csi,
+        project_side_precoder=True,
+        sionna_native_precoder=False,
+        teacher_used_during_inference=False,
+        power_normalized=True,
+        full_native_only=False,
+        metadata={"noise_var": noise_value},
+    )
 
 
 def describe_tensor(
@@ -208,6 +228,39 @@ def build_pilot_aware_multiuser_resource_grid(
         }
     )
     return resource_grid, stream_management, meta
+
+
+def summarize_receiver_config(
+    resource_grid: Any,
+    stream_management: Any,
+    *,
+    selected_ofdm_symbol: int | None = None,
+    effective_subcarrier_indices: list[int] | None = None,
+) -> dict[str, Any]:
+    """Return a compact serializable summary of the native receiver configuration."""
+
+    detection_desired = getattr(stream_management, "detection_desired_ind", [])
+    return {
+        "resource_grid_num_ofdm_symbols": int(resource_grid.num_ofdm_symbols),
+        "resource_grid_fft_size": int(resource_grid.fft_size),
+        "resource_grid_num_data_symbols": int(resource_grid.num_data_symbols),
+        "resource_grid_num_pilot_symbols": int(resource_grid.num_pilot_symbols),
+        "resource_grid_num_streams_per_tx": int(resource_grid.num_streams_per_tx),
+        "resource_grid_num_tx": int(resource_grid.num_tx),
+        "effective_subcarrier_indices": [
+            int(x)
+            for x in (
+                effective_subcarrier_indices
+                if effective_subcarrier_indices is not None
+                else resource_grid.effective_subcarrier_ind
+            )
+        ],
+        "selected_ofdm_symbol": int(selected_ofdm_symbol) if selected_ofdm_symbol is not None else None,
+        "stream_management_num_rx": int(stream_management.num_rx),
+        "stream_management_num_tx": int(stream_management.num_tx),
+        "stream_management_num_streams_per_tx": int(stream_management.num_streams_per_tx),
+        "stream_management_num_desired_streams": int(len(detection_desired)),
+    }
 
 
 def apply_precoder_to_resource_grid(stream_symbols: torch.Tensor, precoder_f: torch.Tensor) -> torch.Tensor:
@@ -460,7 +513,7 @@ def create_shared_sionna_ofdm_batch_from_generator(
 
 def apply_project_precoder_to_sionna_grid(
     x_rg: torch.Tensor,
-    precoder_f: torch.Tensor,
+    precoder_f: PrecoderOutput | torch.Tensor | dict[str, Any],
     resource_grid: Any,
 ) -> tuple[torch.Tensor | None, dict[str, Any]]:
     """Apply project precoders to a pilot-aware Sionna stream grid.
@@ -476,34 +529,35 @@ def apply_project_precoder_to_sionna_grid(
     """
     if x_rg.ndim != 5:
         return None, {"fallback_used": True, "fallback_reason": f"expected_x_rg_rank_5_got_{x_rg.ndim}"}
-    if precoder_f.ndim != 4:
-        return None, {"fallback_used": True, "fallback_reason": f"expected_precoder_rank_4_got_{precoder_f.ndim}"}
+    precoder_f_tensor, precoder_meta = as_project_f_f(precoder_f, validate=False)
+    if precoder_f_tensor.ndim != 4:
+        return None, {"fallback_used": True, "fallback_reason": f"expected_precoder_rank_4_got_{precoder_f_tensor.ndim}"}
     effective_subcarrier_ind = torch.as_tensor(resource_grid.effective_subcarrier_ind, device=x_rg.device)
-    if int(precoder_f.size(1)) != int(effective_subcarrier_ind.numel()):
+    if int(precoder_f_tensor.size(1)) != int(effective_subcarrier_ind.numel()):
         return None, {
             "fallback_used": True,
             "fallback_reason": "precoder_num_subcarriers_must_match_number_of_effective_subcarriers",
-            "precoder_num_subcarriers": int(precoder_f.size(1)),
+            "precoder_num_subcarriers": int(precoder_f_tensor.size(1)),
             "effective_subcarriers": int(effective_subcarrier_ind.numel()),
         }
-    if int(x_rg.size(2)) != int(precoder_f.size(-1)):
+    if int(x_rg.size(2)) != int(precoder_f_tensor.size(-1)):
         return None, {
             "fallback_used": True,
             "fallback_reason": "stream_dimension_mismatch_between_x_rg_and_precoder",
             "x_rg_num_streams": int(x_rg.size(2)),
-            "precoder_num_streams": int(precoder_f.size(-1)),
+            "precoder_num_streams": int(precoder_f_tensor.size(-1)),
         }
     x_eff = x_rg[..., effective_subcarrier_ind]  # [B, 1, K, S, Nsc]
     x_stream = x_eff[:, 0, :, :, :].permute(0, 2, 3, 1).contiguous()  # [B, S, Nsc, K]
     tx_ant_per_symbol = []
     for symbol_idx in range(x_stream.size(1)):
         stream_slice = x_stream[:, symbol_idx, :, :]  # [B, Nsc, K]
-        tx_ant_per_symbol.append(torch.matmul(precoder_f, stream_slice.unsqueeze(-1)).squeeze(-1))
+        tx_ant_per_symbol.append(torch.matmul(precoder_f_tensor, stream_slice.unsqueeze(-1)).squeeze(-1))
     tx_ant = torch.stack(tx_ant_per_symbol, dim=3).permute(0, 2, 3, 1).contiguous()  # [B, Nt, S, Nsc]
     tx_grid = torch.zeros(
         x_rg.size(0),
         1,
-        precoder_f.size(2),
+        precoder_f_tensor.size(2),
         x_rg.size(3),
         x_rg.size(4),
         dtype=x_rg.dtype,
@@ -515,6 +569,8 @@ def apply_project_precoder_to_sionna_grid(
         "fallback_reason": "",
         "effective_subcarrier_ind": [int(x) for x in effective_subcarrier_ind.tolist()],
         "tx_grid_shape": [int(x) for x in tx_grid.shape],
+        "precoder_interface_used": bool(precoder_meta.get("precoder_interface_used")),
+        "precoder_input_type": precoder_meta.get("input_type"),
     }
 
 

@@ -287,6 +287,148 @@ def test_demo_unified_csi_consumers_runs(tmp_path: Path) -> None:
 
 
 @pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_audit_precoder_interface_consumers_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "precoder_interface_audit.json"
+    subprocess.run(
+        [sys.executable, "scripts/audit_precoder_interface_consumers.py", "--out", str(out_path)],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["total_consumers_audited"] >= 1
+    assert "high_priority_raw_only_gap" in payload
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_demo_unified_csi_and_precoder_interfaces_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "unified_csi_precoder_summary.json"
+    subprocess.run(
+        [sys.executable, "scripts/demo_unified_csi_and_precoder_interfaces.py", "--out", str(out_path)],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["status"] in {"ok", "skipped", "failed"}
+    assert "all_precoders_emit_precoder_output" in payload
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_compare_raw_ff_vs_precoder_output_runs_if_inputs_exist(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    raw = repo_root / "outputs/sionna_channel_extraction/csi_backed_beamforming_metrics.csv"
+    precoder_output = repo_root / "outputs/sionna_channel_extraction/unified_csi_precoder_metrics.csv"
+    if not (raw.exists() and precoder_output.exists()):
+        pytest.skip("Required raw/precoder-output artifacts not present")
+    out_dir = tmp_path / "precoder_compare"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/compare_raw_ff_vs_precoder_output.py",
+            "--raw",
+            str(raw),
+            "--precoder-output",
+            str(precoder_output),
+            "--out",
+            str(out_dir),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    assert (out_dir / "precoder_output_comparison.csv").exists()
+    payload = (out_dir / "precoder_output_comparison.md").read_text(encoding="utf-8")
+    assert "comparison_type: `cross_run_comparison`" in payload
+    assert "same_batch_comparison: `false`" in payload
+    assert "interface_bug_evidence: `false`" in payload
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_validate_precoder_output_same_batch_equivalence_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "precoder_output_same_batch_equivalence.json"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/validate_precoder_output_same_batch_equivalence.py",
+            "--out",
+            str(out_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["status"] in {"ok", "skipped"}
+    assert "same_csi_object_used" in payload
+    assert "strict_equivalence_claim_allowed" in payload
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_audit_precoder_output_comparison_mismatch_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    raw = repo_root / "outputs/sionna_channel_extraction/csi_backed_beamforming_metrics.csv"
+    precoder_output = repo_root / "outputs/sionna_channel_extraction/unified_csi_precoder_metrics.csv"
+    if not (raw.exists() and precoder_output.exists()):
+        pytest.skip("Required raw/precoder-output artifacts not present")
+    out_dir = tmp_path / "precoder_mismatch_audit"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/audit_precoder_output_comparison_mismatch.py",
+            "--raw",
+            str(raw),
+            "--precoder-output",
+            str(precoder_output),
+            "--out",
+            str(out_dir),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads((out_dir / "precoder_output_mismatch_audit.json").read_text(encoding="utf-8"))
+    assert payload["comparison_independent_runs"] is True
+    assert payload["comparison_type"] == "cross_run_comparison"
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_generate_sionna_precoder_interface_artifact_manifest_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "precoder_interface_artifact_manifest.json"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/generate_sionna_precoder_interface_artifact_manifest.py",
+            "--out",
+            str(out_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert "artifacts" in payload
+    assert any(row["name"] == "precoder_output_same_batch_equivalence" for row in payload["artifacts"])
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_reproduce_sionna_precoder_interface_minimal_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "sionna_precoder_interface_minimal_summary.json"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/reproduce_sionna_precoder_interface_minimal.py",
+            "--out",
+            str(out_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["status"] in {"ok", "skipped"}
+    assert "precoder_interface_used" in payload or payload["status"] == "skipped"
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
 def test_compare_unified_csi_consumers_runs_if_inputs_exist(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     baseline = repo_root / "outputs/sionna_channel_extraction/csi_backed_beamforming_metrics.csv"

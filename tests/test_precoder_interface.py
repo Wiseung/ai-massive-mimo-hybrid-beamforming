@@ -1,0 +1,119 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+import torch
+
+from beamforming.utils.precoder_interface import PrecoderOutput, SharedPrecoderMethodArtifacts, compare_precoder_outputs
+
+
+def _make_f_f() -> torch.Tensor:
+    real = torch.randn(2, 3, 5, 4, dtype=torch.float32)
+    imag = torch.randn(2, 3, 5, 4, dtype=torch.float32)
+    f_f = (real + 1j * imag).to(torch.complex64)
+    power = (torch.abs(f_f) ** 2).sum(dim=(-2, -1), keepdim=True).clamp_min(1e-12)
+    return f_f / torch.sqrt(power)
+
+
+def _make_precoder_output(f_f: torch.Tensor) -> PrecoderOutput:
+    return PrecoderOutput(
+        f_f=f_f,
+        source="project_rzf",
+        method="project_rzf",
+        input_csi_summary={"input_type": "ExtractedCSI", "h_f_shape": [2, 3, 4, 5], "source": "sionna_ofdm_channel"},
+        axes={"B": 0, "Nsc": 1, "Nt": 2, "K": 3},
+        shape={"B": 2, "Nsc": 3, "Nt": 5, "K": 4},
+        num_users=4,
+        num_bs_ant=5,
+        num_subcarriers=3,
+        power_normalized=True,
+        power_norm={"mean": 1.0},
+        teacher_used_during_inference=False,
+        project_side_precoder=True,
+        sionna_native_precoder=False,
+        full_native_only=False,
+        metadata={
+            "input_csi_source": "sionna_ofdm_channel",
+            "input_h_f_shape": [2, 3, 4, 5],
+            "checkpoint_path": None,
+            "skipped_missing_checkpoint": False,
+            "teacher_used_during_inference": False,
+            "fallback_reason": "",
+        },
+    )
+
+
+def test_precoder_interface_valid_shape_passes() -> None:
+    precoder = _make_precoder_output(_make_f_f())
+    report = precoder.validate(raise_on_error=False)
+    assert report["valid"] is True
+    assert report["all_finite"] is True
+    assert report["power_summary"] is not None
+
+
+def test_precoder_interface_wrong_shape_raises_clear_error() -> None:
+    f_f = torch.ones(2, 3, 5, dtype=torch.complex64)
+    precoder = _make_precoder_output(_make_f_f())
+    precoder.f_f = f_f
+    with pytest.raises(ValueError, match="expected_rank_4_f_f_got_3"):
+        precoder.validate()
+
+
+def test_precoder_interface_no_nan_or_inf() -> None:
+    precoder = _make_precoder_output(_make_f_f())
+    assert precoder.validate(raise_on_error=False)["all_finite"] is True
+
+
+def test_precoder_interface_teacher_flag_tracked() -> None:
+    precoder = _make_precoder_output(_make_f_f())
+    assert precoder.teacher_used_during_inference is False
+    summary = precoder.summary_dict()
+    assert summary["teacher_used_during_inference"] is False
+
+
+def test_precoder_interface_summary_dict_contains_provenance_fields() -> None:
+    precoder = _make_precoder_output(_make_f_f())
+    summary = precoder.summary_dict()
+    assert summary["source"] == "project_rzf"
+    assert summary["method"] == "project_rzf"
+    assert summary["input_csi_summary"]["source"] == "sionna_ofdm_channel"
+    assert "metadata" in summary
+
+
+def test_precoder_interface_save_summary_json(tmp_path: Path) -> None:
+    precoder = _make_precoder_output(_make_f_f())
+    out_path = tmp_path / "precoder_summary.json"
+    precoder.save_summary_json(out_path)
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["f_f_shape"] == [2, 3, 5, 4]
+
+
+def test_compare_precoder_outputs_reports_max_abs_diff() -> None:
+    f_f = _make_f_f()
+    shifted = f_f.clone()
+    shifted[0, 0, 0, 0] += 0.25 + 0.0j
+    result = compare_precoder_outputs(f_f, _make_precoder_output(shifted))
+    assert result["same_shape"] is True
+    assert result["same_tensor_signature"] is False
+    assert result["max_abs_diff"] == pytest.approx(0.25)
+
+
+def test_shared_precoder_method_artifacts_summary_contains_diff_metadata() -> None:
+    f_f = _make_f_f()
+    precoder = _make_precoder_output(f_f)
+    artifacts = SharedPrecoderMethodArtifacts(
+        method="project_rzf",
+        method_type="analytic",
+        raw_f_f=f_f,
+        precoder_output=precoder,
+        checkpoint_path=None,
+        teacher_used_during_inference=False,
+        runtime_ms=1.0,
+        metadata={"seed": 0},
+    )
+    summary = artifacts.summary_dict()
+    assert summary["method"] == "project_rzf"
+    assert summary["max_abs_diff_raw_vs_precoder_f_f"] == pytest.approx(0.0)
+    assert summary["metadata"]["seed"] == 0

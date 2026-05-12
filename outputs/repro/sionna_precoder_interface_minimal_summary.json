@@ -1,0 +1,25 @@
+{
+  "status": "ok",
+  "sionna_import_ok": true,
+  "sionna_version": "2.0.1",
+  "csi_interface_used": true,
+  "precoder_interface_used": true,
+  "precoder_output_created": true,
+  "all_receiver_consumers_accept_precoder_output": true,
+  "same_batch_equivalence_passed": true,
+  "numeric_consistency_within_tolerance": true,
+  "max_abs_diff_raw_f_f_vs_precoder_output": 0.0,
+  "native_receiver_success": true,
+  "teacher_used_during_inference": false,
+  "project_side_precoder": true,
+  "sionna_native_precoder": false,
+  "full_native_only": false,
+  "sionna_rt_used": false,
+  "ray_tracing_used": false,
+  "fiveg_full_stack_used": false,
+  "notes": [
+    "This is a reviewer-oriented minimal reproduction check for the ExtractedCSI + PrecoderOutput bridge.",
+    "It does not download data and does not train any model.",
+    "The supported interpretation remains project-side precoder bridge plus Sionna-native channel/receiver path, not full native-only."
+  ]
+}
