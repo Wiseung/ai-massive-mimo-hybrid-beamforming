@@ -143,3 +143,41 @@ def test_compare_project_hf_vs_extracted_hf_runs_if_inputs_exist(tmp_path: Path)
     )
     assert (out_dir / "comparison.csv").exists()
     assert (out_dir / "comparison.md").exists()
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_generate_sionna_channel_extraction_artifact_manifest_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "channel_extraction_artifact_manifest.json"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/generate_sionna_channel_extraction_artifact_manifest.py",
+            "--out",
+            str(out_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert "artifacts" in payload
+    assert isinstance(payload["artifacts"], list)
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_reproduce_sionna_channel_extraction_minimal_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "sionna_channel_extraction_minimal_summary.json"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/reproduce_sionna_channel_extraction_minimal.py",
+            "--out",
+            str(out_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["status"] in {"ok", "skipped"}
+    assert "full_native_only" in payload or payload["status"] == "skipped"

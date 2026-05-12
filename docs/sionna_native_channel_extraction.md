@@ -20,6 +20,20 @@ Try to extract or construct:
 
 from Sionna-native channel tensors so the existing project precoder and learned-beamformer interfaces can consume a less assisted channel representation.
 
+## Current Status
+
+This document now tracks the `v0.5.0` candidate state for the optional Sionna-native channel-extraction bridge.
+
+Compact result table:
+
+| Item | Current result | Interpretation |
+| --- | --- | --- |
+| channel tensor shape | `[8,4,1,1,16,2,19]` | observed native Sionna channel tensor layout |
+| extracted `H_f` shape | `[8,16,4,16]` | project-compatible `H_f=(B,Nsc,K,Nt)` |
+| axis validation | `spot_check_max_abs_diff=0.0` | bridge axes/data-symbol selection are consistent |
+| native receiver success | `true` | supported path is native-channel-assisted + native-receiver-assisted |
+| proxy/native rank agreement | `0.226667` | proxy metric cannot replace native receiver metric |
+
 ## What This Phase Audits
 
 - `OFDMChannel`
@@ -176,3 +190,15 @@ This shrinks the earlier `project-H_f-assisted` limitation, but it still does no
 - therefore the correct description is:
   native-channel-assisted and native-receiver-assisted,
   but not yet a full native-only benchmark
+
+## Hard Boundaries
+
+- extracted-H_f reduces the `project-H_f-assisted` limitation
+- current supported description is `native-channel-assisted + native-receiver-assisted`
+- not full native-only benchmark
+- proxy metric cannot replace native receiver metric
+- no stable learned `> WMMSE-iter5` claim
+- no Sionna RT
+- no ray tracing
+- no 5G NR full stack
+- optional dependency only

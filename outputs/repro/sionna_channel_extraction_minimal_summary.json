@@ -1,0 +1,24 @@
+{
+  "status": "ok",
+  "sionna_import_ok": true,
+  "sionna_version": "2.0.1",
+  "extraction_success": true,
+  "extracted_h_f_shape": [
+    8,
+    16,
+    4,
+    16
+  ],
+  "axis_validation_passed": true,
+  "native_receiver_success": true,
+  "project_h_f_assisted": false,
+  "full_native_only": false,
+  "sionna_rt_used": false,
+  "ray_tracing_used": false,
+  "fiveg_full_stack_used": false,
+  "notes": [
+    "This is a reviewer-oriented minimal reproduction check for the Sionna channel-extraction bridge.",
+    "It does not download data and does not train any model.",
+    "The supported interpretation remains native-channel-assisted plus native-receiver-assisted, not full native-only."
+  ]
+}

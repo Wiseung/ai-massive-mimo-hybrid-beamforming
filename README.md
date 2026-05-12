@@ -416,6 +416,8 @@ Current post-`v0.4.0` next-step focus:
 - keep the existing native receiver path intact while testing a more native channel bridge
 - do not reinterpret this work as a full native-only benchmark unless channel, precoder, and receiver paths are all consistently native
 
+Current status: `v0.5.0` candidate for the optional Sionna-native channel-extraction bridge.
+
 Current channel-extraction branch result:
 
 - `OFDMChannel(return_channel=True)` can be converted into project `H_f=(B,Nsc,K,Nt)` under the current MU downlink assumptions
@@ -431,6 +433,27 @@ Current channel-extraction branch result:
 - compared with the earlier project-assisted native-chain path, the extracted-H path changes the single-run method ranking and shrinks the project-assisted limitation, but it still remains native-channel-assisted rather than full native-only
 
 See [`docs/sionna_native_channel_extraction.md`](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/sionna_native_channel_extraction.md) for the extraction path, shape mapping, and current limits.
+
+Compact extracted-H result table:
+
+| Item | Current result | Interpretation |
+| --- | --- | --- |
+| channel tensor shape | `[8,4,1,1,16,2,19]` | observed `h=[B,rx,rx_ant,tx,tx_ant,ofdm_symbol,fft_bin]` |
+| extracted `H_f` shape | `[8,16,4,16]` | compatible with project `H_f=(B,Nsc,K,Nt)` interface |
+| axis validation | `spot_check_max_abs_diff=0.0` | current axis mapping is consistent |
+| native receiver success | `true` | current path is native-channel-assisted + native-receiver-assisted |
+| proxy/native rank agreement | `0.226667` | proxy metric cannot replace native receiver metric |
+
+Current supported wording:
+
+- extracted-H_f path reduces the `project-H_f-assisted` limitation
+- current supported description is `native-channel-assisted + native-receiver-assisted`
+- not full native-only benchmark
+- proxy metric cannot replace native receiver metric
+- no RT
+- no ray tracing
+- no 5G NR full stack
+- optional dependency only
 
 Current channel-extraction validation commands:
 
