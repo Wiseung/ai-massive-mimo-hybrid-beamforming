@@ -1,0 +1,86 @@
+{
+  "status": "ok",
+  "seed": 0,
+  "sionna_import_ok": true,
+  "sionna_version": "2.0.1",
+  "sionna_rzf_available": true,
+  "sionna_rzf_callable": true,
+  "extracted_csi_used": true,
+  "sionna_precoder_success": true,
+  "sionna_output_shape": [
+    16,
+    1,
+    16,
+    4,
+    16
+  ],
+  "converted_to_precoder_output": true,
+  "project_rzf_output_shape": [
+    16,
+    16,
+    16,
+    4
+  ],
+  "shape_compatible": true,
+  "power_norm_project": 1.0,
+  "power_norm_sionna": 1.0,
+  "max_abs_diff_if_comparable": 0.09291762858629227,
+  "native_receiver_success_if_attempted": true,
+  "fallback_used": false,
+  "fallback_reason": "",
+  "probe_only": false,
+  "recommended_next_step": "adapter_bridge_then_optional_native_receiver_probe",
+  "rows": [
+    {
+      "method": "sionna_rzf_precoder",
+      "method_type": "native_probe",
+      "checkpoint_path": null,
+      "precoder_interface_used": true,
+      "precoder_input_type": "PrecoderOutput",
+      "precoder_source": "sionna_rzf_precoder",
+      "project_side_precoder": false,
+      "sionna_native_precoder": true,
+      "full_native_only": false,
+      "power_normalized": true,
+      "native_receiver_success": true,
+      "used_sionna_resource_grid": true,
+      "used_sionna_channel": true,
+      "used_sionna_estimator": true,
+      "used_sionna_equalizer": true,
+      "used_sionna_demapper": true,
+      "teacher_used_during_inference": false,
+      "fallback_used": false,
+      "fallback_stage": "",
+      "fallback_reason": "",
+      "ber_if_available": 0.0,
+      "symbol_mse": 0.03980284184217453,
+      "effective_sinr_db": 14.000859260559082,
+      "approximate_sum_rate": 18.829179763793945,
+      "power_norm": 1.0,
+      "runtime_ms": 0.0,
+      "precoder_summary": {
+        "input_type": "PrecoderOutput",
+        "f_f_shape": [
+          16,
+          16,
+          16,
+          4
+        ],
+        "precoder_interface_used": true,
+        "method": "sionna_rzf_precoder",
+        "source": "sionna_rzf_precoder",
+        "project_side_precoder": false,
+        "sionna_native_precoder": true,
+        "full_native_only": false,
+        "teacher_used_during_inference": false,
+        "power_normalized": true,
+        "power_norm": {
+          "mean": 1.0,
+          "std": 1.316034854426107e-07,
+          "max_abs_deviation_from_one": 2.384185791015625e-07
+        },
+        "tensor_signature": "ce1b2a1784227af69e6b678171b704c368d836437a55cabd3f4db0ad721ab848"
+      }
+    }
+  ]
+}

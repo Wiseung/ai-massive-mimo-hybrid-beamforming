@@ -479,6 +479,44 @@ Boundary remains:
 - no 5G NR full stack
 - optional dependency only
 
+## Native Precoder API Probe Status
+
+After `v0.8.0`, the next interface-hardening question is not "replace the project-side precoder now", but:
+
+- can the installed Sionna native precoder API be called reproducibly?
+- how far is its tensor contract from the current `ExtractedCSI` / `PrecoderOutput` contract?
+- can one adapter bridge prove shape and receiver compatibility without overstating integration status?
+
+Current native-precoder probe status:
+
+- `RZFPrecoder` is available in Sionna `2.0.1`
+- it expects:
+  - `x = (B, num_tx, num_streams_per_tx, num_ofdm_symbols, fft_size)`
+  - `h = (B, num_rx, num_rx_ant, num_tx, num_tx_ant, num_ofdm_symbols, fft_size)`
+- this is not a direct drop-in replacement for project `H_f=(B,Nsc,K,Nt)`
+- the current branch adds an optional adapter:
+  - `ExtractedCSI -> Sionna native probe inputs`
+  - `Sionna native output -> PrecoderOutput`
+- current supported interpretation remains:
+  - callable native API
+  - partial bridge compatibility
+  - current minimal probe can convert native RZF output to `PrecoderOutput` and enter the current native receiver path
+  - no direct mainline replacement yet
+
+Current recommendation:
+
+- keep `project_rzf` as the clean mainline precoder path
+- treat `RZFPrecoder` as an optional native reference path behind explicit adapter logic
+- use the bridge result to map future shape / stream-management integration cost
+
+Boundary remains unchanged:
+
+- not full native-only benchmark
+- no Sionna RT
+- no ray tracing
+- no 5G NR full stack
+- optional dependency only
+
 Current consumer-unification validation commands:
 
 ```bash

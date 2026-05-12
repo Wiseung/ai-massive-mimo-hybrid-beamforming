@@ -17,6 +17,7 @@ _SUPPORTED_PRECODER_SOURCES = {
     "project_wmmse_iter_5",
     "learned_residual_rzf",
     "learned_residual_wmmse_distill",
+    "sionna_rzf_precoder",
     "sionna_rzf_future",
 }
 

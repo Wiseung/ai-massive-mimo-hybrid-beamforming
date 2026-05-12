@@ -645,6 +645,9 @@ Current branch status:
 
 - `RZFPrecoder` is available in Sionna 2.0.1, but its expected tensor layout is not the same as the repository's `H_f=(B,Nsc,K,Nt)` project-side precoder path
 - current clean mainline remains project frequency-domain precoder insertion
+- current native-precoder probe branch adds an adapter-focused audit path for `ExtractedCSI -> Sionna RZFPrecoder input -> PrecoderOutput`
+- current native-precoder interpretation remains compatibility mapping only: direct replacement is not yet the supported mainline
+- current probe shows `RZFPrecoder` is callable, can be converted into `PrecoderOutput`, and can enter the current native receiver path through the adapter bridge
 - `project_rzf` and `project_wmmse_iter_5` both improve strongly over `no_precoding` in the current beamforming-chain proxy metrics
 - pilot-pattern audit shows that `LSChannelEstimator` requires a non-empty pilot pattern; `pilot_pattern=\"kronecker\"` with `pilot_ofdm_symbol_indices=[0]` is the current minimal working config
 - the minimal estimator/equalizer demo succeeds with a real Sionna pilot-based receiver chain
@@ -661,6 +664,19 @@ Current branch status:
 - both learned methods enter a real Sionna receiver path while still consuming project-assisted `H_f` / precoder inputs
 - fallback proxy metrics are still not described as full Sionna-native receiver results when native receiver mode is not used
 - this branch therefore should still be read as an integration experiment, not a production e2e chain
+
+Current native precoder API probe status:
+
+- `sionna.phy.ofdm.RZFPrecoder` is callable on the current Sionna 2.0.1 install
+- its native contract remains resource-grid-centric and higher rank than project `H_f=(B,Nsc,K,Nt)`
+- the current adapter path can map one `ExtractedCSI` object into a minimal native RZF probe
+- the current adapter path can convert the native RZF output back into `PrecoderOutput`
+- if the converted `PrecoderOutput` is used, the current native receiver bridge can be attempted without relabeling the path as full native-only
+- recommended next step remains adapter bridge / compatibility mapping, not project-side precoder replacement
+- no Sionna RT
+- no ray tracing
+- no 5G NR full stack
+- optional dependency only
 
 Current `v0.4.0` candidate comparison at the validated native insertion point:
 
