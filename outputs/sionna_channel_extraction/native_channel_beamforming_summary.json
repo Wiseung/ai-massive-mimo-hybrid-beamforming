@@ -1,0 +1,325 @@
+{
+  "sionna_import_ok": true,
+  "sionna_version": "2.0.1",
+  "receiver_mode": "auto",
+  "extraction_success": true,
+  "project_h_f_assisted": false,
+  "native_receiver_success": true,
+  "notes": [],
+  "metrics": [
+    {
+      "method": "project_rzf_from_extracted_h",
+      "method_type": "analytic",
+      "checkpoint_path": null,
+      "native_receiver_success": true,
+      "used_sionna_resource_grid": true,
+      "used_sionna_channel": true,
+      "used_sionna_estimator": true,
+      "used_sionna_equalizer": true,
+      "used_sionna_demapper": true,
+      "teacher_used_during_inference": false,
+      "fallback_used": false,
+      "fallback_stage": "",
+      "fallback_reason": "",
+      "ber_if_available": 0.0,
+      "symbol_mse": 0.04342441260814667,
+      "effective_sinr_db": 13.622660636901855,
+      "approximate_sum_rate": 18.346704483032227,
+      "power_norm": 1.0,
+      "runtime_ms": 0.0,
+      "extraction_success": true,
+      "project_h_f_assisted": false,
+      "extracted_h_f_used": true
+    },
+    {
+      "method": "project_wmmse_iter_5_from_extracted_h",
+      "method_type": "analytic",
+      "checkpoint_path": null,
+      "native_receiver_success": true,
+      "used_sionna_resource_grid": true,
+      "used_sionna_channel": true,
+      "used_sionna_estimator": true,
+      "used_sionna_equalizer": true,
+      "used_sionna_demapper": true,
+      "teacher_used_during_inference": false,
+      "fallback_used": false,
+      "fallback_stage": "",
+      "fallback_reason": "",
+      "ber_if_available": 0.0,
+      "symbol_mse": 0.04567870497703552,
+      "effective_sinr_db": 13.402862548828125,
+      "approximate_sum_rate": 18.067096710205078,
+      "power_norm": 1.0,
+      "runtime_ms": 0.0,
+      "extraction_success": true,
+      "project_h_f_assisted": false,
+      "extracted_h_f_used": true
+    },
+    {
+      "method": "learned_residual_rzf_from_extracted_h",
+      "method_type": "learned",
+      "checkpoint_path": "/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/outputs/runs/sionna_ofdm_residual_rzf/best.pt",
+      "native_receiver_success": true,
+      "used_sionna_resource_grid": true,
+      "used_sionna_channel": true,
+      "used_sionna_estimator": true,
+      "used_sionna_equalizer": true,
+      "used_sionna_demapper": true,
+      "teacher_used_during_inference": false,
+      "fallback_used": false,
+      "fallback_stage": "",
+      "fallback_reason": "",
+      "ber_if_available": 0.0,
+      "symbol_mse": 0.041291385889053345,
+      "effective_sinr_db": 13.841406106948853,
+      "approximate_sum_rate": 18.62555694580078,
+      "power_norm": 1.0,
+      "runtime_ms": 79.89300804911181,
+      "extraction_success": true,
+      "project_h_f_assisted": false,
+      "extracted_h_f_used": true
+    },
+    {
+      "method": "learned_residual_wmmse_distill_from_extracted_h",
+      "method_type": "learned",
+      "checkpoint_path": "/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/outputs/runs/sionna_ofdm_residual_wmmse_distill/best.pt",
+      "native_receiver_success": true,
+      "used_sionna_resource_grid": true,
+      "used_sionna_channel": true,
+      "used_sionna_estimator": true,
+      "used_sionna_equalizer": true,
+      "used_sionna_demapper": true,
+      "teacher_used_during_inference": false,
+      "fallback_used": false,
+      "fallback_stage": "",
+      "fallback_reason": "",
+      "ber_if_available": 0.0,
+      "symbol_mse": 0.043655507266521454,
+      "effective_sinr_db": 13.599609136581421,
+      "approximate_sum_rate": 18.317352294921875,
+      "power_norm": 1.0,
+      "runtime_ms": 2.7446059975773096,
+      "extraction_success": true,
+      "project_h_f_assisted": false,
+      "extracted_h_f_used": true
+    }
+  ],
+  "extraction_meta": {
+    "fallback_used": false,
+    "fallback_reason": "",
+    "used_native_channel_extraction": true,
+    "selected_data_symbol_index": 1,
+    "extraction_meta": {
+      "resource_grid_num_ofdm_symbols": 2,
+      "resource_grid_num_data_symbols": 16,
+      "resource_grid_effective_subcarrier_ind": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ],
+      "resource_grid_pilot_ofdm_symbol_indices": [
+        0
+      ],
+      "shape_assumptions": {
+        "sionna_axes": [
+          "batch",
+          "rx",
+          "rx_ant",
+          "tx",
+          "tx_ant",
+          "ofdm_symbol",
+          "fft_bin"
+        ],
+        "project_axes": [
+          "batch",
+          "subcarrier",
+          "user",
+          "bs_ant"
+        ],
+        "rx_maps_to_user": true,
+        "tx_ant_maps_to_bs_ant": true,
+        "single_tx_required": true,
+        "single_rx_ant_required": true
+      },
+      "selected_ofdm_symbol": {
+        "requested_selected_ofdm_symbol": "first_data",
+        "data_symbol_indices": [
+          1
+        ],
+        "selected_data_symbol_indices": [
+          1
+        ],
+        "selection_mode": "first_data"
+      },
+      "selected_effective_subcarriers": {
+        "requested_effective_subcarriers": "all_effective",
+        "all_effective_subcarrier_indices": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17
+        ],
+        "selected_effective_subcarrier_indices": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17
+        ],
+        "selection_mode": "all_effective"
+      },
+      "conversion": {
+        "input_shape": [
+          16,
+          4,
+          1,
+          1,
+          16,
+          2,
+          19
+        ],
+        "assumed_sionna_axes": [
+          "batch",
+          "rx",
+          "rx_ant",
+          "tx",
+          "tx_ant",
+          "ofdm_symbol",
+          "fft_bin"
+        ],
+        "target_project_axes": [
+          "batch",
+          "subcarrier",
+          "user",
+          "bs_ant"
+        ],
+        "fallback_reason": "",
+        "selected_data_symbol_indices": [
+          1
+        ],
+        "normalize_channel": false,
+        "output_shape": [
+          16,
+          16,
+          4,
+          16
+        ],
+        "selected_effective_subcarrier_count": 16
+      },
+      "validation": {
+        "valid": true,
+        "shape": [
+          16,
+          16,
+          4,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "is_complex": true,
+        "all_finite": true,
+        "norm_mean": 7.7409772872924805,
+        "norm_std": 0.35372528433799744,
+        "subcarrier_norm_std_mean": 0.0,
+        "matrix_stats": {
+          "available": true,
+          "rank_mean": 4.0,
+          "rank_min": 4,
+          "rank_max": 4,
+          "condition_number_mean": 1.8953216075897217,
+          "condition_number_max": 2.307734489440918,
+          "fro_norm_mean": 7.7409772872924805,
+          "fro_norm_std": 0.35372528433799744
+        },
+        "fallback_reason": ""
+      },
+      "selected_data_symbol_indices": [
+        1
+      ],
+      "selected_data_symbol_index": 1,
+      "selected_effective_subcarrier_indices": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ],
+      "selected_effective_subcarrier_count": 16,
+      "normalize_channel": false,
+      "fallback_reason": ""
+    },
+    "full_channel_shape": [
+      16,
+      4,
+      1,
+      1,
+      16,
+      2,
+      19
+    ],
+    "effective_subcarrier_ind": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
+    ]
+  }
+}

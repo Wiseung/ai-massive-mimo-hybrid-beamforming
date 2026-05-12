@@ -409,6 +409,72 @@ python scripts/reproduce_sionna_native_chain_minimal.py \
 
 See [`docs/sionna_native_ofdm_link_chain.md`](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/sionna_native_ofdm_link_chain.md) for the intended beamforming insertion point and current chain limitations.
 
+Current post-`v0.4.0` next-step focus:
+
+- reduce the current `project-H_f-assisted` limitation
+- audit whether real Sionna channel tensors can be converted into project `H_f=(B,Nsc,K,Nt)`
+- keep the existing native receiver path intact while testing a more native channel bridge
+- do not reinterpret this work as a full native-only benchmark unless channel, precoder, and receiver paths are all consistently native
+
+Current status: `v0.5.0` candidate for the optional Sionna-native channel-extraction bridge.
+
+Current channel-extraction branch result:
+
+- `OFDMChannel(return_channel=True)` can be converted into project `H_f=(B,Nsc,K,Nt)` under the current MU downlink assumptions
+- the current extraction demo succeeds with `sionna_channel_tensor_shape=[8,4,1,1,16,2,19]` and `extracted_h_f_shape=[8,16,4,16]`
+- the native-channel-assisted beamforming demo succeeds with `project_h_f_assisted=false`
+- this reduces the old project-assisted limitation, but it still does not justify a full native-only benchmark claim
+- axis validation now spot-checks the bridge against the raw Sionna tensor and passes with `spot_check_max_abs_diff=0.0`
+- the current pilot-aware bridge uses OFDM symbol `1` as the first data-bearing symbol because OFDM symbol `0` is reserved for pilots
+- extracted-H quick consistency benchmarking (`seeds=1,2,3`, `snr=0,5,10,15,20 dB`, quick mode) keeps `extraction_success=true` and `native_receiver_success=true`, but proxy/native exact rank agreement is only `0.226667`
+- therefore project-side proxy metrics should not be treated as a reliable substitute for the native receiver metric under the extracted-H path
+- quick extracted-H consistency currently shows `learned_residual_rzf` below `project_rzf` on average (`-1.681560%`) and above `project_wmmse_iter_5` on average (`+4.735929%`) in this limited quick setting only; this is not enough to generalize a stable learned-`>`-`WMMSE-iter5` claim
+- extraction-config sweep keeps successful extraction across `first_data`, `last_data`, `all_data_average`, `all_effective`, `center_8`, `center_16`, and optional normalization, with the current default still `first_data + all_effective + normalize=false`
+- compared with the earlier project-assisted native-chain path, the extracted-H path changes the single-run method ranking and shrinks the project-assisted limitation, but it still remains native-channel-assisted rather than full native-only
+
+See [`docs/sionna_native_channel_extraction.md`](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/sionna_native_channel_extraction.md) for the extraction path, shape mapping, and current limits.
+
+Compact extracted-H result table:
+
+| Item | Current result | Interpretation |
+| --- | --- | --- |
+| channel tensor shape | `[8,4,1,1,16,2,19]` | observed `h=[B,rx,rx_ant,tx,tx_ant,ofdm_symbol,fft_bin]` |
+| extracted `H_f` shape | `[8,16,4,16]` | compatible with project `H_f=(B,Nsc,K,Nt)` interface |
+| axis validation | `spot_check_max_abs_diff=0.0` | current axis mapping is consistent |
+| native receiver success | `true` | current path is native-channel-assisted + native-receiver-assisted |
+| proxy/native rank agreement | `0.226667` | proxy metric cannot replace native receiver metric |
+
+Current supported wording:
+
+- extracted-H_f path reduces the `project-H_f-assisted` limitation
+- current supported description is `native-channel-assisted + native-receiver-assisted`
+- not full native-only benchmark
+- proxy metric cannot replace native receiver metric
+- no RT
+- no ray tracing
+- no 5G NR full stack
+- optional dependency only
+
+Current channel-extraction validation commands:
+
+```bash
+python scripts/validate_sionna_extracted_hf_axes.py \
+  --out outputs/sionna_channel_extraction/hf_axis_validation.json
+python scripts/benchmark_sionna_extracted_h_consistency.py \
+  --out outputs/sionna_channel_extraction/extracted_h_consistency \
+  --seeds 1 2 3 \
+  --snrs 0 5 10 15 20 \
+  --quick
+python scripts/sweep_sionna_channel_extraction_config.py \
+  --quick \
+  --out outputs/sionna_channel_extraction/extraction_config_sweep
+python scripts/compare_project_hf_vs_extracted_hf.py \
+  --project outputs/sionna_native_chain/learned_beamforming_receiver_metrics.csv \
+  --extracted outputs/sionna_channel_extraction/native_channel_beamforming_metrics.csv \
+  --consistency outputs/sionna_channel_extraction/extracted_h_consistency/metrics.csv \
+  --out outputs/sionna_channel_extraction/project_vs_extracted_hf
+```
+
 Current branch status:
 
 - `RZFPrecoder` is available in Sionna 2.0.1, but its expected tensor layout is not the same as the repository's `H_f=(B,Nsc,K,Nt)` project-side precoder path

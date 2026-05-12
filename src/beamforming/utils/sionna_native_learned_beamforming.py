@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from time import perf_counter
 from typing import Any
@@ -55,6 +55,16 @@ class NativeReceiverContext:
     context_meta: dict[str, Any]
 
 
+@dataclass
+class SharedSionnaChannelBundle:
+    resource_grid: Any
+    stream_management: Any
+    h_full: torch.Tensor
+    h_f: torch.Tensor
+    noise_var: float
+    bundle_meta: dict[str, Any]
+
+
 def default_checkpoint_path(method_name: str, repo_root: Path) -> Path:
     if method_name not in DEFAULT_LEARNED_CHECKPOINTS:
         raise KeyError(f"Unsupported learned method: {method_name}")
@@ -90,6 +100,25 @@ def load_learned_beamformer_checkpoint(
     )
 
 
+def clone_native_receiver_context(
+    context: NativeReceiverContext,
+    *,
+    h_f: torch.Tensor | None = None,
+    h_full: torch.Tensor | None = None,
+    context_meta_updates: dict[str, Any] | None = None,
+) -> NativeReceiverContext:
+    """Clone ``NativeReceiverContext`` while replacing shared channel tensors."""
+    merged_meta = dict(context.context_meta)
+    if context_meta_updates:
+        merged_meta.update(context_meta_updates)
+    return replace(
+        context,
+        h_f=context.h_f if h_f is None else h_f,
+        h_full=context.h_full if h_full is None else h_full,
+        context_meta=merged_meta,
+    )
+
+
 def infer_learned_precoder(
     bundle: LoadedLearnedBeamformer,
     h_f: torch.Tensor,
@@ -121,21 +150,19 @@ def infer_learned_precoder(
     return precoder, meta, runtime_ms
 
 
-def build_native_receiver_context(
+def generate_shared_sionna_channel_bundle(
     *,
     batch_size: int,
     num_subcarriers: int,
     num_users: int,
     num_bs_ant: int,
-    snr_db: float,
+    noise_var: float,
     device: torch.device,
-) -> NativeReceiverContext:
-    bits = torch.randint(0, 2, (batch_size, num_subcarriers, num_users, 2), device=device)
-    real = 1.0 - 2.0 * bits[..., 0].float()
-    imag = 1.0 - 2.0 * bits[..., 1].float()
-    stream_symbols = ((real + 1j * imag) / torch.sqrt(torch.tensor(2.0, device=device))).to(torch.complex64)
-    noise_var = float(10.0 ** (-snr_db / 10.0))
-
+    selected_ofdm_symbol: str | int = "first_data",
+    effective_subcarriers: str | list[int] = "all_effective",
+    normalize_channel: bool = False,
+) -> SharedSionnaChannelBundle:
+    """Generate one shared Sionna channel realization and its extracted ``H_f``."""
     resource_grid, stream_management, rg_meta = build_pilot_aware_multiuser_resource_grid(
         num_users=num_users,
         num_effective_subcarriers=num_subcarriers,
@@ -151,26 +178,64 @@ def build_native_receiver_context(
         num_bs_ant=num_bs_ant,
         device=device,
         noise_var=noise_var,
+        selected_ofdm_symbol=selected_ofdm_symbol,
+        effective_subcarriers=effective_subcarriers,
+        normalize_channel=normalize_channel,
     )
     if h_f is None or h_full is None:
         raise RuntimeError(f"Failed to extract native H_f from Sionna channel: {h_meta.get('fallback_reason')}")
-    return NativeReceiverContext(
-        bits=bits.to(torch.int64),
-        stream_symbols=stream_symbols,
+    return SharedSionnaChannelBundle(
         resource_grid=resource_grid,
         stream_management=stream_management,
-        h_f=h_f,
         h_full=h_full,
-        noise_var=noise_var,
-        snr_db=float(snr_db),
-        device=device,
-        context_meta={
+        h_f=h_f,
+        noise_var=float(noise_var),
+        bundle_meta={
             "resource_grid_meta": rg_meta,
             "channel_meta": h_meta,
             "native_receiver_path": True,
             "synthetic_channel_level_only": True,
-            "project_h_f_assisted": True,
+            "project_h_f_assisted": bool(not h_meta.get("used_native_channel_extraction", False)),
         },
+    )
+
+
+def build_native_receiver_context(
+    *,
+    batch_size: int,
+    num_subcarriers: int,
+    num_users: int,
+    num_bs_ant: int,
+    snr_db: float,
+    device: torch.device,
+    channel_bundle: SharedSionnaChannelBundle | None = None,
+) -> NativeReceiverContext:
+    bits = torch.randint(0, 2, (batch_size, num_subcarriers, num_users, 2), device=device)
+    real = 1.0 - 2.0 * bits[..., 0].float()
+    imag = 1.0 - 2.0 * bits[..., 1].float()
+    stream_symbols = ((real + 1j * imag) / torch.sqrt(torch.tensor(2.0, device=device))).to(torch.complex64)
+    noise_var = float(10.0 ** (-snr_db / 10.0))
+
+    if channel_bundle is None:
+        channel_bundle = generate_shared_sionna_channel_bundle(
+            batch_size=batch_size,
+            num_subcarriers=num_subcarriers,
+            num_users=num_users,
+            num_bs_ant=num_bs_ant,
+            noise_var=noise_var,
+            device=device,
+        )
+    return NativeReceiverContext(
+        bits=bits.to(torch.int64),
+        stream_symbols=stream_symbols,
+        resource_grid=channel_bundle.resource_grid,
+        stream_management=channel_bundle.stream_management,
+        h_f=channel_bundle.h_f,
+        h_full=channel_bundle.h_full,
+        noise_var=noise_var,
+        snr_db=float(snr_db),
+        device=device,
+        context_meta=dict(channel_bundle.bundle_meta),
     )
 
 
