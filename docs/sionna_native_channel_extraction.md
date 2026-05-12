@@ -294,12 +294,63 @@ The current comparison between the earlier raw extracted-H script path and the C
 
 This should be interpreted carefully:
 
+- this script is now explicitly labeled `comparison_type=cross_run_comparison`
+- `not_strict_equivalence_test=true` for this artifact
+- the mismatch is now audited as `cross_run_comparison_without_shared_realization`
 - the goal of this phase is interface/schema/provenance hardening
 - it is not a new claim that the CSI-backed path materially improves metrics
 - it also does not change the current benchmark boundary
 
+## CSI Same-batch Equivalence
+
+The new same-batch validation fixes the earlier ambiguity by forcing the raw extracted-H path and the CSI-backed path to reuse the exact same:
+
+- Sionna channel tensor
+- extracted `H_f`
+- `ExtractedCSI` object
+- bits and mapped symbols
+- receiver configuration
+- noise configuration
+
+Current result:
+
+- `same_channel_tensor_used = true`
+- `same_bits_used = true`
+- `same_noise_config_used = true`
+- `same_receiver_config_used = true`
+- `numeric_consistency_within_tolerance = true`
+- `ranking_consistent = true`
+- `max_abs_diff_sum_rate = 0.0`
+- `max_abs_diff_symbol_mse = 0.0`
+- `max_abs_diff_sinr_db = 0.0`
+
+This is the correct interpretation boundary for the current interface work:
+
+- the CSI-backed interface is numerically consistent with the raw extracted-H path under a shared realization
+- this does not imply that independent reruns should be expected to match numerically
+- this still does not change the branch boundary to full native-only
+
+## Previous Mismatch Root Cause
+
+The mismatch audit now reports:
+
+- `comparison_independent_runs = true`
+- `same_seed_used = true`
+- `same_channel_tensor_shape_metadata = true`
+- `same_selected_ofdm_symbol = true`
+- `same_effective_subcarrier_indices = true`
+- `same_receiver_mode = true`
+- `same_bits_used = false`
+- `same_symbols_used = false`
+- `same_noise_realization_used = false`
+- `csi_interface_bug_evidence = false`
+
+So the earlier numeric inconsistency was primarily caused by comparing separate runs without a shared realization fixture, not by a confirmed CSI-interface bug.
+
 The supported wording remains:
 
+- cross-run comparison is not a strict equivalence test
+- same-batch equivalence is the valid place to claim numerical consistency
 - native-channel-assisted plus native-receiver-assisted
 - not full native-only benchmark
 - no Sionna RT

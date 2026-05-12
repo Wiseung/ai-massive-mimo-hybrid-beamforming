@@ -6,7 +6,7 @@ from typing import Any
 
 import torch
 
-from beamforming.utils.csi_interface import ExtractedCSI
+from beamforming.utils.csi_interface import ExtractedCSI, SharedSionnaOFDMBatch
 
 
 def _pilot_ofdm_symbol_indices(resource_grid: Any) -> list[int]:
@@ -451,3 +451,92 @@ def extract_h_f_from_sionna_channel(
         return None, metadata, False, fallback_reason
     metadata["fallback_reason"] = ""
     return (csi if return_csi else converted), metadata, True, ""
+
+
+def create_shared_sionna_ofdm_batch(
+    *,
+    batch_size: int,
+    snr_db: float,
+    resource_grid: Any,
+    stream_management: Any,
+    sionna_channel_tensor: torch.Tensor,
+    num_users: int,
+    num_bs_ant: int,
+    selected_ofdm_symbol: str | int = "first_data",
+    effective_subcarriers: str | list[int] | torch.Tensor = "all_effective",
+    normalize_channel: bool = False,
+    seed: int = 0,
+    device: torch.device | None = None,
+) -> SharedSionnaOFDMBatch:
+    """Create a deterministic shared batch reused by raw-H and CSI-backed paths."""
+    if device is None:
+        device = sionna_channel_tensor.device if sionna_channel_tensor is not None else torch.device("cpu")
+    bits = torch.randint(0, 2, (batch_size, len(resource_grid.effective_subcarrier_ind), num_users, 2), device=device)
+    real = 1.0 - 2.0 * bits[..., 0].float()
+    imag = 1.0 - 2.0 * bits[..., 1].float()
+    symbols = ((real + 1j * imag) / torch.sqrt(torch.tensor(2.0, device=device))).to(torch.complex64)
+    noise_var = float(10.0 ** (-float(snr_db) / 10.0))
+    csi_or_h_f, meta, success, fallback_reason = extract_h_f_from_sionna_channel(
+        sionna_channel_tensor,
+        resource_grid=resource_grid,
+        num_users=num_users,
+        num_bs_ant=num_bs_ant,
+        selected_ofdm_symbol=selected_ofdm_symbol,
+        effective_subcarriers=effective_subcarriers,
+        normalize_channel=normalize_channel,
+        return_csi=True,
+    )
+    if not success or csi_or_h_f is None:
+        raise RuntimeError(f"Failed to create shared Sionna OFDM batch: {fallback_reason}")
+    csi = csi_or_h_f
+    extracted_h_f = csi.to_project_h_f()
+    rx_noise_real = torch.randn(
+        batch_size,
+        num_users,
+        1,
+        int(resource_grid.num_ofdm_symbols),
+        int(resource_grid.fft_size),
+        device=device,
+    )
+    rx_noise_imag = torch.randn(
+        batch_size,
+        num_users,
+        1,
+        int(resource_grid.num_ofdm_symbols),
+        int(resource_grid.fft_size),
+        device=device,
+    )
+    rx_noise_grid = (
+        (rx_noise_real + 1j * rx_noise_imag)
+        * torch.sqrt(torch.tensor(noise_var / 2.0, dtype=torch.float32, device=device))
+    ).to(torch.complex64)
+    selected_symbol = int(csi.selected_ofdm_symbol)
+    batch = SharedSionnaOFDMBatch(
+        bits=bits.to(torch.int64),
+        symbols=symbols,
+        resource_grid=resource_grid,
+        stream_management=stream_management,
+        sionna_channel_tensor=sionna_channel_tensor.contiguous(),
+        extracted_h_f=extracted_h_f,
+        csi=csi,
+        rx_noise_grid=rx_noise_grid,
+        noise_var=noise_var,
+        snr_db=float(snr_db),
+        seed=int(seed),
+        selected_ofdm_symbol=selected_symbol,
+        effective_subcarrier_indices=[int(x) for x in csi.effective_subcarrier_indices],
+        metadata={
+            "seed": int(seed),
+            "batch_size": int(batch_size),
+            "snr_db": float(snr_db),
+            "selected_ofdm_symbol": int(selected_symbol),
+            "effective_subcarrier_indices": [int(x) for x in csi.effective_subcarrier_indices],
+            "original_sionna_h_shape": [int(x) for x in sionna_channel_tensor.shape],
+            "extracted_h_f_shape": [int(x) for x in extracted_h_f.shape],
+            "resource_grid_num_ofdm_symbols": int(resource_grid.num_ofdm_symbols),
+            "resource_grid_fft_size": int(resource_grid.fft_size),
+            "stream_management_present": stream_management is not None,
+            "csi_summary": csi.summary_dict(),
+        },
+    )
+    return batch

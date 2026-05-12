@@ -15,6 +15,7 @@ from beamforming.utils.sionna_native_beamforming_chain import (
     apply_project_precoder_to_sionna_grid,
     build_pilot_aware_multiuser_resource_grid,
     compute_project_metrics_from_sionna_rx,
+    create_shared_sionna_ofdm_batch_from_generator,
     describe_tensor,
     extract_effective_channel_from_sionna,
     map_project_streams_to_sionna_rg,
@@ -64,6 +65,9 @@ class SharedSionnaChannelBundle:
     h_full: torch.Tensor
     h_f: torch.Tensor
     csi: ExtractedCSI | None
+    bits: torch.Tensor | None
+    stream_symbols: torch.Tensor | None
+    shared_batch_meta: dict[str, Any] | None
     noise_var: float
     bundle_meta: dict[str, Any]
 
@@ -166,6 +170,7 @@ def generate_shared_sionna_channel_bundle(
     selected_ofdm_symbol: str | int = "first_data",
     effective_subcarriers: str | list[int] = "all_effective",
     normalize_channel: bool = False,
+    seed: int = 0,
 ) -> SharedSionnaChannelBundle:
     """Generate one shared Sionna channel realization and its extracted ``H_f``."""
     resource_grid, stream_management, rg_meta = build_pilot_aware_multiuser_resource_grid(
@@ -176,18 +181,41 @@ def generate_shared_sionna_channel_bundle(
     )
     if resource_grid is None or stream_management is None:
         raise RuntimeError(f"Failed to build pilot-aware native receiver context: {rg_meta.get('fallback_reason')}")
-    h_f, h_full, h_meta, csi = extract_effective_channel_from_sionna(
-        resource_grid,
+    shared_batch = create_shared_sionna_ofdm_batch_from_generator(
         batch_size=batch_size,
         num_users=num_users,
         num_bs_ant=num_bs_ant,
+        snr_db=float(-10.0 * torch.log10(torch.tensor(noise_var)).item()),
         device=device,
-        noise_var=noise_var,
+        resource_grid=resource_grid,
+        stream_management=stream_management,
         selected_ofdm_symbol=selected_ofdm_symbol,
         effective_subcarriers=effective_subcarriers,
         normalize_channel=normalize_channel,
-        return_csi=True,
+        seed=seed,
     )
+    h_f = shared_batch.extracted_h_f
+    h_full = shared_batch.sionna_channel_tensor
+    csi = shared_batch.csi
+    h_meta = {
+        "fallback_used": False,
+        "fallback_reason": "",
+        "used_native_channel_extraction": True,
+        "selected_data_symbol_index": int(shared_batch.selected_ofdm_symbol),
+        "full_channel_shape": [int(x) for x in h_full.shape],
+        "effective_subcarrier_ind": [int(x) for x in resource_grid.effective_subcarrier_ind],
+        "extraction_meta": {
+            "selected_data_symbol_indices": list(shared_batch.csi.metadata.get("selected_data_symbol_indices", [shared_batch.selected_ofdm_symbol])),
+            "selected_effective_subcarrier_indices": list(shared_batch.effective_subcarrier_indices),
+            "selected_data_symbol_index": int(shared_batch.selected_ofdm_symbol),
+            "selected_effective_subcarrier_count": int(len(shared_batch.effective_subcarrier_indices)),
+            "original_sionna_h_shape": [int(x) for x in h_full.shape],
+            "original_axes": shared_batch.csi.metadata.get("original_axes"),
+            "conversion_meta": shared_batch.csi.metadata.get("conversion_meta", {}),
+        },
+        "csi_summary": shared_batch.csi.summary_dict(),
+        "shared_batch_summary": shared_batch.summary_dict(),
+    }
     if h_f is None or h_full is None:
         raise RuntimeError(f"Failed to extract native H_f from Sionna channel: {h_meta.get('fallback_reason')}")
     return SharedSionnaChannelBundle(
@@ -196,12 +224,17 @@ def generate_shared_sionna_channel_bundle(
         h_full=h_full,
         h_f=h_f,
         csi=csi,
+        bits=shared_batch.bits,
+        stream_symbols=shared_batch.symbols,
+        shared_batch_meta=shared_batch.summary_dict(),
         noise_var=float(noise_var),
         bundle_meta={
             "resource_grid_meta": rg_meta,
             "channel_meta": h_meta,
-            "csi_interface_used": bool(h_meta.get("csi") is not None),
-            "csi_summary": h_meta.get("csi_summary"),
+            "csi_interface_used": csi is not None,
+            "csi_summary": csi.summary_dict() if csi is not None else None,
+            "shared_batch_summary": shared_batch.summary_dict(),
+            "shared_rx_noise_grid": shared_batch.rx_noise_grid,
             "native_receiver_path": True,
             "synthetic_channel_level_only": True,
             "project_h_f_assisted": bool(not h_meta.get("used_native_channel_extraction", False)),
@@ -233,7 +266,16 @@ def build_native_receiver_context(
             num_bs_ant=num_bs_ant,
             noise_var=noise_var,
             device=device,
+            seed=0,
         )
+    if channel_bundle.bits is not None and channel_bundle.stream_symbols is not None:
+        bits = channel_bundle.bits.to(torch.int64)
+        stream_symbols = channel_bundle.stream_symbols.to(torch.complex64)
+    else:
+        bits = torch.randint(0, 2, (batch_size, num_subcarriers, num_users, 2), device=device)
+        real = 1.0 - 2.0 * bits[..., 0].float()
+        imag = 1.0 - 2.0 * bits[..., 1].float()
+        stream_symbols = ((real + 1j * imag) / torch.sqrt(torch.tensor(2.0, device=device))).to(torch.complex64)
     return NativeReceiverContext(
         bits=bits.to(torch.int64),
         stream_symbols=stream_symbols,
@@ -321,14 +363,22 @@ def run_native_receiver_with_precoder(
             ]
         )
 
-    noise = torch.full(
-        (context.stream_symbols.size(0), context.stream_symbols.size(2), 1),
-        context.noise_var,
-        dtype=torch.float32,
-        device=context.device,
-    )
     try:
-        rx_grid = ApplyOFDMChannel(device=resolve_sionna_device(context.device))(tx_grid, context.h_full, no=noise)
+        rx_grid = ApplyOFDMChannel(device=resolve_sionna_device(context.device))(tx_grid, context.h_full)
+        noise_grid = context.context_meta.get("shared_rx_noise_grid")
+        if noise_grid is not None:
+            rx_grid = rx_grid + noise_grid.to(rx_grid.device)
+        else:
+            noise = torch.full(
+                (context.stream_symbols.size(0), context.stream_symbols.size(2), 1),
+                context.noise_var,
+                dtype=torch.float32,
+                device=context.device,
+            )
+            rx_grid = rx_grid + (
+                (torch.randn_like(rx_grid.real) + 1j * torch.randn_like(rx_grid.real))
+                * torch.sqrt(torch.tensor(context.noise_var / 2.0, dtype=torch.float32, device=context.device))
+            ).to(torch.complex64)
     except Exception as exc:
         row["fallback_stage"] = "channel_apply"
         row["fallback_reason"] = f"{type(exc).__name__}: {exc}"
@@ -340,7 +390,13 @@ def run_native_receiver_with_precoder(
 
     try:
         estimator = LSChannelEstimator(context.resource_grid, device=resolve_sionna_device(context.device))
-        h_hat, err_var = estimator(rx_grid, noise)
+        estimator_noise = torch.full(
+            (context.stream_symbols.size(0), context.stream_symbols.size(2), 1),
+            context.noise_var,
+            dtype=torch.float32,
+            device=context.device,
+        )
+        h_hat, err_var = estimator(rx_grid, estimator_noise)
     except Exception as exc:
         row["fallback_stage"] = "estimator"
         row["fallback_reason"] = f"{type(exc).__name__}: {exc}"
@@ -366,7 +422,13 @@ def run_native_receiver_with_precoder(
 
     try:
         equalizer = LMMSEEqualizer(context.resource_grid, context.stream_management, device=resolve_sionna_device(context.device))
-        x_hat, no_eff = equalizer(rx_grid, h_hat, err_var, noise)
+        equalizer_noise = torch.full(
+            (context.stream_symbols.size(0), context.stream_symbols.size(2), 1),
+            context.noise_var,
+            dtype=torch.float32,
+            device=context.device,
+        )
+        x_hat, no_eff = equalizer(rx_grid, h_hat, err_var, equalizer_noise)
     except Exception as exc:
         row["fallback_stage"] = "equalizer"
         row["fallback_reason"] = f"{type(exc).__name__}: {exc}"

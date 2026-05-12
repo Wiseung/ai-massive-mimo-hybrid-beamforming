@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -31,6 +32,14 @@ def _json_safe(value: Any) -> Any:
             return value.item()
         return value.detach().cpu().tolist()
     return value
+
+
+def tensor_signature(tensor: torch.Tensor | None) -> str | None:
+    """Return a stable SHA256 signature for a tensor."""
+    if tensor is None:
+        return None
+    tensor_cpu = tensor.detach().cpu().contiguous()
+    return hashlib.sha256(tensor_cpu.numpy().tobytes()).hexdigest()
 
 
 @dataclass
@@ -144,3 +153,41 @@ class ExtractedCSI:
         out_path = Path(path)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(json.dumps(self.summary_dict(), indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+@dataclass
+class SharedSionnaOFDMBatch:
+    """Deterministic shared batch for raw-H and CSI-backed path equivalence tests."""
+
+    bits: torch.Tensor
+    symbols: torch.Tensor
+    resource_grid: Any
+    stream_management: Any
+    sionna_channel_tensor: torch.Tensor
+    extracted_h_f: torch.Tensor
+    csi: ExtractedCSI
+    rx_noise_grid: torch.Tensor
+    noise_var: float
+    snr_db: float
+    seed: int
+    selected_ofdm_symbol: int
+    effective_subcarrier_indices: list[int]
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def summary_dict(self) -> dict[str, Any]:
+        return {
+            "seed": int(self.seed),
+            "batch_size": int(self.bits.size(0)),
+            "snr_db": float(self.snr_db),
+            "selected_ofdm_symbol": int(self.selected_ofdm_symbol),
+            "effective_subcarrier_indices": [int(x) for x in self.effective_subcarrier_indices],
+            "original_sionna_h_shape": [int(x) for x in self.sionna_channel_tensor.shape],
+            "extracted_h_f_shape": [int(x) for x in self.extracted_h_f.shape],
+            "bits_signature": tensor_signature(self.bits),
+            "symbols_signature": tensor_signature(self.symbols),
+            "channel_tensor_signature": tensor_signature(self.sionna_channel_tensor),
+            "extracted_h_f_signature": tensor_signature(self.extracted_h_f),
+            "rx_noise_grid_signature": tensor_signature(self.rx_noise_grid),
+            "noise_var": float(self.noise_var),
+            "metadata": _json_safe(self.metadata),
+        }

@@ -1,0 +1,25 @@
+{
+  "raw_metrics_path": "outputs/sionna_channel_extraction/native_channel_beamforming_metrics.csv",
+  "csi_metrics_path": "outputs/sionna_channel_extraction/csi_backed_beamforming_metrics.csv",
+  "raw_summary_path": "outputs/sionna_channel_extraction/native_channel_beamforming_summary.json",
+  "csi_summary_path": "outputs/sionna_channel_extraction/csi_backed_beamforming_summary.json",
+  "same_seed_used": true,
+  "same_channel_tensor_shape_metadata": true,
+  "same_bits_used": false,
+  "same_symbols_used": false,
+  "same_noise_realization_used": false,
+  "same_selected_ofdm_symbol": true,
+  "same_effective_subcarrier_indices": true,
+  "same_receiver_mode": true,
+  "same_metric_definition_family": true,
+  "same_method_names": true,
+  "comparison_independent_runs": true,
+  "root_cause": "cross_run_comparison_without_shared_realization",
+  "csi_interface_bug_evidence": false,
+  "update_compare_script_semantics": true,
+  "notes": [
+    "The prior comparison consumed metrics from separate runs rather than a strict same-batch equivalence fixture.",
+    "Summary JSONs do not record shared bits/symbol/noise signatures, so strict equivalence cannot be inferred from those artifacts alone.",
+    "This mismatch is treated as cross-run variance unless a same-batch equivalence script shows a CSI interface bug."
+  ]
+}

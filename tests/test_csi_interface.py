@@ -7,6 +7,7 @@ import pytest
 import torch
 
 from beamforming.utils.csi_interface import ExtractedCSI
+from beamforming.utils.csi_interface import SharedSionnaOFDMBatch
 
 
 def _make_csi(h_f: torch.Tensor) -> ExtractedCSI:
@@ -82,3 +83,27 @@ def test_csi_interface_save_summary_json(tmp_path: Path) -> None:
     csi.save_summary_json(out_path)
     payload = json.loads(out_path.read_text(encoding="utf-8"))
     assert payload["h_f_shape"] == [2, 3, 4, 5]
+
+
+def test_shared_sionna_ofdm_batch_summary_dict() -> None:
+    h_f = (torch.randn(2, 3, 4, 5) + 1j * torch.randn(2, 3, 4, 5)).to(torch.complex64)
+    csi = _make_csi(h_f)
+    batch = SharedSionnaOFDMBatch(
+        bits=torch.zeros(2, 3, 4, 2, dtype=torch.int64),
+        symbols=torch.zeros(2, 3, 4, dtype=torch.complex64),
+        resource_grid=None,
+        stream_management=None,
+        sionna_channel_tensor=torch.zeros(2, 4, 1, 1, 5, 2, 7, dtype=torch.complex64),
+        extracted_h_f=h_f,
+        csi=csi,
+        rx_noise_grid=torch.zeros(2, 4, 1, 2, 7, dtype=torch.complex64),
+        noise_var=0.1,
+        snr_db=10.0,
+        seed=0,
+        selected_ofdm_symbol=1,
+        effective_subcarrier_indices=[1, 2, 3],
+        metadata={"note": "unit"},
+    )
+    summary = batch.summary_dict()
+    assert summary["seed"] == 0
+    assert summary["extracted_h_f_shape"] == [2, 3, 4, 5]

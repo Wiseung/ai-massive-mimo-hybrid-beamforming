@@ -209,6 +209,53 @@ def test_compare_csi_backed_vs_raw_extracted_h_runs_if_inputs_exist(tmp_path: Pa
     )
     assert (out_dir / "csi_interface_comparison.csv").exists()
     assert (out_dir / "csi_interface_comparison.md").exists()
+    payload = (out_dir / "csi_interface_comparison.md").read_text(encoding="utf-8")
+    assert "comparison_type: `cross_run_comparison`" in payload
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_validate_csi_same_batch_equivalence_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "csi_same_batch_equivalence.json"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/validate_csi_same_batch_equivalence.py",
+            "--out",
+            str(out_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["status"] in {"ok", "skipped"}
+    assert "same_channel_tensor_used" in payload
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_audit_csi_raw_comparison_mismatch_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    raw = repo_root / "outputs/sionna_channel_extraction/native_channel_beamforming_metrics.csv"
+    csi = repo_root / "outputs/sionna_channel_extraction/csi_backed_beamforming_metrics.csv"
+    if not (raw.exists() and csi.exists()):
+        pytest.skip("Required artifacts not present")
+    out_dir = tmp_path / "mismatch_audit"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/audit_csi_raw_comparison_mismatch.py",
+            "--raw",
+            str(raw),
+            "--csi",
+            str(csi),
+            "--out",
+            str(out_dir),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads((out_dir / "csi_raw_mismatch_audit.json").read_text(encoding="utf-8"))
+    assert payload["comparison_independent_runs"] is True
 
 
 @pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")

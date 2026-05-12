@@ -10,7 +10,8 @@ import numpy as np
 import torch
 
 from beamforming.baselines.common import get_digital_precoder
-from beamforming.utils.sionna_channel_extraction import extract_h_f_from_sionna_channel
+from beamforming.utils.csi_interface import SharedSionnaOFDMBatch, tensor_signature
+from beamforming.utils.sionna_channel_extraction import create_shared_sionna_ofdm_batch, extract_h_f_from_sionna_channel
 from beamforming.utils.sionna_native_chain import load_component, resolve_sionna_device
 
 
@@ -391,6 +392,65 @@ def extract_effective_channel_from_sionna(
     except Exception as exc:  # pragma: no cover - optional runtime path
         meta.update({"fallback_used": True, "fallback_reason": f"{type(exc).__name__}: {exc}"})
         return (None, None, meta, None) if return_csi else (None, None, meta)
+
+
+def create_shared_sionna_ofdm_batch_from_generator(
+    *,
+    batch_size: int,
+    num_users: int,
+    num_bs_ant: int,
+    snr_db: float,
+    device: torch.device,
+    resource_grid: Any,
+    stream_management: Any,
+    selected_ofdm_symbol: str | int = "first_data",
+    effective_subcarriers: str | list[int] = "all_effective",
+    normalize_channel: bool = False,
+    seed: int = 0,
+) -> SharedSionnaOFDMBatch:
+    """Create a deterministic shared batch from one native Sionna channel realization."""
+    noise_var = float(10.0 ** (-float(snr_db) / 10.0))
+    OFDMChannel, _, _ = load_component("OFDMChannel")
+    RayleighBlockFading, _, _ = load_component("RayleighBlockFading")
+    if OFDMChannel is None or RayleighBlockFading is None:
+        raise RuntimeError("OFDMChannel_or_RayleighBlockFading_unavailable")
+    sionna_device = resolve_sionna_device(device)
+    channel_model = RayleighBlockFading(
+        num_rx=num_users,
+        num_rx_ant=1,
+        num_tx=1,
+        num_tx_ant=num_bs_ant,
+        device=sionna_device,
+    )
+    channel = OFDMChannel(channel_model, resource_grid, return_channel=True, device=sionna_device)
+    dummy_x = torch.zeros(
+        batch_size,
+        1,
+        num_bs_ant,
+        resource_grid.num_ofdm_symbols,
+        resource_grid.fft_size,
+        dtype=torch.complex64,
+        device=device,
+    )
+    noise = torch.full((batch_size, num_users, 1), noise_var, dtype=torch.float32, device=device)
+    _, h_freq_full = channel(dummy_x, no=noise)
+    batch = create_shared_sionna_ofdm_batch(
+        batch_size=batch_size,
+        snr_db=snr_db,
+        resource_grid=resource_grid,
+        stream_management=stream_management,
+        sionna_channel_tensor=h_freq_full,
+        num_users=num_users,
+        num_bs_ant=num_bs_ant,
+        selected_ofdm_symbol=selected_ofdm_symbol,
+        effective_subcarriers=effective_subcarriers,
+        normalize_channel=normalize_channel,
+        seed=seed,
+        device=device,
+    )
+    batch.metadata["noise_var"] = noise_var
+    batch.metadata["channel_tensor_signature"] = tensor_signature(h_freq_full)
+    return batch
 
 
 def apply_project_precoder_to_sionna_grid(

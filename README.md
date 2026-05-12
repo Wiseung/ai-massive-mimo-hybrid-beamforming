@@ -468,7 +468,10 @@ Current CSI-interface branch result:
 - CSI audit passes with `h_f_shape_ok=true`, `axes_metadata_complete=true`, `selected_data_symbol_not_pilot=true`, `project_h_f_assisted=false`, and `full_native_only=false`
 - the CSI-backed beamforming chain succeeds for `project_rzf`, `project_wmmse_iter_5`, `learned_residual_rzf`, and `learned_residual_wmmse_distill`
 - learned CSI-backed runs keep `teacher_used_during_inference=false`
-- raw extracted-H vs CSI-backed comparison introduces no extra fallback, but the current separate single-run reruns are not numerically identical and do not preserve exact ranking; the interface gain is provenance clarity rather than a new metric claim
+- the same-batch equivalence validation now passes with `same_channel_tensor_used=true`, `same_bits_used=true`, `same_noise_config_used=true`, `same_receiver_config_used=true`, `numeric_consistency_within_tolerance=true`, and `ranking_consistent=true`
+- under a shared realization, raw extracted-H and CSI-backed paths are numerically consistent for the current evaluated methods; this is the correct place to make an equivalence claim
+- the earlier raw extracted-H vs CSI-backed mismatch is now audited as `cross_run_comparison_without_shared_realization`, not as evidence of a CSI-interface bug
+- the cross-run comparison still introduces no extra fallback, but it must be read as provenance/schema comparison rather than a strict equivalence test
 
 Current CSI-interface validation commands:
 
@@ -479,6 +482,12 @@ python scripts/sionna_csi_backed_beamforming_chain.py \
   --out outputs/sionna_channel_extraction/csi_backed_beamforming_summary.json \
   --receiver-mode auto \
   --seed 0
+python scripts/validate_csi_same_batch_equivalence.py \
+  --out outputs/sionna_channel_extraction/csi_same_batch_equivalence.json
+python scripts/audit_csi_raw_comparison_mismatch.py \
+  --raw outputs/sionna_channel_extraction/native_channel_beamforming_metrics.csv \
+  --csi outputs/sionna_channel_extraction/csi_backed_beamforming_metrics.csv \
+  --out outputs/sionna_channel_extraction
 python scripts/compare_csi_backed_vs_raw_extracted_h.py \
   --raw outputs/sionna_channel_extraction/native_channel_beamforming_metrics.csv \
   --csi outputs/sionna_channel_extraction/csi_backed_beamforming_metrics.csv \
