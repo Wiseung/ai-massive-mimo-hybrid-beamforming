@@ -56,6 +56,8 @@ def main() -> None:
     summary = {
         "sionna_import_ok": env["sionna_import_ok"],
         "sionna_version": env["sionna_version"],
+        "csi_interface_used": True,
+        "csi_summary": None,
         "extraction_success": False,
         "sionna_channel_component_used": None,
         "sionna_channel_tensor_shape": None,
@@ -100,22 +102,25 @@ def main() -> None:
     summary["sionna_channel_component_used"] = "OFDMChannel(return_channel=True)"
     summary["sionna_channel_tensor_shape"] = [int(v) for v in h.shape]
 
-    h_f, meta, success, fallback_reason = extract_h_f_from_sionna_channel(
+    csi_or_h_f, meta, success, fallback_reason = extract_h_f_from_sionna_channel(
         h,
         resource_grid=rg,
         num_users=4,
         num_bs_ant=16,
+        return_csi=True,
     )
+    h_f = csi_or_h_f.to_project_h_f() if success and csi_or_h_f is not None else None
     summary["extraction_success"] = bool(success)
     summary["project_h_f_shape_compatible"] = bool(success and h_f is not None and list(h_f.shape) == [8, 16, 4, 16])
     summary["extracted_h_f_shape"] = [int(v) for v in h_f.shape] if h_f is not None else None
     summary["fallback_used"] = not success
     summary["fallback_reason"] = fallback_reason
     summary["extraction_meta"] = meta
+    summary["csi_summary"] = meta.get("csi_summary")
     summary["notes"].append(f"ResourceGrid metadata: {rg_meta}")
 
     if h_f is not None:
-        validation = validate_extracted_h_f(h_f)
+        validation = validate_extracted_h_f(csi_or_h_f)
         summary["validation"] = validation
         summary["h_f_norm_mean"] = validation["norm_mean"]
         summary["h_f_rank_stats"] = {

@@ -2,8 +2,195 @@
   "sionna_import_ok": true,
   "sionna_version": "2.0.1",
   "receiver_mode": "auto",
+  "seed": 0,
+  "csi_interface_used": true,
+  "csi_source": "sionna_ofdm_channel",
+  "csi_summary": {
+    "source": "sionna_ofdm_channel",
+    "source_component": "OFDMChannel(return_channel=True)",
+    "axes": {
+      "B": 0,
+      "Nsc": 1,
+      "K": 2,
+      "Nt": 3
+    },
+    "shape": {
+      "B": 16,
+      "Nsc": 16,
+      "K": 4,
+      "Nt": 16
+    },
+    "h_f_shape": [
+      16,
+      16,
+      4,
+      16
+    ],
+    "dtype": "torch.complex64",
+    "selected_ofdm_symbol": 1,
+    "effective_subcarrier_indices": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
+    ],
+    "num_users": 4,
+    "num_bs_ant": 16,
+    "num_subcarriers": 16,
+    "project_h_f_assisted": false,
+    "extracted_h_f_used": true,
+    "full_native_only": false,
+    "validation": {
+      "valid": true,
+      "shape": [
+        16,
+        16,
+        4,
+        16
+      ],
+      "dtype": "torch.complex64",
+      "is_complex": true,
+      "all_finite": true,
+      "norm_mean": 7.880985260009766,
+      "norm_std": 0.43059805035591125,
+      "subcarrier_norm_std_mean": 0.0,
+      "fallback_reason": ""
+    },
+    "metadata": {
+      "original_sionna_h_shape": [
+        16,
+        4,
+        1,
+        1,
+        16,
+        2,
+        19
+      ],
+      "original_axes": {
+        "batch": 0,
+        "rx": 1,
+        "rx_ant": 2,
+        "tx": 3,
+        "tx_ant": 4,
+        "ofdm_symbol": 5,
+        "fft_bin": 6
+      },
+      "selected_data_symbol": 1,
+      "selected_data_symbol_indices": [
+        1
+      ],
+      "pilot_symbol_indices": [
+        0
+      ],
+      "effective_subcarrier_ind": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ],
+      "extraction_success": true,
+      "fallback_reason": "",
+      "conversion_meta": {
+        "input_shape": [
+          16,
+          4,
+          1,
+          1,
+          16,
+          2,
+          19
+        ],
+        "assumed_sionna_axes": [
+          "batch",
+          "rx",
+          "rx_ant",
+          "tx",
+          "tx_ant",
+          "ofdm_symbol",
+          "fft_bin"
+        ],
+        "target_project_axes": [
+          "batch",
+          "subcarrier",
+          "user",
+          "bs_ant"
+        ],
+        "target_project_axes_map": {
+          "B": 0,
+          "Nsc": 1,
+          "K": 2,
+          "Nt": 3
+        },
+        "original_axes": {
+          "batch": 0,
+          "rx": 1,
+          "rx_ant": 2,
+          "tx": 3,
+          "tx_ant": 4,
+          "ofdm_symbol": 5,
+          "fft_bin": 6
+        },
+        "fallback_reason": "",
+        "selected_data_symbol_indices": [
+          1
+        ],
+        "normalize_channel": false,
+        "output_shape": [
+          16,
+          16,
+          4,
+          16
+        ],
+        "selected_effective_subcarrier_count": 16
+      },
+      "resource_grid_num_ofdm_symbols": 2,
+      "resource_grid_num_data_symbols": 16,
+      "validation": {
+        "valid": true,
+        "shape": [
+          16,
+          16,
+          4,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "is_complex": true,
+        "all_finite": true,
+        "norm_mean": 7.880985260009766,
+        "norm_std": 0.43059805035591125,
+        "subcarrier_norm_std_mean": 0.0,
+        "fallback_reason": ""
+      }
+    }
+  },
   "extraction_success": true,
   "project_h_f_assisted": false,
+  "extracted_h_f_used": true,
+  "full_native_only": false,
   "native_receiver_success": true,
   "notes": [],
   "metrics": [
@@ -22,10 +209,10 @@
       "fallback_stage": "",
       "fallback_reason": "",
       "ber_if_available": 0.0,
-      "symbol_mse": 0.04342441260814667,
-      "effective_sinr_db": 13.622660636901855,
-      "approximate_sum_rate": 18.346704483032227,
-      "power_norm": 1.0,
+      "symbol_mse": 0.04688234254717827,
+      "effective_sinr_db": 13.289906978607178,
+      "approximate_sum_rate": 17.923643112182617,
+      "power_norm": 0.9999999403953552,
       "runtime_ms": 0.0,
       "extraction_success": true,
       "project_h_f_assisted": false,
@@ -46,9 +233,9 @@
       "fallback_stage": "",
       "fallback_reason": "",
       "ber_if_available": 0.0,
-      "symbol_mse": 0.04567870497703552,
-      "effective_sinr_db": 13.402862548828125,
-      "approximate_sum_rate": 18.067096710205078,
+      "symbol_mse": 0.04923024773597717,
+      "effective_sinr_db": 13.077679872512817,
+      "approximate_sum_rate": 17.654569625854492,
       "power_norm": 1.0,
       "runtime_ms": 0.0,
       "extraction_success": true,
@@ -70,11 +257,11 @@
       "fallback_stage": "",
       "fallback_reason": "",
       "ber_if_available": 0.0,
-      "symbol_mse": 0.041291385889053345,
-      "effective_sinr_db": 13.841406106948853,
-      "approximate_sum_rate": 18.62555694580078,
+      "symbol_mse": 0.044694844633340836,
+      "effective_sinr_db": 13.497425317764282,
+      "approximate_sum_rate": 18.18731689453125,
       "power_norm": 1.0,
-      "runtime_ms": 79.89300804911181,
+      "runtime_ms": 77.83127698348835,
       "extraction_success": true,
       "project_h_f_assisted": false,
       "extracted_h_f_used": true
@@ -94,11 +281,11 @@
       "fallback_stage": "",
       "fallback_reason": "",
       "ber_if_available": 0.0,
-      "symbol_mse": 0.043655507266521454,
-      "effective_sinr_db": 13.599609136581421,
-      "approximate_sum_rate": 18.317352294921875,
+      "symbol_mse": 0.04304131120443344,
+      "effective_sinr_db": 13.661144971847534,
+      "approximate_sum_rate": 18.395721435546875,
       "power_norm": 1.0,
-      "runtime_ms": 2.7446059975773096,
+      "runtime_ms": 2.710165979806334,
       "extraction_success": true,
       "project_h_f_assisted": false,
       "extracted_h_f_used": true
@@ -154,6 +341,7 @@
         "single_tx_required": true,
         "single_rx_ant_required": true
       },
+      "csi_interface_used": true,
       "selected_ofdm_symbol": {
         "requested_selected_ofdm_symbol": "first_data",
         "data_symbol_indices": [
@@ -229,6 +417,21 @@
           "user",
           "bs_ant"
         ],
+        "target_project_axes_map": {
+          "B": 0,
+          "Nsc": 1,
+          "K": 2,
+          "Nt": 3
+        },
+        "original_axes": {
+          "batch": 0,
+          "rx": 1,
+          "rx_ant": 2,
+          "tx": 3,
+          "tx_ant": 4,
+          "ofdm_symbol": 5,
+          "fft_bin": 6
+        },
         "fallback_reason": "",
         "selected_data_symbol_indices": [
           1
@@ -242,31 +445,23 @@
         ],
         "selected_effective_subcarrier_count": 16
       },
-      "validation": {
-        "valid": true,
-        "shape": [
-          16,
-          16,
-          4,
-          16
-        ],
-        "dtype": "torch.complex64",
-        "is_complex": true,
-        "all_finite": true,
-        "norm_mean": 7.7409772872924805,
-        "norm_std": 0.35372528433799744,
-        "subcarrier_norm_std_mean": 0.0,
-        "matrix_stats": {
-          "available": true,
-          "rank_mean": 4.0,
-          "rank_min": 4,
-          "rank_max": 4,
-          "condition_number_mean": 1.8953216075897217,
-          "condition_number_max": 2.307734489440918,
-          "fro_norm_mean": 7.7409772872924805,
-          "fro_norm_std": 0.35372528433799744
-        },
-        "fallback_reason": ""
+      "original_sionna_h_shape": [
+        16,
+        4,
+        1,
+        1,
+        16,
+        2,
+        19
+      ],
+      "original_axes": {
+        "batch": 0,
+        "rx": 1,
+        "rx_ant": 2,
+        "tx": 3,
+        "tx_ant": 4,
+        "ofdm_symbol": 5,
+        "fft_bin": 6
       },
       "selected_data_symbol_indices": [
         1
@@ -292,7 +487,420 @@
       ],
       "selected_effective_subcarrier_count": 16,
       "normalize_channel": false,
+      "effective_subcarrier_ind": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ],
+      "selected_data_symbol": 1,
+      "pilot_symbol_indices": [
+        0
+      ],
+      "validation": {
+        "valid": true,
+        "shape": [
+          16,
+          16,
+          4,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "is_complex": true,
+        "all_finite": true,
+        "norm_mean": 7.880985260009766,
+        "norm_std": 0.43059805035591125,
+        "subcarrier_norm_std_mean": 0.0,
+        "fallback_reason": "",
+        "matrix_stats": {
+          "available": true,
+          "rank_mean": 4.0,
+          "rank_min": 4,
+          "rank_max": 4,
+          "condition_number_mean": 2.056309223175049,
+          "condition_number_max": 2.903057813644409,
+          "fro_norm_mean": 7.880985260009766,
+          "fro_norm_std": 0.43059805035591125
+        }
+      },
+      "csi_summary": {
+        "source": "sionna_ofdm_channel",
+        "source_component": "OFDMChannel(return_channel=True)",
+        "axes": {
+          "B": 0,
+          "Nsc": 1,
+          "K": 2,
+          "Nt": 3
+        },
+        "shape": {
+          "B": 16,
+          "Nsc": 16,
+          "K": 4,
+          "Nt": 16
+        },
+        "h_f_shape": [
+          16,
+          16,
+          4,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "selected_ofdm_symbol": 1,
+        "effective_subcarrier_indices": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17
+        ],
+        "num_users": 4,
+        "num_bs_ant": 16,
+        "num_subcarriers": 16,
+        "project_h_f_assisted": false,
+        "extracted_h_f_used": true,
+        "full_native_only": false,
+        "validation": {
+          "valid": true,
+          "shape": [
+            16,
+            16,
+            4,
+            16
+          ],
+          "dtype": "torch.complex64",
+          "is_complex": true,
+          "all_finite": true,
+          "norm_mean": 7.880985260009766,
+          "norm_std": 0.43059805035591125,
+          "subcarrier_norm_std_mean": 0.0,
+          "fallback_reason": ""
+        },
+        "metadata": {
+          "original_sionna_h_shape": [
+            16,
+            4,
+            1,
+            1,
+            16,
+            2,
+            19
+          ],
+          "original_axes": {
+            "batch": 0,
+            "rx": 1,
+            "rx_ant": 2,
+            "tx": 3,
+            "tx_ant": 4,
+            "ofdm_symbol": 5,
+            "fft_bin": 6
+          },
+          "selected_data_symbol": 1,
+          "selected_data_symbol_indices": [
+            1
+          ],
+          "pilot_symbol_indices": [
+            0
+          ],
+          "effective_subcarrier_ind": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17
+          ],
+          "extraction_success": true,
+          "fallback_reason": "",
+          "conversion_meta": {
+            "input_shape": [
+              16,
+              4,
+              1,
+              1,
+              16,
+              2,
+              19
+            ],
+            "assumed_sionna_axes": [
+              "batch",
+              "rx",
+              "rx_ant",
+              "tx",
+              "tx_ant",
+              "ofdm_symbol",
+              "fft_bin"
+            ],
+            "target_project_axes": [
+              "batch",
+              "subcarrier",
+              "user",
+              "bs_ant"
+            ],
+            "target_project_axes_map": {
+              "B": 0,
+              "Nsc": 1,
+              "K": 2,
+              "Nt": 3
+            },
+            "original_axes": {
+              "batch": 0,
+              "rx": 1,
+              "rx_ant": 2,
+              "tx": 3,
+              "tx_ant": 4,
+              "ofdm_symbol": 5,
+              "fft_bin": 6
+            },
+            "fallback_reason": "",
+            "selected_data_symbol_indices": [
+              1
+            ],
+            "normalize_channel": false,
+            "output_shape": [
+              16,
+              16,
+              4,
+              16
+            ],
+            "selected_effective_subcarrier_count": 16
+          },
+          "resource_grid_num_ofdm_symbols": 2,
+          "resource_grid_num_data_symbols": 16,
+          "validation": {
+            "valid": true,
+            "shape": [
+              16,
+              16,
+              4,
+              16
+            ],
+            "dtype": "torch.complex64",
+            "is_complex": true,
+            "all_finite": true,
+            "norm_mean": 7.880985260009766,
+            "norm_std": 0.43059805035591125,
+            "subcarrier_norm_std_mean": 0.0,
+            "fallback_reason": ""
+          }
+        }
+      },
+      "extraction_success": true,
       "fallback_reason": ""
+    },
+    "csi_summary": {
+      "source": "sionna_ofdm_channel",
+      "source_component": "OFDMChannel(return_channel=True)",
+      "axes": {
+        "B": 0,
+        "Nsc": 1,
+        "K": 2,
+        "Nt": 3
+      },
+      "shape": {
+        "B": 16,
+        "Nsc": 16,
+        "K": 4,
+        "Nt": 16
+      },
+      "h_f_shape": [
+        16,
+        16,
+        4,
+        16
+      ],
+      "dtype": "torch.complex64",
+      "selected_ofdm_symbol": 1,
+      "effective_subcarrier_indices": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ],
+      "num_users": 4,
+      "num_bs_ant": 16,
+      "num_subcarriers": 16,
+      "project_h_f_assisted": false,
+      "extracted_h_f_used": true,
+      "full_native_only": false,
+      "validation": {
+        "valid": true,
+        "shape": [
+          16,
+          16,
+          4,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "is_complex": true,
+        "all_finite": true,
+        "norm_mean": 7.880985260009766,
+        "norm_std": 0.43059805035591125,
+        "subcarrier_norm_std_mean": 0.0,
+        "fallback_reason": ""
+      },
+      "metadata": {
+        "original_sionna_h_shape": [
+          16,
+          4,
+          1,
+          1,
+          16,
+          2,
+          19
+        ],
+        "original_axes": {
+          "batch": 0,
+          "rx": 1,
+          "rx_ant": 2,
+          "tx": 3,
+          "tx_ant": 4,
+          "ofdm_symbol": 5,
+          "fft_bin": 6
+        },
+        "selected_data_symbol": 1,
+        "selected_data_symbol_indices": [
+          1
+        ],
+        "pilot_symbol_indices": [
+          0
+        ],
+        "effective_subcarrier_ind": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17
+        ],
+        "extraction_success": true,
+        "fallback_reason": "",
+        "conversion_meta": {
+          "input_shape": [
+            16,
+            4,
+            1,
+            1,
+            16,
+            2,
+            19
+          ],
+          "assumed_sionna_axes": [
+            "batch",
+            "rx",
+            "rx_ant",
+            "tx",
+            "tx_ant",
+            "ofdm_symbol",
+            "fft_bin"
+          ],
+          "target_project_axes": [
+            "batch",
+            "subcarrier",
+            "user",
+            "bs_ant"
+          ],
+          "target_project_axes_map": {
+            "B": 0,
+            "Nsc": 1,
+            "K": 2,
+            "Nt": 3
+          },
+          "original_axes": {
+            "batch": 0,
+            "rx": 1,
+            "rx_ant": 2,
+            "tx": 3,
+            "tx_ant": 4,
+            "ofdm_symbol": 5,
+            "fft_bin": 6
+          },
+          "fallback_reason": "",
+          "selected_data_symbol_indices": [
+            1
+          ],
+          "normalize_channel": false,
+          "output_shape": [
+            16,
+            16,
+            4,
+            16
+          ],
+          "selected_effective_subcarrier_count": 16
+        },
+        "resource_grid_num_ofdm_symbols": 2,
+        "resource_grid_num_data_symbols": 16,
+        "validation": {
+          "valid": true,
+          "shape": [
+            16,
+            16,
+            4,
+            16
+          ],
+          "dtype": "torch.complex64",
+          "is_complex": true,
+          "all_finite": true,
+          "norm_mean": 7.880985260009766,
+          "norm_std": 0.43059805035591125,
+          "subcarrier_norm_std_mean": 0.0,
+          "fallback_reason": ""
+        }
+      }
     },
     "full_channel_shape": [
       16,

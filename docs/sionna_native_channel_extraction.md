@@ -22,7 +22,7 @@ from Sionna-native channel tensors so the existing project precoder and learned-
 
 ## Current Status
 
-This document now tracks the `v0.5.0` candidate state for the optional Sionna-native channel-extraction bridge.
+This document now tracks the published `v0.5.0` state together with the `v0.6.0` candidate branch for provenance-aware CSI interface hardening on top of the optional Sionna-native channel-extraction bridge.
 
 Compact result table:
 
@@ -198,6 +198,184 @@ This shrinks the earlier `project-H_f-assisted` limitation, but it still does no
 - not full native-only benchmark
 - proxy metric cannot replace native receiver metric
 - no stable learned `> WMMSE-iter5` claim
+- no Sionna RT
+- no ray tracing
+- no 5G NR full stack
+- optional dependency only
+
+## CSI Interface Motivation
+
+The `v0.5.0` extraction bridge proved that a native Sionna channel tensor can be converted into project-side `H_f=(B,Nsc,K,Nt)`, but the earlier consumers still relied on ad hoc transpose/squeeze handling.
+
+The current follow-on branch introduces a standardized `ExtractedCSI` object so that:
+
+- project precoders consume one validated `H_f` shape
+- learned beamformers consume the same validated `H_f` shape
+- native receiver experiments keep explicit provenance for where that `H_f` came from
+- future DeepMIMO or other CSI sources can conform to the same container without reusing Sionna-specific bridge code
+
+## ExtractedCSI Schema
+
+Current normalized fields:
+
+- `h_f`: complex torch tensor with shape `(B,Nsc,K,Nt)`
+- `source`: one of `sionna_ofdm_channel`, `synthetic_project`, `deepmimo_future`
+- `source_component`
+- `axes = {B:0, Nsc:1, K:2, Nt:3}`
+- `shape = {B, Nsc, K, Nt}`
+- `selected_ofdm_symbol`
+- `effective_subcarrier_indices`
+- `num_users`
+- `num_bs_ant`
+- `num_subcarriers`
+- `project_h_f_assisted`
+- `extracted_h_f_used`
+- `full_native_only`
+- `metadata`
+
+Key provenance metadata currently recorded for the Sionna path:
+
+- `original_sionna_h_shape`
+- `original_axes`
+- `selected_data_symbol`
+- `selected_data_symbol_indices`
+- `pilot_symbol_indices`
+- `effective_subcarrier_ind`
+- `extraction_success`
+- `fallback_reason`
+- `conversion_meta`
+
+## CSI Provenance Audit Result
+
+The CSI-interface audit currently reports:
+
+- `csi_interface_used = true`
+- `h_f_shape_ok = true`
+- `axes_metadata_complete = true`
+- `original_sionna_h_shape_present = true`
+- `selected_data_symbol_not_pilot = true`
+- `effective_subcarrier_count_matches_nsc = true`
+- `project_h_f_assisted = false`
+- `extracted_h_f_used = true`
+- `full_native_only = false`
+- `project_rzf_consumes_csi = true`
+- `learned_residual_rzf_consumes_csi = true`
+
+This confirms that the standardized CSI object is usable by both the analytic project precoder path and the learned residual-RZF path while keeping the same boundary interpretation as `v0.5.0`.
+
+## CSI-backed Beamforming Result
+
+The CSI-backed beamforming chain now runs the extracted-channel path through the standardized `ExtractedCSI` object before the existing project and learned precoder interfaces.
+
+Current single-run result:
+
+- `csi_interface_used = true`
+- `csi_source = sionna_ofdm_channel`
+- `project_h_f_assisted = false`
+- `extracted_h_f_used = true`
+- `full_native_only = false`
+- `native_receiver_success = true`
+- learned methods keep `teacher_used_during_inference = false`
+
+Current methods evaluated:
+
+- `project_rzf`
+- `project_wmmse_iter_5`
+- `learned_residual_rzf`
+- `learned_residual_wmmse_distill`
+
+## Raw Extracted-H vs CSI-backed Comparison
+
+The current comparison between the earlier raw extracted-H script path and the CSI-backed path reports:
+
+- no new fallback was introduced
+- provenance clarity is improved because the CSI-backed path stores a reusable validated summary object
+- the current separate reruns are not numerically identical and do not preserve exact ranking
+
+This should be interpreted carefully:
+
+- this script is now explicitly labeled `comparison_type=cross_run_comparison`
+- `not_strict_equivalence_test=true` for this artifact
+- the mismatch is now audited as `cross_run_comparison_without_shared_realization`
+- the goal of this phase is interface/schema/provenance hardening
+- it is not a new claim that the CSI-backed path materially improves metrics
+- it also does not change the current benchmark boundary
+
+## CSI Same-batch Equivalence
+
+The new same-batch validation fixes the earlier ambiguity by forcing the raw extracted-H path and the CSI-backed path to reuse the exact same:
+
+- Sionna channel tensor
+- extracted `H_f`
+- `ExtractedCSI` object
+- bits and mapped symbols
+- receiver configuration
+- noise configuration
+
+Current result:
+
+- `same_channel_tensor_used = true`
+- `same_bits_used = true`
+- `same_noise_config_used = true`
+- `same_receiver_config_used = true`
+- `numeric_consistency_within_tolerance = true`
+- `ranking_consistent = true`
+- `max_abs_diff_sum_rate = 0.0`
+- `max_abs_diff_symbol_mse = 0.0`
+- `max_abs_diff_sinr_db = 0.0`
+
+This is the correct interpretation boundary for the current interface work:
+
+- the CSI-backed interface is numerically consistent with the raw extracted-H path under a shared realization
+- this does not imply that independent reruns should be expected to match numerically
+- this still does not change the branch boundary to full native-only
+
+## Previous Mismatch Root Cause
+
+The mismatch audit now reports:
+
+- `comparison_independent_runs = true`
+- `same_seed_used = true`
+- `same_channel_tensor_shape_metadata = true`
+- `same_selected_ofdm_symbol = true`
+- `same_effective_subcarrier_indices = true`
+- `same_receiver_mode = true`
+- `same_bits_used = false`
+- `same_symbols_used = false`
+- `same_noise_realization_used = false`
+- `csi_interface_bug_evidence = false`
+
+So the earlier numeric inconsistency was primarily caused by comparing separate runs without a shared realization fixture, not by a confirmed CSI-interface bug.
+
+The supported wording remains:
+
+- cross-run comparison is not a strict equivalence test
+- same-batch equivalence is the valid place to claim numerical consistency
+- CSI interface improves provenance clarity and deterministic reuse under shared realization
+- native-channel-assisted plus native-receiver-assisted
+- not full native-only benchmark
+- no Sionna RT
+- no ray tracing
+- no 5G NR full stack
+- optional dependency only
+
+## v0.6.0 Candidate Status
+
+Compact CSI result table:
+
+| Item | Current result | Interpretation |
+| --- | --- | --- |
+| CSI audit | `passed` | `ExtractedCSI` provenance is complete enough for current project and learned consumers |
+| CSI-backed beamforming | `native_receiver_success=true` | CSI-backed path enters native receiver chain successfully |
+| same-batch equivalence | `passed` | raw extracted-H and CSI-backed paths are numerically consistent under one shared realization |
+| previous mismatch root cause | `cross_run_comparison_without_shared_realization` | earlier mismatch was cross-run comparison, not CSI-interface bug evidence |
+
+The current supported summary is:
+
+- same-batch equivalence passed
+- previous mismatch was cross-run comparison
+- CSI interface improves provenance and deterministic reuse
+- not full native-only benchmark
 - no Sionna RT
 - no ray tracing
 - no 5G NR full stack

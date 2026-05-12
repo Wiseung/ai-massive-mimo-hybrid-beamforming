@@ -416,7 +416,8 @@ Current post-`v0.4.0` next-step focus:
 - keep the existing native receiver path intact while testing a more native channel bridge
 - do not reinterpret this work as a full native-only benchmark unless channel, precoder, and receiver paths are all consistently native
 
-Current status: `v0.5.0` candidate for the optional Sionna-native channel-extraction bridge.
+Published status: `v0.5.0` for the optional Sionna-native channel-extraction bridge.
+Current branch status: `v0.6.0` candidate for the provenance-aware CSI interface on top of that bridge.
 
 Current channel-extraction branch result:
 
@@ -454,6 +455,58 @@ Current supported wording:
 - no ray tracing
 - no 5G NR full stack
 - optional dependency only
+
+Current post-`v0.5.0` branch focus:
+
+- standardize extracted `H_f` into a reusable `ExtractedCSI` interface instead of open-coded transpose/squeeze bridges
+- keep `H_f` normalized to project shape `B,Nsc,K,Nt`
+- attach provenance metadata such as original Sionna channel shape, original axes, selected data symbol, and effective subcarrier indices
+- keep the current boundary as native-channel-assisted plus native-receiver-assisted, not full native-only
+
+Current CSI-interface branch result:
+
+- `ExtractedCSI` now records `source`, `source_component`, `axes`, `shape`, `project_h_f_assisted`, `extracted_h_f_used`, `full_native_only`, and nested provenance metadata
+- CSI audit passes with `h_f_shape_ok=true`, `axes_metadata_complete=true`, `selected_data_symbol_not_pilot=true`, `project_h_f_assisted=false`, and `full_native_only=false`
+- the CSI-backed beamforming chain succeeds for `project_rzf`, `project_wmmse_iter_5`, `learned_residual_rzf`, and `learned_residual_wmmse_distill`
+- learned CSI-backed runs keep `teacher_used_during_inference=false`
+- the same-batch equivalence validation now passes with `same_channel_tensor_used=true`, `same_bits_used=true`, `same_noise_config_used=true`, `same_receiver_config_used=true`, `numeric_consistency_within_tolerance=true`, and `ranking_consistent=true`
+- under a shared realization, raw extracted-H and CSI-backed paths are numerically consistent for the current evaluated methods; this is the correct place to make an equivalence claim
+- the earlier raw extracted-H vs CSI-backed mismatch is now audited as `cross_run_comparison_without_shared_realization`, not as evidence of a CSI-interface bug
+- the cross-run comparison still introduces no extra fallback, but it must be read as provenance/schema comparison rather than a strict equivalence test
+
+Compact CSI result table:
+
+| Item | Current result | Interpretation |
+| --- | --- | --- |
+| CSI audit | `passed` | provenance metadata is complete enough for current project and learned consumers |
+| CSI-backed beamforming | `native_receiver_success=true` | CSI object enters native-channel-assisted + native-receiver-assisted path |
+| same-batch equivalence | `passed` | raw extracted-H and CSI-backed paths are numerically consistent under shared realization |
+| previous mismatch root cause | `cross_run_comparison_without_shared_realization` | earlier mismatch was cross-run, not CSI-interface bug evidence |
+
+Current CSI-interface validation commands:
+
+```bash
+python scripts/audit_sionna_csi_interface.py \
+  --out outputs/sionna_channel_extraction/csi_interface_audit.json
+python scripts/sionna_csi_backed_beamforming_chain.py \
+  --out outputs/sionna_channel_extraction/csi_backed_beamforming_summary.json \
+  --receiver-mode auto \
+  --seed 0
+python scripts/validate_csi_same_batch_equivalence.py \
+  --out outputs/sionna_channel_extraction/csi_same_batch_equivalence.json
+python scripts/audit_csi_raw_comparison_mismatch.py \
+  --raw outputs/sionna_channel_extraction/native_channel_beamforming_metrics.csv \
+  --csi outputs/sionna_channel_extraction/csi_backed_beamforming_metrics.csv \
+  --out outputs/sionna_channel_extraction
+python scripts/compare_csi_backed_vs_raw_extracted_h.py \
+  --raw outputs/sionna_channel_extraction/native_channel_beamforming_metrics.csv \
+  --csi outputs/sionna_channel_extraction/csi_backed_beamforming_metrics.csv \
+  --out outputs/sionna_channel_extraction
+python scripts/generate_sionna_csi_interface_artifact_manifest.py \
+  --out outputs/sionna_channel_extraction/csi_interface_artifact_manifest.json
+python scripts/reproduce_sionna_csi_interface_minimal.py \
+  --out outputs/repro/sionna_csi_interface_minimal_summary.json
+```
 
 Current channel-extraction validation commands:
 
