@@ -1,0 +1,200 @@
+{
+  "status": "ok",
+  "sionna_import_ok": true,
+  "sionna_version": "2.0.1",
+  "csi_interface_used": true,
+  "h_f_shape_ok": true,
+  "axes_metadata_complete": true,
+  "original_sionna_h_shape_present": true,
+  "selected_data_symbol_not_pilot": true,
+  "effective_subcarrier_count_matches_nsc": true,
+  "project_h_f_assisted": false,
+  "extracted_h_f_used": true,
+  "full_native_only": false,
+  "project_rzf_consumes_csi": true,
+  "learned_residual_rzf_consumes_csi": true,
+  "csi_summary": {
+    "source": "sionna_ofdm_channel",
+    "source_component": "OFDMChannel(return_channel=True)",
+    "axes": {
+      "B": 0,
+      "Nsc": 1,
+      "K": 2,
+      "Nt": 3
+    },
+    "shape": {
+      "B": 8,
+      "Nsc": 16,
+      "K": 4,
+      "Nt": 16
+    },
+    "h_f_shape": [
+      8,
+      16,
+      4,
+      16
+    ],
+    "dtype": "torch.complex64",
+    "selected_ofdm_symbol": 1,
+    "effective_subcarrier_indices": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
+    ],
+    "num_users": 4,
+    "num_bs_ant": 16,
+    "num_subcarriers": 16,
+    "project_h_f_assisted": false,
+    "extracted_h_f_used": true,
+    "full_native_only": false,
+    "validation": {
+      "valid": true,
+      "shape": [
+        8,
+        16,
+        4,
+        16
+      ],
+      "dtype": "torch.complex64",
+      "is_complex": true,
+      "all_finite": true,
+      "norm_mean": 7.963860988616943,
+      "norm_std": 0.6530647873878479,
+      "subcarrier_norm_std_mean": 0.0,
+      "fallback_reason": ""
+    },
+    "metadata": {
+      "original_sionna_h_shape": [
+        8,
+        4,
+        1,
+        1,
+        16,
+        2,
+        19
+      ],
+      "original_axes": {
+        "batch": 0,
+        "rx": 1,
+        "rx_ant": 2,
+        "tx": 3,
+        "tx_ant": 4,
+        "ofdm_symbol": 5,
+        "fft_bin": 6
+      },
+      "selected_data_symbol": 1,
+      "selected_data_symbol_indices": [
+        1
+      ],
+      "pilot_symbol_indices": [
+        0
+      ],
+      "effective_subcarrier_ind": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ],
+      "extraction_success": true,
+      "fallback_reason": "",
+      "conversion_meta": {
+        "input_shape": [
+          8,
+          4,
+          1,
+          1,
+          16,
+          2,
+          19
+        ],
+        "assumed_sionna_axes": [
+          "batch",
+          "rx",
+          "rx_ant",
+          "tx",
+          "tx_ant",
+          "ofdm_symbol",
+          "fft_bin"
+        ],
+        "target_project_axes": [
+          "batch",
+          "subcarrier",
+          "user",
+          "bs_ant"
+        ],
+        "target_project_axes_map": {
+          "B": 0,
+          "Nsc": 1,
+          "K": 2,
+          "Nt": 3
+        },
+        "original_axes": {
+          "batch": 0,
+          "rx": 1,
+          "rx_ant": 2,
+          "tx": 3,
+          "tx_ant": 4,
+          "ofdm_symbol": 5,
+          "fft_bin": 6
+        },
+        "fallback_reason": "",
+        "selected_data_symbol_indices": [
+          1
+        ],
+        "normalize_channel": false,
+        "output_shape": [
+          8,
+          16,
+          4,
+          16
+        ],
+        "selected_effective_subcarrier_count": 16
+      },
+      "resource_grid_num_ofdm_symbols": 2,
+      "resource_grid_num_data_symbols": 16,
+      "validation": {
+        "valid": true,
+        "shape": [
+          8,
+          16,
+          4,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "is_complex": true,
+        "all_finite": true,
+        "norm_mean": 7.963860988616943,
+        "norm_std": 0.6530647873878479,
+        "subcarrier_norm_std_mean": 0.0,
+        "fallback_reason": ""
+      }
+    }
+  },
+  "notes": [],
+  "teacher_used_during_inference": false
+}

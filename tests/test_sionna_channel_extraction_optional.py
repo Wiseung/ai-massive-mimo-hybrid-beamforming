@@ -50,6 +50,8 @@ def test_sionna_native_channel_beamforming_chain_runs(tmp_path: Path) -> None:
             str(out_path),
             "--receiver-mode",
             "auto",
+            "--seed",
+            "0",
         ],
         check=True,
         cwd=repo_root,
@@ -71,6 +73,44 @@ def test_validate_sionna_extracted_hf_axes_runs(tmp_path: Path) -> None:
     payload = json.loads(out_path.read_text(encoding="utf-8"))
     assert payload["validation_status"] in {"ok", "skipped"}
     assert "axis_spot_check_passed" in payload
+    assert payload["csi_interface_used"] is True
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_audit_sionna_csi_interface_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "csi_interface_audit.json"
+    subprocess.run(
+        [sys.executable, "scripts/audit_sionna_csi_interface.py", "--out", str(out_path)],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["status"] in {"ok", "skipped", "failed"}
+    assert "csi_interface_used" in payload
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_sionna_csi_backed_beamforming_chain_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "csi_backed_beamforming_summary.json"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/sionna_csi_backed_beamforming_chain.py",
+            "--out",
+            str(out_path),
+            "--receiver-mode",
+            "auto",
+            "--seed",
+            "0",
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["csi_interface_used"] is True
+    assert "metrics" in payload
 
 
 @pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
@@ -143,6 +183,32 @@ def test_compare_project_hf_vs_extracted_hf_runs_if_inputs_exist(tmp_path: Path)
     )
     assert (out_dir / "comparison.csv").exists()
     assert (out_dir / "comparison.md").exists()
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_compare_csi_backed_vs_raw_extracted_h_runs_if_inputs_exist(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    raw = repo_root / "outputs/sionna_channel_extraction/native_channel_beamforming_metrics.csv"
+    csi = repo_root / "outputs/sionna_channel_extraction/csi_backed_beamforming_metrics.csv"
+    if not (raw.exists() and csi.exists()):
+        pytest.skip("Required raw/csi comparison artifacts not present")
+    out_dir = tmp_path / "csi_compare"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/compare_csi_backed_vs_raw_extracted_h.py",
+            "--raw",
+            str(raw),
+            "--csi",
+            str(csi),
+            "--out",
+            str(out_dir),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    assert (out_dir / "csi_interface_comparison.csv").exists()
+    assert (out_dir / "csi_interface_comparison.md").exists()
 
 
 @pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")

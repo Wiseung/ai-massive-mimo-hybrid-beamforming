@@ -1,0 +1,308 @@
+{
+  "sionna_import_ok": true,
+  "sionna_version": "2.0.1",
+  "receiver_mode": "auto",
+  "seed": 0,
+  "csi_interface_used": true,
+  "csi_source": "sionna_ofdm_channel",
+  "project_h_f_assisted": false,
+  "extracted_h_f_used": true,
+  "full_native_only": false,
+  "native_receiver_success": true,
+  "teacher_used_during_inference": false,
+  "methods_evaluated": [
+    "project_rzf",
+    "project_wmmse_iter_5",
+    "learned_residual_rzf",
+    "learned_residual_wmmse_distill"
+  ],
+  "skipped_missing_checkpoint": [],
+  "csi_summary": {
+    "source": "sionna_ofdm_channel",
+    "source_component": "OFDMChannel(return_channel=True)",
+    "axes": {
+      "B": 0,
+      "Nsc": 1,
+      "K": 2,
+      "Nt": 3
+    },
+    "shape": {
+      "B": 16,
+      "Nsc": 16,
+      "K": 4,
+      "Nt": 16
+    },
+    "h_f_shape": [
+      16,
+      16,
+      4,
+      16
+    ],
+    "dtype": "torch.complex64",
+    "selected_ofdm_symbol": 1,
+    "effective_subcarrier_indices": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
+    ],
+    "num_users": 4,
+    "num_bs_ant": 16,
+    "num_subcarriers": 16,
+    "project_h_f_assisted": false,
+    "extracted_h_f_used": true,
+    "full_native_only": false,
+    "validation": {
+      "valid": true,
+      "shape": [
+        16,
+        16,
+        4,
+        16
+      ],
+      "dtype": "torch.complex64",
+      "is_complex": true,
+      "all_finite": true,
+      "norm_mean": 7.798610687255859,
+      "norm_std": 0.5374643802642822,
+      "subcarrier_norm_std_mean": 0.0,
+      "fallback_reason": ""
+    },
+    "metadata": {
+      "original_sionna_h_shape": [
+        16,
+        4,
+        1,
+        1,
+        16,
+        2,
+        19
+      ],
+      "original_axes": {
+        "batch": 0,
+        "rx": 1,
+        "rx_ant": 2,
+        "tx": 3,
+        "tx_ant": 4,
+        "ofdm_symbol": 5,
+        "fft_bin": 6
+      },
+      "selected_data_symbol": 1,
+      "selected_data_symbol_indices": [
+        1
+      ],
+      "pilot_symbol_indices": [
+        0
+      ],
+      "effective_subcarrier_ind": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ],
+      "extraction_success": true,
+      "fallback_reason": "",
+      "conversion_meta": {
+        "input_shape": [
+          16,
+          4,
+          1,
+          1,
+          16,
+          2,
+          19
+        ],
+        "assumed_sionna_axes": [
+          "batch",
+          "rx",
+          "rx_ant",
+          "tx",
+          "tx_ant",
+          "ofdm_symbol",
+          "fft_bin"
+        ],
+        "target_project_axes": [
+          "batch",
+          "subcarrier",
+          "user",
+          "bs_ant"
+        ],
+        "target_project_axes_map": {
+          "B": 0,
+          "Nsc": 1,
+          "K": 2,
+          "Nt": 3
+        },
+        "original_axes": {
+          "batch": 0,
+          "rx": 1,
+          "rx_ant": 2,
+          "tx": 3,
+          "tx_ant": 4,
+          "ofdm_symbol": 5,
+          "fft_bin": 6
+        },
+        "fallback_reason": "",
+        "selected_data_symbol_indices": [
+          1
+        ],
+        "normalize_channel": false,
+        "output_shape": [
+          16,
+          16,
+          4,
+          16
+        ],
+        "selected_effective_subcarrier_count": 16
+      },
+      "resource_grid_num_ofdm_symbols": 2,
+      "resource_grid_num_data_symbols": 16,
+      "validation": {
+        "valid": true,
+        "shape": [
+          16,
+          16,
+          4,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "is_complex": true,
+        "all_finite": true,
+        "norm_mean": 7.798610687255859,
+        "norm_std": 0.5374643802642822,
+        "subcarrier_norm_std_mean": 0.0,
+        "fallback_reason": ""
+      }
+    }
+  },
+  "metrics": [
+    {
+      "method": "project_rzf",
+      "method_type": "analytic",
+      "checkpoint_path": null,
+      "native_receiver_success": true,
+      "used_sionna_resource_grid": true,
+      "used_sionna_channel": true,
+      "used_sionna_estimator": true,
+      "used_sionna_equalizer": true,
+      "used_sionna_demapper": true,
+      "teacher_used_during_inference": false,
+      "fallback_used": false,
+      "fallback_stage": "",
+      "fallback_reason": "",
+      "ber_if_available": 0.0,
+      "symbol_mse": 0.04175187274813652,
+      "effective_sinr_db": 13.79323959350586,
+      "approximate_sum_rate": 18.564105987548828,
+      "power_norm": 1.0,
+      "runtime_ms": 0.0,
+      "csi_interface_used": true,
+      "extraction_success": true,
+      "project_h_f_assisted": false,
+      "extracted_h_f_used": true,
+      "full_native_only": false
+    },
+    {
+      "method": "project_wmmse_iter_5",
+      "method_type": "analytic",
+      "checkpoint_path": null,
+      "native_receiver_success": true,
+      "used_sionna_resource_grid": true,
+      "used_sionna_channel": true,
+      "used_sionna_estimator": true,
+      "used_sionna_equalizer": true,
+      "used_sionna_demapper": true,
+      "teacher_used_during_inference": false,
+      "fallback_used": false,
+      "fallback_stage": "",
+      "fallback_reason": "",
+      "ber_if_available": 0.0,
+      "symbol_mse": 0.047701604664325714,
+      "effective_sinr_db": 13.214670419692993,
+      "approximate_sum_rate": 17.82818603515625,
+      "power_norm": 1.0,
+      "runtime_ms": 0.0,
+      "csi_interface_used": true,
+      "extraction_success": true,
+      "project_h_f_assisted": false,
+      "extracted_h_f_used": true,
+      "full_native_only": false
+    },
+    {
+      "method": "learned_residual_rzf",
+      "method_type": "learned",
+      "checkpoint_path": "/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/outputs/runs/sionna_ofdm_residual_rzf/best.pt",
+      "native_receiver_success": true,
+      "used_sionna_resource_grid": true,
+      "used_sionna_channel": true,
+      "used_sionna_estimator": true,
+      "used_sionna_equalizer": true,
+      "used_sionna_demapper": true,
+      "teacher_used_during_inference": false,
+      "fallback_used": false,
+      "fallback_stage": "",
+      "fallback_reason": "",
+      "ber_if_available": 0.0,
+      "symbol_mse": 0.04304938763380051,
+      "effective_sinr_db": 13.660330772399902,
+      "approximate_sum_rate": 18.394683837890625,
+      "power_norm": 1.0,
+      "runtime_ms": 78.41892703436315,
+      "csi_interface_used": true,
+      "extraction_success": true,
+      "project_h_f_assisted": false,
+      "extracted_h_f_used": true,
+      "full_native_only": false
+    },
+    {
+      "method": "learned_residual_wmmse_distill",
+      "method_type": "learned",
+      "checkpoint_path": "/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/outputs/runs/sionna_ofdm_residual_wmmse_distill/best.pt",
+      "native_receiver_success": true,
+      "used_sionna_resource_grid": true,
+      "used_sionna_channel": true,
+      "used_sionna_estimator": true,
+      "used_sionna_equalizer": true,
+      "used_sionna_demapper": true,
+      "teacher_used_during_inference": false,
+      "fallback_used": false,
+      "fallback_stage": "",
+      "fallback_reason": "",
+      "ber_if_available": 0.0,
+      "symbol_mse": 0.04277066886425018,
+      "effective_sinr_db": 13.688539266586304,
+      "approximate_sum_rate": 18.43062400817871,
+      "power_norm": 1.0,
+      "runtime_ms": 2.8633999754674733,
+      "csi_interface_used": true,
+      "extraction_success": true,
+      "project_h_f_assisted": false,
+      "extracted_h_f_used": true,
+      "full_native_only": false
+    }
+  ]
+}

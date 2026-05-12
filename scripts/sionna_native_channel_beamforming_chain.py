@@ -25,12 +25,14 @@ from beamforming.utils.sionna_native_learned_beamforming import (
     load_learned_beamformer_checkpoint,
     run_native_receiver_with_precoder,
 )
+from beamforming.utils.seed import set_seed
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", required=True)
     parser.add_argument("--receiver-mode", choices=["proxy", "native", "auto"], default="auto")
+    parser.add_argument("--seed", type=int, default=0)
     return parser.parse_args()
 
 
@@ -70,13 +72,20 @@ def main() -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     sionna_device = resolve_sionna_device(device)
     repo_root = Path(__file__).resolve().parents[1]
+    set_seed(args.seed)
 
     summary: dict[str, Any] = {
         "sionna_import_ok": env["sionna_import_ok"],
         "sionna_version": env["sionna_version"],
         "receiver_mode": args.receiver_mode,
+        "seed": int(args.seed),
+        "csi_interface_used": True,
+        "csi_source": "sionna_ofdm_channel",
+        "csi_summary": None,
         "extraction_success": False,
         "project_h_f_assisted": True,
+        "extracted_h_f_used": False,
+        "full_native_only": False,
         "native_receiver_success": False,
         "notes": [],
         "metrics": [],
@@ -101,7 +110,9 @@ def main() -> None:
     extraction_success = extracted_h_f is not None
     summary["extraction_success"] = bool(extraction_success)
     summary["project_h_f_assisted"] = not bool(extraction_success)
+    summary["extracted_h_f_used"] = bool(extraction_success)
     summary["extraction_meta"] = extraction_meta
+    summary["csi_summary"] = context.context_meta.get("csi_summary")
     if not extraction_success:
         summary["notes"].append("Fell back to project-assisted H_f because shared native extraction was unavailable in the receiver context.")
 
@@ -154,6 +165,7 @@ def main() -> None:
             method_context = clone_native_receiver_context(
                 context,
                 h_f=extracted_h_f,
+                csi=context.csi,
                 h_full=context.h_full,
                 context_meta_updates={"project_h_f_assisted": False, "extracted_h_f_used": True},
             )

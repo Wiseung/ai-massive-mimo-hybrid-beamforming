@@ -416,7 +416,7 @@ Current post-`v0.4.0` next-step focus:
 - keep the existing native receiver path intact while testing a more native channel bridge
 - do not reinterpret this work as a full native-only benchmark unless channel, precoder, and receiver paths are all consistently native
 
-Current status: `v0.5.0` candidate for the optional Sionna-native channel-extraction bridge.
+Published status: `v0.5.0` for the optional Sionna-native channel-extraction bridge.
 
 Current channel-extraction branch result:
 
@@ -454,6 +454,36 @@ Current supported wording:
 - no ray tracing
 - no 5G NR full stack
 - optional dependency only
+
+Current post-`v0.5.0` branch focus:
+
+- standardize extracted `H_f` into a reusable `ExtractedCSI` interface instead of open-coded transpose/squeeze bridges
+- keep `H_f` normalized to project shape `B,Nsc,K,Nt`
+- attach provenance metadata such as original Sionna channel shape, original axes, selected data symbol, and effective subcarrier indices
+- keep the current boundary as native-channel-assisted plus native-receiver-assisted, not full native-only
+
+Current CSI-interface branch result:
+
+- `ExtractedCSI` now records `source`, `source_component`, `axes`, `shape`, `project_h_f_assisted`, `extracted_h_f_used`, `full_native_only`, and nested provenance metadata
+- CSI audit passes with `h_f_shape_ok=true`, `axes_metadata_complete=true`, `selected_data_symbol_not_pilot=true`, `project_h_f_assisted=false`, and `full_native_only=false`
+- the CSI-backed beamforming chain succeeds for `project_rzf`, `project_wmmse_iter_5`, `learned_residual_rzf`, and `learned_residual_wmmse_distill`
+- learned CSI-backed runs keep `teacher_used_during_inference=false`
+- raw extracted-H vs CSI-backed comparison introduces no extra fallback, but the current separate single-run reruns are not numerically identical and do not preserve exact ranking; the interface gain is provenance clarity rather than a new metric claim
+
+Current CSI-interface validation commands:
+
+```bash
+python scripts/audit_sionna_csi_interface.py \
+  --out outputs/sionna_channel_extraction/csi_interface_audit.json
+python scripts/sionna_csi_backed_beamforming_chain.py \
+  --out outputs/sionna_channel_extraction/csi_backed_beamforming_summary.json \
+  --receiver-mode auto \
+  --seed 0
+python scripts/compare_csi_backed_vs_raw_extracted_h.py \
+  --raw outputs/sionna_channel_extraction/native_channel_beamforming_metrics.csv \
+  --csi outputs/sionna_channel_extraction/csi_backed_beamforming_metrics.csv \
+  --out outputs/sionna_channel_extraction
+```
 
 Current channel-extraction validation commands:
 

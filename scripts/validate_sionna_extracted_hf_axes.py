@@ -63,6 +63,8 @@ def main() -> None:
         "validation_status": "skipped",
         "sionna_import_ok": env["sionna_import_ok"],
         "sionna_version": env["sionna_version"],
+        "csi_interface_used": True,
+        "csi_summary": None,
         "sionna_channel_tensor_shape": None,
         "extracted_h_f_shape": None,
         "selected_data_symbol_indices": [],
@@ -100,6 +102,7 @@ def main() -> None:
     extraction_meta = bundle.bundle_meta["channel_meta"]["extraction_meta"]
     h = bundle.h_full
     h_f = bundle.h_f
+    payload["csi_summary"] = bundle.bundle_meta.get("csi_summary")
     selected_symbols = [int(x) for x in extraction_meta["selected_data_symbol_indices"]]
     selected_subcarriers = [int(x) for x in extraction_meta["selected_effective_subcarrier_indices"]]
     data_symbol_indices = resolve_resource_grid_data_symbol_indices(bundle.resource_grid)

@@ -321,7 +321,8 @@ def extract_effective_channel_from_sionna(
     selected_ofdm_symbol: str | int = "first_data",
     effective_subcarriers: str | list[int] = "all_effective",
     normalize_channel: bool = False,
-) -> tuple[torch.Tensor | None, torch.Tensor | None, dict[str, Any]]:
+    return_csi: bool = False,
+) -> tuple[torch.Tensor | None, torch.Tensor | None, dict[str, Any]] | tuple[torch.Tensor | None, torch.Tensor | None, dict[str, Any], Any]:
     """Extract a project-side effective channel from Sionna OFDMChannel.
 
     Returns:
@@ -361,7 +362,7 @@ def extract_effective_channel_from_sionna(
         )
         noise = torch.full((batch_size, num_users, 1), float(noise_var), dtype=torch.float32, device=device)
         _, h_freq_full = channel(dummy_x, no=noise)
-        h_f, extraction_meta, extraction_success, fallback_reason = extract_h_f_from_sionna_channel(
+        csi_or_h_f, extraction_meta, extraction_success, fallback_reason = extract_h_f_from_sionna_channel(
             h_freq_full,
             resource_grid=resource_grid,
             num_users=num_users,
@@ -369,11 +370,15 @@ def extract_effective_channel_from_sionna(
             selected_ofdm_symbol=selected_ofdm_symbol,
             effective_subcarriers=effective_subcarriers,
             normalize_channel=normalize_channel,
+            return_csi=return_csi,
         )
+        csi_obj = csi_or_h_f if return_csi and extraction_success else None
+        h_f = csi_or_h_f.to_project_h_f() if return_csi and extraction_success and csi_or_h_f is not None else csi_or_h_f
         meta["extraction_meta"] = extraction_meta
+        meta["csi_summary"] = extraction_meta.get("csi_summary")
         if not extraction_success or h_f is None:
             meta.update({"fallback_used": True, "fallback_reason": fallback_reason or "native_h_f_extraction_failed"})
-            return None, h_freq_full, meta
+            return (None, h_freq_full, meta, None) if return_csi else (None, h_freq_full, meta)
         meta.update(
             {
                 "used_native_channel_extraction": True,
@@ -382,10 +387,10 @@ def extract_effective_channel_from_sionna(
                 "effective_subcarrier_ind": [int(x) for x in resource_grid.effective_subcarrier_ind],
             }
         )
-        return h_f, h_freq_full, meta
+        return (h_f, h_freq_full, meta, csi_obj) if return_csi else (h_f, h_freq_full, meta)
     except Exception as exc:  # pragma: no cover - optional runtime path
         meta.update({"fallback_used": True, "fallback_reason": f"{type(exc).__name__}: {exc}"})
-        return None, None, meta
+        return (None, None, meta, None) if return_csi else (None, None, meta)
 
 
 def apply_project_precoder_to_sionna_grid(

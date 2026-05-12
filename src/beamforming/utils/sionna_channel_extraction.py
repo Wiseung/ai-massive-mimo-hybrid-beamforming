@@ -6,6 +6,8 @@ from typing import Any
 
 import torch
 
+from beamforming.utils.csi_interface import ExtractedCSI
+
 
 def _pilot_ofdm_symbol_indices(resource_grid: Any) -> list[int]:
     return [int(x) for x in (getattr(resource_grid, "_pilot_ofdm_symbol_indices", []) or [])]
@@ -125,6 +127,47 @@ def summarize_h_f_matrix_stats(h_f: torch.Tensor | None) -> dict[str, Any]:
     return stats
 
 
+def build_csi_from_h_f(
+    h_f: torch.Tensor,
+    *,
+    source: str,
+    source_component: str,
+    selected_ofdm_symbol: int,
+    effective_subcarrier_indices: list[int],
+    num_users: int,
+    num_bs_ant: int,
+    project_h_f_assisted: bool,
+    extracted_h_f_used: bool,
+    full_native_only: bool,
+    metadata: dict[str, Any],
+) -> ExtractedCSI:
+    """Create a validated ``ExtractedCSI`` object from a project-side ``H_f`` tensor."""
+    csi = ExtractedCSI(
+        h_f=h_f.contiguous(),
+        source=source,
+        source_component=source_component,
+        axes={"B": 0, "Nsc": 1, "K": 2, "Nt": 3},
+        shape={
+            "B": int(h_f.size(0)),
+            "Nsc": int(h_f.size(1)),
+            "K": int(h_f.size(2)),
+            "Nt": int(h_f.size(3)),
+        },
+        selected_ofdm_symbol=int(selected_ofdm_symbol),
+        effective_subcarrier_indices=[int(x) for x in effective_subcarrier_indices],
+        num_users=int(num_users),
+        num_bs_ant=int(num_bs_ant),
+        num_subcarriers=int(h_f.size(1)),
+        project_h_f_assisted=bool(project_h_f_assisted),
+        extracted_h_f_used=bool(extracted_h_f_used),
+        full_native_only=bool(full_native_only),
+        metadata=dict(metadata),
+    )
+    validation = csi.validate(raise_on_error=False)
+    csi.metadata.setdefault("validation", validation)
+    return csi
+
+
 def convert_sionna_h_to_project_h_f(
     sionna_channel: torch.Tensor,
     *,
@@ -141,19 +184,21 @@ def convert_sionna_h_to_project_h_f(
 
     Project axes:
     ``(batch, subcarrier, user, bs_ant)``.
-
-    The current bridge assumes MU downlink semantics:
-    - ``rx`` indexes logical users ``K``
-    - ``rx_ant=1``
-    - ``tx=1``
-    - ``tx_ant`` indexes BS antennas ``Nt``
-    - one data OFDM symbol is selected via ``data_symbol_index``
-    - effective subcarriers are selected via ``effective_subcarrier_ind``
     """
     meta: dict[str, Any] = {
         "input_shape": [int(x) for x in sionna_channel.shape],
         "assumed_sionna_axes": ["batch", "rx", "rx_ant", "tx", "tx_ant", "ofdm_symbol", "fft_bin"],
         "target_project_axes": ["batch", "subcarrier", "user", "bs_ant"],
+        "target_project_axes_map": {"B": 0, "Nsc": 1, "K": 2, "Nt": 3},
+        "original_axes": {
+            "batch": 0,
+            "rx": 1,
+            "rx_ant": 2,
+            "tx": 3,
+            "tx_ant": 4,
+            "ofdm_symbol": 5,
+            "fft_bin": 6,
+        },
         "fallback_reason": "",
         "selected_data_symbol_indices": [int(x) for x in torch.as_tensor(data_symbol_indices, dtype=torch.long).tolist()],
         "normalize_channel": bool(normalize_channel),
@@ -198,10 +243,10 @@ def convert_sionna_h_to_project_h_f(
         meta["fallback_reason"] = "effective_subcarrier_ind_out_of_range"
         return None, meta
 
-    h_sel = sionna_channel[:, :, 0, 0, :, :, :]  # [B, K, Nt, S, F]
-    h_perm = h_sel.permute(0, 3, 4, 1, 2).contiguous()  # [B, S, F, K, Nt]
-    h_pick = h_perm[:, data_idx, :, :, :]  # [B, S_sel, F, K, Nt]
-    h_pick = h_pick[:, :, eff_idx, :, :]  # [B, S_sel, Nsc, K, Nt]
+    h_sel = sionna_channel[:, :, 0, 0, :, :, :]
+    h_perm = h_sel.permute(0, 3, 4, 1, 2).contiguous()
+    h_pick = h_perm[:, data_idx, :, :, :]
+    h_pick = h_pick[:, :, eff_idx, :, :]
     if h_pick.size(1) == 1:
         h_f = h_pick[:, 0, :, :, :].contiguous()
     else:
@@ -215,8 +260,13 @@ def convert_sionna_h_to_project_h_f(
     return h_f, meta
 
 
-def validate_extracted_h_f(h_f: torch.Tensor | None) -> dict[str, Any]:
-    """Validate an extracted project-side ``H_f`` tensor."""
+def validate_extracted_h_f(h_f: torch.Tensor | ExtractedCSI | None) -> dict[str, Any]:
+    """Validate an extracted project-side ``H_f`` tensor or ``ExtractedCSI``."""
+    if isinstance(h_f, ExtractedCSI):
+        result = h_f.validate(raise_on_error=False)
+        result["matrix_stats"] = summarize_h_f_matrix_stats(h_f.h_f)
+        return result
+
     result: dict[str, Any] = {
         "valid": False,
         "shape": None,
@@ -249,18 +299,19 @@ def validate_extracted_h_f(h_f: torch.Tensor | None) -> dict[str, Any]:
     norms = torch.linalg.vector_norm(h_f, dim=(-2, -1))
     result["norm_mean"] = float(norms.mean().item())
     result["norm_std"] = float(norms.std(unbiased=False).item())
-    per_subcarrier_norm = torch.linalg.vector_norm(h_f, dim=(-2, -1))
-    result["subcarrier_norm_std_mean"] = float(per_subcarrier_norm.std(dim=1, unbiased=False).mean().item())
+    result["subcarrier_norm_std_mean"] = float(norms.std(dim=1, unbiased=False).mean().item())
     result["matrix_stats"] = summarize_h_f_matrix_stats(h_f)
     result["valid"] = True
     return result
 
 
 def compare_extracted_h_f_with_synthetic_reference(
-    extracted_h_f: torch.Tensor | None,
-    reference_h_f: torch.Tensor | None,
+    extracted_h_f: torch.Tensor | ExtractedCSI | None,
+    reference_h_f: torch.Tensor | ExtractedCSI | None,
 ) -> dict[str, Any]:
     """Compare extracted ``H_f`` against a synthetic reference statistically."""
+    extracted_tensor = extracted_h_f.h_f if isinstance(extracted_h_f, ExtractedCSI) else extracted_h_f
+    reference_tensor = reference_h_f.h_f if isinstance(reference_h_f, ExtractedCSI) else reference_h_f
     result: dict[str, Any] = {
         "comparison_valid": False,
         "shape_match": False,
@@ -269,18 +320,18 @@ def compare_extracted_h_f_with_synthetic_reference(
         "rank_mean_reference": None,
         "fallback_reason": "",
     }
-    if extracted_h_f is None or reference_h_f is None:
+    if extracted_tensor is None or reference_tensor is None:
         result["fallback_reason"] = "missing_extracted_or_reference_h_f"
         return result
-    result["shape_match"] = list(extracted_h_f.shape) == list(reference_h_f.shape)
+    result["shape_match"] = list(extracted_tensor.shape) == list(reference_tensor.shape)
     if not result["shape_match"]:
         result["fallback_reason"] = "shape_mismatch"
         return result
-    ex_norm = torch.linalg.vector_norm(extracted_h_f, dim=(-2, -1)).mean()
-    ref_norm = torch.linalg.vector_norm(reference_h_f, dim=(-2, -1)).mean().clamp_min(1e-12)
+    ex_norm = torch.linalg.vector_norm(extracted_tensor, dim=(-2, -1)).mean()
+    ref_norm = torch.linalg.vector_norm(reference_tensor, dim=(-2, -1)).mean().clamp_min(1e-12)
     result["mean_norm_ratio"] = float((ex_norm / ref_norm).item())
-    ex_rank = torch.linalg.matrix_rank(extracted_h_f).float().mean()
-    ref_rank = torch.linalg.matrix_rank(reference_h_f).float().mean()
+    ex_rank = torch.linalg.matrix_rank(extracted_tensor).float().mean()
+    ref_rank = torch.linalg.matrix_rank(reference_tensor).float().mean()
     result["rank_mean_extracted"] = float(ex_rank.item())
     result["rank_mean_reference"] = float(ref_rank.item())
     result["comparison_valid"] = True
@@ -296,18 +347,9 @@ def extract_h_f_from_sionna_channel(
     selected_ofdm_symbol: str | int = "first_data",
     effective_subcarriers: str | list[int] | torch.Tensor = "all_effective",
     normalize_channel: bool = False,
-) -> tuple[torch.Tensor | None, dict[str, Any], bool, str]:
-    """Extract project ``H_f=(B,Nsc,K,Nt)`` from a Sionna channel tensor.
-
-    Args:
-        sionna_channel: Sionna channel tensor, expected rank 7.
-        resource_grid: Sionna ``ResourceGrid`` providing effective subcarriers and pilot layout.
-        num_users: Target project user/stream count ``K``.
-        num_bs_ant: Target BS antenna count ``Nt``.
-
-    Returns:
-        ``(h_f, metadata, extraction_success, fallback_reason)``.
-    """
+    return_csi: bool = False,
+) -> tuple[torch.Tensor | ExtractedCSI | None, dict[str, Any], bool, str]:
+    """Extract project ``H_f=(B,Nsc,K,Nt)`` from a Sionna channel tensor."""
     metadata: dict[str, Any] = {
         "resource_grid_num_ofdm_symbols": int(resource_grid.num_ofdm_symbols),
         "resource_grid_num_data_symbols": int(resource_grid.num_data_symbols),
@@ -321,6 +363,7 @@ def extract_h_f_from_sionna_channel(
             "single_tx_required": True,
             "single_rx_ant_required": True,
         },
+        "csi_interface_used": bool(return_csi),
     }
     if sionna_channel is None:
         fallback_reason = "sionna_channel_tensor_missing"
@@ -356,21 +399,55 @@ def extract_h_f_from_sionna_channel(
         normalize_channel=normalize_channel,
     )
     metadata["conversion"] = convert_meta
-    if converted is None:
-        fallback_reason = str(convert_meta.get("fallback_reason", "conversion_failed"))
-        metadata["fallback_reason"] = fallback_reason
-        return None, metadata, False, fallback_reason
-
-    validation = validate_extracted_h_f(converted)
-    metadata["validation"] = validation
-    if not validation["valid"]:
-        fallback_reason = str(validation.get("fallback_reason", "validation_failed"))
-        metadata["fallback_reason"] = fallback_reason
-        return None, metadata, False, fallback_reason
+    metadata["original_sionna_h_shape"] = [int(x) for x in sionna_channel.shape]
+    metadata["original_axes"] = convert_meta.get("original_axes")
     metadata["selected_data_symbol_indices"] = [int(x) for x in data_symbol_indices]
     metadata["selected_data_symbol_index"] = int(data_symbol_indices[0]) if len(data_symbol_indices) == 1 else None
     metadata["selected_effective_subcarrier_indices"] = [int(x) for x in selected_effective_subcarrier_ind]
     metadata["selected_effective_subcarrier_count"] = int(len(selected_effective_subcarrier_ind))
     metadata["normalize_channel"] = bool(normalize_channel)
+    metadata["effective_subcarrier_ind"] = [int(x) for x in selected_effective_subcarrier_ind]
+    metadata["selected_data_symbol"] = int(data_symbol_indices[0]) if len(data_symbol_indices) == 1 else None
+    metadata["pilot_symbol_indices"] = _pilot_ofdm_symbol_indices(resource_grid)
+
+    if converted is None:
+        fallback_reason = str(convert_meta.get("fallback_reason", "conversion_failed"))
+        metadata["fallback_reason"] = fallback_reason
+        metadata["extraction_success"] = False
+        return None, metadata, False, fallback_reason
+
+    csi = build_csi_from_h_f(
+        converted,
+        source="sionna_ofdm_channel",
+        source_component="OFDMChannel(return_channel=True)",
+        selected_ofdm_symbol=int(data_symbol_indices[0]) if len(data_symbol_indices) == 1 else int(data_symbol_indices[0]),
+        effective_subcarrier_indices=selected_effective_subcarrier_ind,
+        num_users=num_users,
+        num_bs_ant=num_bs_ant,
+        project_h_f_assisted=False,
+        extracted_h_f_used=True,
+        full_native_only=False,
+        metadata={
+            "original_sionna_h_shape": [int(x) for x in sionna_channel.shape],
+            "original_axes": convert_meta.get("original_axes"),
+            "selected_data_symbol": int(data_symbol_indices[0]) if len(data_symbol_indices) == 1 else None,
+            "selected_data_symbol_indices": [int(x) for x in data_symbol_indices],
+            "pilot_symbol_indices": _pilot_ofdm_symbol_indices(resource_grid),
+            "effective_subcarrier_ind": [int(x) for x in selected_effective_subcarrier_ind],
+            "extraction_success": True,
+            "fallback_reason": "",
+            "conversion_meta": convert_meta,
+            "resource_grid_num_ofdm_symbols": int(resource_grid.num_ofdm_symbols),
+            "resource_grid_num_data_symbols": int(resource_grid.num_data_symbols),
+        },
+    )
+    validation = validate_extracted_h_f(csi)
+    metadata["validation"] = validation
+    metadata["csi_summary"] = csi.summary_dict()
+    metadata["extraction_success"] = bool(validation["valid"])
+    if not validation["valid"]:
+        fallback_reason = str(validation.get("fallback_reason", "validation_failed"))
+        metadata["fallback_reason"] = fallback_reason
+        return None, metadata, False, fallback_reason
     metadata["fallback_reason"] = ""
-    return converted, metadata, True, ""
+    return (csi if return_csi else converted), metadata, True, ""

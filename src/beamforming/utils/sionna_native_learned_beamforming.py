@@ -10,6 +10,7 @@ from typing import Any
 import torch
 
 from beamforming.models.factory import build_model
+from beamforming.utils.csi_interface import ExtractedCSI
 from beamforming.utils.sionna_native_beamforming_chain import (
     apply_project_precoder_to_sionna_grid,
     build_pilot_aware_multiuser_resource_grid,
@@ -48,6 +49,7 @@ class NativeReceiverContext:
     resource_grid: Any
     stream_management: Any
     h_f: torch.Tensor
+    csi: ExtractedCSI | None
     h_full: torch.Tensor
     noise_var: float
     snr_db: float
@@ -61,6 +63,7 @@ class SharedSionnaChannelBundle:
     stream_management: Any
     h_full: torch.Tensor
     h_f: torch.Tensor
+    csi: ExtractedCSI | None
     noise_var: float
     bundle_meta: dict[str, Any]
 
@@ -104,6 +107,7 @@ def clone_native_receiver_context(
     context: NativeReceiverContext,
     *,
     h_f: torch.Tensor | None = None,
+    csi: ExtractedCSI | None = None,
     h_full: torch.Tensor | None = None,
     context_meta_updates: dict[str, Any] | None = None,
 ) -> NativeReceiverContext:
@@ -114,6 +118,7 @@ def clone_native_receiver_context(
     return replace(
         context,
         h_f=context.h_f if h_f is None else h_f,
+        csi=context.csi if csi is None else csi,
         h_full=context.h_full if h_full is None else h_full,
         context_meta=merged_meta,
     )
@@ -171,7 +176,7 @@ def generate_shared_sionna_channel_bundle(
     )
     if resource_grid is None or stream_management is None:
         raise RuntimeError(f"Failed to build pilot-aware native receiver context: {rg_meta.get('fallback_reason')}")
-    h_f, h_full, h_meta = extract_effective_channel_from_sionna(
+    h_f, h_full, h_meta, csi = extract_effective_channel_from_sionna(
         resource_grid,
         batch_size=batch_size,
         num_users=num_users,
@@ -181,6 +186,7 @@ def generate_shared_sionna_channel_bundle(
         selected_ofdm_symbol=selected_ofdm_symbol,
         effective_subcarriers=effective_subcarriers,
         normalize_channel=normalize_channel,
+        return_csi=True,
     )
     if h_f is None or h_full is None:
         raise RuntimeError(f"Failed to extract native H_f from Sionna channel: {h_meta.get('fallback_reason')}")
@@ -189,10 +195,13 @@ def generate_shared_sionna_channel_bundle(
         stream_management=stream_management,
         h_full=h_full,
         h_f=h_f,
+        csi=csi,
         noise_var=float(noise_var),
         bundle_meta={
             "resource_grid_meta": rg_meta,
             "channel_meta": h_meta,
+            "csi_interface_used": bool(h_meta.get("csi") is not None),
+            "csi_summary": h_meta.get("csi_summary"),
             "native_receiver_path": True,
             "synthetic_channel_level_only": True,
             "project_h_f_assisted": bool(not h_meta.get("used_native_channel_extraction", False)),
@@ -231,6 +240,7 @@ def build_native_receiver_context(
         resource_grid=channel_bundle.resource_grid,
         stream_management=channel_bundle.stream_management,
         h_f=channel_bundle.h_f,
+        csi=channel_bundle.csi,
         h_full=channel_bundle.h_full,
         noise_var=noise_var,
         snr_db=float(snr_db),

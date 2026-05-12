@@ -22,7 +22,7 @@ from Sionna-native channel tensors so the existing project precoder and learned-
 
 ## Current Status
 
-This document now tracks the `v0.5.0` candidate state for the optional Sionna-native channel-extraction bridge.
+This document now tracks the published `v0.5.0` state together with the follow-on CSI-interface standardization branch for the optional Sionna-native channel-extraction bridge.
 
 Compact result table:
 
@@ -198,6 +198,110 @@ This shrinks the earlier `project-H_f-assisted` limitation, but it still does no
 - not full native-only benchmark
 - proxy metric cannot replace native receiver metric
 - no stable learned `> WMMSE-iter5` claim
+- no Sionna RT
+- no ray tracing
+- no 5G NR full stack
+- optional dependency only
+
+## CSI Interface Motivation
+
+The `v0.5.0` extraction bridge proved that a native Sionna channel tensor can be converted into project-side `H_f=(B,Nsc,K,Nt)`, but the earlier consumers still relied on ad hoc transpose/squeeze handling.
+
+The current follow-on branch introduces a standardized `ExtractedCSI` object so that:
+
+- project precoders consume one validated `H_f` shape
+- learned beamformers consume the same validated `H_f` shape
+- native receiver experiments keep explicit provenance for where that `H_f` came from
+- future DeepMIMO or other CSI sources can conform to the same container without reusing Sionna-specific bridge code
+
+## ExtractedCSI Schema
+
+Current normalized fields:
+
+- `h_f`: complex torch tensor with shape `(B,Nsc,K,Nt)`
+- `source`: one of `sionna_ofdm_channel`, `synthetic_project`, `deepmimo_future`
+- `source_component`
+- `axes = {B:0, Nsc:1, K:2, Nt:3}`
+- `shape = {B, Nsc, K, Nt}`
+- `selected_ofdm_symbol`
+- `effective_subcarrier_indices`
+- `num_users`
+- `num_bs_ant`
+- `num_subcarriers`
+- `project_h_f_assisted`
+- `extracted_h_f_used`
+- `full_native_only`
+- `metadata`
+
+Key provenance metadata currently recorded for the Sionna path:
+
+- `original_sionna_h_shape`
+- `original_axes`
+- `selected_data_symbol`
+- `selected_data_symbol_indices`
+- `pilot_symbol_indices`
+- `effective_subcarrier_ind`
+- `extraction_success`
+- `fallback_reason`
+- `conversion_meta`
+
+## CSI Provenance Audit Result
+
+The CSI-interface audit currently reports:
+
+- `csi_interface_used = true`
+- `h_f_shape_ok = true`
+- `axes_metadata_complete = true`
+- `original_sionna_h_shape_present = true`
+- `selected_data_symbol_not_pilot = true`
+- `effective_subcarrier_count_matches_nsc = true`
+- `project_h_f_assisted = false`
+- `extracted_h_f_used = true`
+- `full_native_only = false`
+- `project_rzf_consumes_csi = true`
+- `learned_residual_rzf_consumes_csi = true`
+
+This confirms that the standardized CSI object is usable by both the analytic project precoder path and the learned residual-RZF path while keeping the same boundary interpretation as `v0.5.0`.
+
+## CSI-backed Beamforming Result
+
+The CSI-backed beamforming chain now runs the extracted-channel path through the standardized `ExtractedCSI` object before the existing project and learned precoder interfaces.
+
+Current single-run result:
+
+- `csi_interface_used = true`
+- `csi_source = sionna_ofdm_channel`
+- `project_h_f_assisted = false`
+- `extracted_h_f_used = true`
+- `full_native_only = false`
+- `native_receiver_success = true`
+- learned methods keep `teacher_used_during_inference = false`
+
+Current methods evaluated:
+
+- `project_rzf`
+- `project_wmmse_iter_5`
+- `learned_residual_rzf`
+- `learned_residual_wmmse_distill`
+
+## Raw Extracted-H vs CSI-backed Comparison
+
+The current comparison between the earlier raw extracted-H script path and the CSI-backed path reports:
+
+- no new fallback was introduced
+- provenance clarity is improved because the CSI-backed path stores a reusable validated summary object
+- the current separate reruns are not numerically identical and do not preserve exact ranking
+
+This should be interpreted carefully:
+
+- the goal of this phase is interface/schema/provenance hardening
+- it is not a new claim that the CSI-backed path materially improves metrics
+- it also does not change the current benchmark boundary
+
+The supported wording remains:
+
+- native-channel-assisted plus native-receiver-assisted
+- not full native-only benchmark
 - no Sionna RT
 - no ray tracing
 - no 5G NR full stack
