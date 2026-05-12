@@ -71,3 +71,5 @@ def test_native_learned_wmmse_distill_teacher_flag_false() -> None:
     assert meta["native_receiver_path"] is True
     assert meta["csi_interface_used"] is True
     assert meta["input_type"] == "ExtractedCSI"
+    assert meta["source"] == "synthetic_project"
+    assert meta["source_component"] == "unit_test"

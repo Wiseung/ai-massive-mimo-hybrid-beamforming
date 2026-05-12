@@ -107,3 +107,11 @@ def test_compare_csi_inputs_reports_same_shape_and_signature() -> None:
     assert result["same_shape"] is True
     assert result["same_tensor_signature"] is True
     assert result["same_source"] is True
+
+
+def test_summarize_csi_input_for_raw_tensor_marks_non_csi_path() -> None:
+    summary = summarize_csi_input(_make_h_f())
+    assert summary["input_type"] == "raw_h_f"
+    assert summary["csi_interface_used"] is False
+    assert summary["project_h_f_assisted"] is None
+    assert summary["tensor_signature"] is not None
