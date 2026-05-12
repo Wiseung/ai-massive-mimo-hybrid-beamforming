@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 import torch
 
-from beamforming.utils.precoder_interface import PrecoderOutput
+from beamforming.utils.precoder_interface import PrecoderOutput, SharedPrecoderMethodArtifacts, compare_precoder_outputs
 
 
 def _make_f_f() -> torch.Tensor:
@@ -88,3 +88,32 @@ def test_precoder_interface_save_summary_json(tmp_path: Path) -> None:
     precoder.save_summary_json(out_path)
     payload = json.loads(out_path.read_text(encoding="utf-8"))
     assert payload["f_f_shape"] == [2, 3, 5, 4]
+
+
+def test_compare_precoder_outputs_reports_max_abs_diff() -> None:
+    f_f = _make_f_f()
+    shifted = f_f.clone()
+    shifted[0, 0, 0, 0] += 0.25 + 0.0j
+    result = compare_precoder_outputs(f_f, _make_precoder_output(shifted))
+    assert result["same_shape"] is True
+    assert result["same_tensor_signature"] is False
+    assert result["max_abs_diff"] == pytest.approx(0.25)
+
+
+def test_shared_precoder_method_artifacts_summary_contains_diff_metadata() -> None:
+    f_f = _make_f_f()
+    precoder = _make_precoder_output(f_f)
+    artifacts = SharedPrecoderMethodArtifacts(
+        method="project_rzf",
+        method_type="analytic",
+        raw_f_f=f_f,
+        precoder_output=precoder,
+        checkpoint_path=None,
+        teacher_used_during_inference=False,
+        runtime_ms=1.0,
+        metadata={"seed": 0},
+    )
+    summary = artifacts.summary_dict()
+    assert summary["method"] == "project_rzf"
+    assert summary["max_abs_diff_raw_vs_precoder_f_f"] == pytest.approx(0.0)
+    assert summary["metadata"]["seed"] == 0

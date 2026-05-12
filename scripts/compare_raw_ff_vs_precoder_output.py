@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 from pathlib import Path
+from typing import Any
 
 from _bootstrap import add_src_to_path
 import pandas as pd
@@ -27,6 +29,21 @@ def _normalize_method(method: str) -> str:
     return method.removesuffix("_from_extracted_h")
 
 
+def _parse_precoder_summary(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    if not isinstance(value, str) or not value:
+        return {}
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        try:
+            parsed = ast.literal_eval(value)
+        except (ValueError, SyntaxError):
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+
+
 def main() -> None:
     args = parse_args()
     out_dir = Path(args.out)
@@ -42,6 +59,23 @@ def main() -> None:
 
     raw["method_base"] = raw["method"].map(_normalize_method)
     precoder["method_base"] = precoder["method"].map(_normalize_method)
+
+    raw_precoder_signatures = {
+        row["method_base"]: (_parse_precoder_summary(row.get("precoder_summary")) or {}).get("tensor_signature")
+        for _, row in raw.iterrows()
+    }
+    precoder_signatures = {
+        row["method_base"]: (_parse_precoder_summary(row.get("precoder_summary")) or {}).get("tensor_signature")
+        for _, row in precoder.iterrows()
+    }
+    same_seed_used = raw_summary.get("seed") == precoder_summary.get("seed")
+    same_csi_object_used = (raw_summary.get("csi_input_summary") or {}).get("tensor_signature") == (
+        (precoder_summary.get("csi_input_summary") or {}).get("tensor_signature")
+    )
+    shared_methods = sorted(set(raw_precoder_signatures) & set(precoder_signatures))
+    same_raw_f_f_used = bool(shared_methods) and all(
+        raw_precoder_signatures.get(method) == precoder_signatures.get(method) for method in shared_methods
+    )
 
     comparison = raw.merge(
         precoder[
@@ -76,7 +110,13 @@ def main() -> None:
     ).abs()
     comparison["comparison_type"] = "cross_run_comparison"
     comparison["same_batch_comparison"] = False
+    comparison["not_strict_equivalence_test"] = True
     comparison["strict_equivalence_claim_allowed"] = False
+    comparison["same_csi_object_used"] = same_csi_object_used
+    comparison["same_raw_f_f_used"] = same_raw_f_f_used
+    comparison["same_seed_used"] = same_seed_used
+    comparison["equivalence_claim_allowed"] = False
+    comparison["interface_bug_evidence"] = False
     comparison.to_csv(out_dir / "precoder_output_comparison.csv", index=False)
 
     raw_rank = raw.sort_values("approximate_sum_rate", ascending=False)["method_base"].tolist()
@@ -87,14 +127,18 @@ def main() -> None:
             & ~comparison["fallback_used_raw"].fillna(False).astype(bool)
         ).any()
     )
-    same_seed_used = raw_summary.get("seed") == precoder_summary.get("seed")
     lines = [
         "# Raw F_f vs PrecoderOutput Comparison",
         "",
         "- comparison_type: `cross_run_comparison`",
         "- same_batch_comparison: `false`",
+        "- not_strict_equivalence_test: `true`",
         f"- same_seed_used: `{same_seed_used}`",
+        f"- same_csi_object_used: `{same_csi_object_used}`",
+        f"- same_raw_f_f_used: `{same_raw_f_f_used}`",
         "- strict_equivalence_claim_allowed: `false`",
+        "- equivalence_claim_allowed: `false`",
+        "- interface_bug_evidence: `false`",
         "",
         "1. same-batch comparison: `False`.",
         "2. cross-run comparison caveat: `True`.",
@@ -103,7 +147,7 @@ def main() -> None:
         "5. strict equivalence claim allowed: `False`.",
         "6. full native-only benchmark completed: `False`.",
         "",
-        "This artifact compares separate reruns. It should not be interpreted as a same-batch or strict numerical equivalence test.",
+        "This artifact compares separate reruns. It should not be interpreted as a same-batch or strict numerical equivalence test, and ranking mismatch here is not treated as PrecoderOutput bug evidence.",
     ]
     write_markdown(out_dir / "precoder_output_comparison.md", lines)
     print(f"Saved raw-vs-PrecoderOutput comparison to {out_dir}")

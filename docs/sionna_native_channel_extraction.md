@@ -443,6 +443,8 @@ Current supported summary:
 - learned `PrecoderOutput` artifacts explicitly preserve `teacher_used_during_inference=false`
 - the native receiver bridge accepts `PrecoderOutput` directly
 - raw `F_f` remains a backward-compatible fallback
+- same-batch raw-`F_f` vs `PrecoderOutput` validation now reuses one shared CSI object, one shared raw `F_f` per method, one shared bit/symbol batch, one shared noise realization, and one shared native receiver configuration
+- the old raw-`F_f` vs `PrecoderOutput` ranking mismatch is now explicitly explained as a cross-run comparison artifact rather than `PrecoderOutput` bug evidence
 - this still does not change the benchmark boundary to full native-only
 
 Compact PrecoderOutput table:
@@ -454,7 +456,17 @@ Compact PrecoderOutput table:
 | learned methods emit PrecoderOutput | `supported` | learned residual methods keep checkpoint and teacher provenance in one object |
 | native receiver consumes PrecoderOutput | `supported` | receiver path accepts standardized output object directly |
 | raw F_f fallback | `retained` | older scripts/tests can still use legacy raw tensors |
-| strict raw-vs-PrecoderOutput equivalence claim | `false` | current comparison artifact remains cross-run unless explicitly same-batch |
+| same-batch raw-vs-PrecoderOutput equivalence | `passed` | shared-realization validation gives exact metric agreement within tolerance |
+| previous raw-vs-PrecoderOutput mismatch root cause | `cross_run_comparison_without_shared_csi_and_precoder_realization` | prior mismatch came from independent reruns |
+| strict raw-vs-PrecoderOutput equivalence claim on cross-run artifact | `false` | only the new same-batch validation can justify the strict claim |
+
+PrecoderOutput same-batch interpretation:
+
+- `PrecoderOutput.f_f` is numerically identical to the corresponding raw `F_f` under one shared realization
+- native receiver metrics are numerically consistent under one shared CSI / `F_f` / symbol / noise / receiver-config fixture
+- the old cross-run comparison remains useful for artifact-level auditing, but it is not a strict equivalence test
+- no new fallback is introduced by this bridge
+- this still does not change the boundary to full native-only
 
 Boundary remains:
 
@@ -483,6 +495,18 @@ python scripts/generate_sionna_csi_consumer_artifact_manifest.py \
 
 python scripts/reproduce_sionna_csi_consumer_minimal.py \
   --out outputs/repro/sionna_csi_consumer_minimal_summary.json
+python scripts/validate_precoder_output_same_batch_equivalence.py \
+  --out outputs/sionna_channel_extraction/precoder_output_same_batch_equivalence.json
+
+python scripts/audit_precoder_output_comparison_mismatch.py \
+  --raw outputs/sionna_channel_extraction/csi_backed_beamforming_metrics.csv \
+  --precoder-output outputs/sionna_channel_extraction/unified_csi_precoder_metrics.csv \
+  --out outputs/sionna_channel_extraction
+
+python scripts/compare_raw_ff_vs_precoder_output.py \
+  --raw outputs/sionna_channel_extraction/csi_backed_beamforming_metrics.csv \
+  --precoder-output outputs/sionna_channel_extraction/unified_csi_precoder_metrics.csv \
+  --out outputs/sionna_channel_extraction
 ```
 
 ## CSI Consumer Unification Status

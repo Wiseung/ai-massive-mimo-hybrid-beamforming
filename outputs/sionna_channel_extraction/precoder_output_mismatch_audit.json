@@ -1,0 +1,39 @@
+{
+  "raw_metrics_path": "outputs/sionna_channel_extraction/csi_backed_beamforming_metrics.csv",
+  "precoder_output_metrics_path": "outputs/sionna_channel_extraction/unified_csi_precoder_metrics.csv",
+  "raw_summary_path": "outputs/sionna_channel_extraction/csi_backed_beamforming_summary.json",
+  "precoder_output_summary_path": "outputs/sionna_channel_extraction/unified_csi_precoder_summary.json",
+  "same_seed_used": true,
+  "same_csi_object_used": false,
+  "same_raw_f_f_used": false,
+  "same_bits_used": false,
+  "same_symbols_used": false,
+  "same_noise_realization_used": false,
+  "same_noise_var_used": true,
+  "same_receiver_config_used": false,
+  "same_metric_definition_family": true,
+  "comparison_independent_runs": true,
+  "comparison_type": "cross_run_comparison",
+  "root_cause": "cross_run_comparison_without_shared_csi_and_precoder_realization",
+  "interface_bug_evidence": false,
+  "update_compare_script_semantics": true,
+  "notes": [
+    "The previous raw-vs-PrecoderOutput artifact compares separate runs rather than one shared same-batch fixture.",
+    "The two summary JSON files reuse seed=0 but expose different CSI tensor signatures, so the channel realization is not shared.",
+    "Per-method PrecoderOutput tensor signatures also differ across the two artifacts, so ranking mismatch is cross-run variance rather than direct PrecoderOutput bug evidence."
+  ],
+  "raw_csi_tensor_signature": "adfe92d1c9b9dd0b988110f6f0757b99afd9c064d615c04bb5c7aa572f5d2956",
+  "precoder_output_csi_tensor_signature": "2357d91b987e93f6628ef721b6238117fe94156d31e7d558aded1ca5737e471d",
+  "raw_precoder_signatures": {
+    "project_rzf": "6eb8ce89b10ba4ee9b013835acbe85a40a613551dc3b25aa7c214c8977b58564",
+    "project_wmmse_iter_5": "b4bb9a3b02fd55d3759209b96b186dd9c70c7a0a1b0ccfbb27c4b09e9841daae",
+    "learned_residual_rzf": "b46c7e5ce43673358c106af957ba43e04b4ba894f67ae2b80527ab59e4058430",
+    "learned_residual_wmmse_distill": "b688c7832a678bf10fdb44b927ec64573e7ad65fbf17f29047fa770761db6acf"
+  },
+  "precoder_output_signatures": {
+    "project_rzf": "035b4a6276f29797beda5ebfe62d371a2e136bdad4d3e9084a3b617351a9c9cd",
+    "project_wmmse_iter_5": "a62744ee169fb9676740f0a2c07a8df561a702e4390df5721b6711ea70736ee6",
+    "learned_residual_rzf": "7f82f85a18ebc320095309139b334ee7b64a049776e8ecf2431c05677e556c43",
+    "learned_residual_wmmse_distill": "aef8ee64045a187a28230e5606c40c8ce37cb93c91c183818b135e3c11d80f58"
+  }
+}

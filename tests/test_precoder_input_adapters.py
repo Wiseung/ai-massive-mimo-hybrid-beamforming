@@ -90,3 +90,4 @@ def test_compare_precoder_outputs_reports_same_signature() -> None:
     assert result["same_shape"] is True
     assert result["same_tensor_signature"] is True
     assert result["same_method"] is True
+    assert result["max_abs_diff"] == pytest.approx(0.0)

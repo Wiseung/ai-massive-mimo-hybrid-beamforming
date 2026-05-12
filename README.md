@@ -540,6 +540,8 @@ Current PrecoderOutput bridge status:
 - `teacher_used_during_inference=false` is tracked directly in the learned `PrecoderOutput` summary
 - the native receiver bridge now accepts either `PrecoderOutput` or raw `F_f`, with `PrecoderOutput` as the preferred interface for the unified demo path
 - raw `F_f` remains a backward-compatible fallback
+- same-batch raw-`F_f` vs `PrecoderOutput` validation now passes under one shared CSI / `F_f` / bits / noise / receiver-config realization
+- the earlier raw-`F_f` vs `PrecoderOutput` ranking mismatch is now explicitly treated as a cross-run comparison artifact, not direct `PrecoderOutput` bug evidence
 
 Compact PrecoderOutput table:
 
@@ -550,7 +552,20 @@ Compact PrecoderOutput table:
 | learned emit PrecoderOutput | `supported` | learned residual methods can return container or raw fallback |
 | native receiver accepts PrecoderOutput | `supported` | receiver bridge consumes standardized output object |
 | raw-only high-priority precoder gaps | `0` | no key high-priority path must stay raw-only |
-| strict raw-vs-PrecoderOutput equivalence claim | `false` | current comparison artifact remains cross-run unless explicitly same-batch |
+| same-batch raw-vs-PrecoderOutput equivalence | `passed` | shared-realization validation gives `max_abs_diff_sum_rate=0.0`, `max_abs_diff_symbol_mse=0.0`, `max_abs_diff_sinr_db=0.0` |
+| previous raw-vs-PrecoderOutput mismatch root cause | `cross_run_comparison_without_shared_csi_and_precoder_realization` | prior ranking mismatch was caused by comparing independent reruns |
+| strict raw-vs-PrecoderOutput equivalence claim on cross-run artifact | `false` | only same-batch validation can support the strict numerical-consistency claim |
+
+Current PrecoderOutput interpretation:
+
+- `PrecoderOutput` is numerically consistent under one shared CSI / `F_f` realization
+- the old raw-vs-PrecoderOutput comparison remains a cross-run comparison, not a strict equivalence test
+- no new fallback is introduced by the `PrecoderOutput` bridge
+- this still does not make the system full native-only
+- no Sionna RT
+- no ray tracing
+- no 5G NR full stack
+- optional dependency only
 
 Current CSI-interface validation commands:
 
@@ -587,6 +602,16 @@ python scripts/generate_sionna_csi_consumer_artifact_manifest.py \
   --out outputs/sionna_channel_extraction/csi_consumer_artifact_manifest.json
 python scripts/reproduce_sionna_csi_consumer_minimal.py \
   --out outputs/repro/sionna_csi_consumer_minimal_summary.json
+python scripts/validate_precoder_output_same_batch_equivalence.py \
+  --out outputs/sionna_channel_extraction/precoder_output_same_batch_equivalence.json
+python scripts/audit_precoder_output_comparison_mismatch.py \
+  --raw outputs/sionna_channel_extraction/csi_backed_beamforming_metrics.csv \
+  --precoder-output outputs/sionna_channel_extraction/unified_csi_precoder_metrics.csv \
+  --out outputs/sionna_channel_extraction
+python scripts/compare_raw_ff_vs_precoder_output.py \
+  --raw outputs/sionna_channel_extraction/csi_backed_beamforming_metrics.csv \
+  --precoder-output outputs/sionna_channel_extraction/unified_csi_precoder_metrics.csv \
+  --out outputs/sionna_channel_extraction
 ```
 
 Current channel-extraction validation commands:

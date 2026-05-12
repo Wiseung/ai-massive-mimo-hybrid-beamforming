@@ -78,6 +78,12 @@ def _power_summary_from_tensor(f_f: torch.Tensor) -> dict[str, float]:
     }
 
 
+def _max_abs_complex_diff(a: torch.Tensor, b: torch.Tensor) -> float | None:
+    if list(a.shape) != list(b.shape):
+        return None
+    return float(torch.max(torch.abs(a - b)).item())
+
+
 @dataclass
 class PrecoderOutput:
     """Standardized project-side precoder output with provenance metadata.
@@ -291,6 +297,7 @@ def compare_precoder_outputs(
     return {
         "same_shape": list(f_f_a.shape) == list(f_f_b.shape),
         "same_tensor_signature": tensor_signature(f_f_a) == tensor_signature(f_f_b),
+        "max_abs_diff": _max_abs_complex_diff(f_f_a, f_f_b),
         "same_input_type": meta_a.get("input_type") == meta_b.get("input_type"),
         "same_precoder_interface_used": meta_a.get("precoder_interface_used") == meta_b.get("precoder_interface_used"),
         "same_method": meta_a.get("method") == meta_b.get("method"),
@@ -344,4 +351,248 @@ def build_precoder_output(
         sionna_native_precoder=bool(sionna_native_precoder),
         full_native_only=bool(full_native_only),
         metadata=combined_metadata,
+    )
+
+
+@dataclass
+class SharedPrecoderMethodArtifacts:
+    """One deterministic raw/PrecoderOutput pair for a single method."""
+
+    method: str
+    method_type: str
+    raw_f_f: torch.Tensor
+    precoder_output: PrecoderOutput
+    checkpoint_path: str | None
+    teacher_used_during_inference: bool
+    runtime_ms: float
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def summary_dict(self) -> dict[str, Any]:
+        comparison = compare_precoder_outputs(self.raw_f_f, self.precoder_output)
+        return {
+            "method": self.method,
+            "method_type": self.method_type,
+            "checkpoint_path": self.checkpoint_path,
+            "teacher_used_during_inference": bool(self.teacher_used_during_inference),
+            "runtime_ms": float(self.runtime_ms),
+            "raw_f_f_summary": summarize_precoder_input(self.raw_f_f),
+            "precoder_output_summary": self.precoder_output.summary_dict(),
+            "max_abs_diff_raw_vs_precoder_f_f": comparison["max_abs_diff"],
+            "comparison": comparison,
+            "metadata": _json_safe(self.metadata),
+        }
+
+
+@dataclass
+class SharedPrecoderOutputBatch:
+    """Deterministic shared batch for raw-F_f vs PrecoderOutput equivalence tests."""
+
+    csi: ExtractedCSI
+    raw_h_f: torch.Tensor
+    bits: torch.Tensor
+    symbols: torch.Tensor
+    resource_grid: Any
+    stream_management: Any
+    h_full: torch.Tensor
+    rx_noise_grid: torch.Tensor | None
+    noise_var: float
+    snr_db: float
+    seed: int
+    selected_ofdm_symbol: int
+    effective_subcarrier_indices: list[int]
+    receiver_config: dict[str, Any]
+    method_artifacts: dict[str, SharedPrecoderMethodArtifacts]
+    skipped_methods: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    native_context: Any | None = None
+
+    def summary_dict(self) -> dict[str, Any]:
+        return {
+            "seed": int(self.seed),
+            "batch_size": int(self.bits.size(0)),
+            "snr_db": float(self.snr_db),
+            "noise_var": float(self.noise_var),
+            "selected_ofdm_symbol": int(self.selected_ofdm_symbol),
+            "effective_subcarrier_indices": [int(x) for x in self.effective_subcarrier_indices],
+            "raw_h_f_shape": [int(x) for x in self.raw_h_f.shape],
+            "h_full_shape": [int(x) for x in self.h_full.shape],
+            "raw_h_f_signature": tensor_signature(self.raw_h_f),
+            "h_full_signature": tensor_signature(self.h_full),
+            "bits_signature": tensor_signature(self.bits),
+            "symbols_signature": tensor_signature(self.symbols),
+            "rx_noise_grid_signature": tensor_signature(self.rx_noise_grid),
+            "csi_summary": self.csi.summary_dict(),
+            "receiver_config": _json_safe(self.receiver_config),
+            "method_artifacts": {
+                method: item.summary_dict() for method, item in self.method_artifacts.items()
+            },
+            "skipped_methods": list(self.skipped_methods),
+            "metadata": _json_safe(self.metadata),
+        }
+
+
+def create_shared_precoder_output_batch(
+    *,
+    batch_size: int,
+    num_subcarriers: int,
+    num_users: int,
+    num_bs_ant: int,
+    snr_db: float,
+    device: torch.device,
+    repo_root: Path,
+    seed: int = 0,
+    methods: list[tuple[str, str]] | None = None,
+) -> SharedPrecoderOutputBatch:
+    """Create one deterministic batch shared by raw-F_f and PrecoderOutput paths."""
+
+    from beamforming.utils.sionna_native_beamforming_chain import (
+        compute_project_precoder_per_subcarrier,
+        summarize_receiver_config,
+    )
+    from beamforming.utils.sionna_native_learned_beamforming import (
+        build_native_receiver_context,
+        default_checkpoint_path,
+        generate_shared_sionna_channel_bundle,
+        infer_learned_precoder,
+        load_learned_beamformer_checkpoint,
+    )
+
+    method_specs = methods or [
+        ("project_rzf", "analytic"),
+        ("project_wmmse_iter_5", "analytic"),
+        ("learned_residual_rzf", "learned"),
+        ("learned_residual_wmmse_distill", "learned"),
+    ]
+    noise_var = float(10.0 ** (-float(snr_db) / 10.0))
+    channel_bundle = generate_shared_sionna_channel_bundle(
+        batch_size=batch_size,
+        num_subcarriers=num_subcarriers,
+        num_users=num_users,
+        num_bs_ant=num_bs_ant,
+        noise_var=noise_var,
+        device=device,
+        seed=seed,
+    )
+    native_context = build_native_receiver_context(
+        batch_size=batch_size,
+        num_subcarriers=num_subcarriers,
+        num_users=num_users,
+        num_bs_ant=num_bs_ant,
+        snr_db=snr_db,
+        device=device,
+        channel_bundle=channel_bundle,
+    )
+    csi = native_context.csi
+    if csi is None:
+        raise RuntimeError("shared_precoder_output_batch_requires_extracted_csi")
+    receiver_config = summarize_receiver_config(
+        native_context.resource_grid,
+        native_context.stream_management,
+        selected_ofdm_symbol=csi.selected_ofdm_symbol,
+        effective_subcarrier_indices=csi.effective_subcarrier_indices,
+    )
+    method_artifacts: dict[str, SharedPrecoderMethodArtifacts] = {}
+    skipped_methods: list[str] = []
+    snr_tensor = torch.full((batch_size,), float(snr_db), dtype=torch.float32, device=device)
+
+    for method, method_type in method_specs:
+        checkpoint_path: str | None = None
+        teacher_flag = False
+        runtime_ms = 0.0
+        raw_f_f: torch.Tensor
+        precoder_output: PrecoderOutput
+        metadata: dict[str, Any] = {
+            "seed": int(seed),
+            "batch_size": int(batch_size),
+            "snr_db": float(snr_db),
+            "method": method,
+            "receiver_config": receiver_config,
+            "input_csi_tensor_signature": tensor_signature(csi.to_project_h_f()),
+        }
+        if method_type == "analytic":
+            raw_f_f = compute_project_precoder_per_subcarrier(
+                method.removeprefix("project_"),
+                csi,
+                native_context.noise_var,
+                return_precoder_output=False,
+            )
+            precoder_output = compute_project_precoder_per_subcarrier(
+                method.removeprefix("project_"),
+                csi,
+                native_context.noise_var,
+                return_precoder_output=True,
+            )
+        else:
+            ckpt = default_checkpoint_path(method, repo_root)
+            checkpoint_path = str(ckpt)
+            if not ckpt.exists():
+                skipped_methods.append(method)
+                continue
+            bundle = load_learned_beamformer_checkpoint(ckpt, device, method_name=method)
+            raw_precoder, infer_meta, runtime_ms = infer_learned_precoder(
+                bundle,
+                csi,
+                snr_tensor,
+                native_receiver_path=True,
+                return_precoder_output=False,
+            )
+            container_precoder, _, _ = infer_learned_precoder(
+                bundle,
+                csi,
+                snr_tensor,
+                native_receiver_path=True,
+                return_precoder_output=True,
+            )
+            raw_f_f = raw_precoder
+            precoder_output = container_precoder
+            teacher_flag = bool(infer_meta.get("teacher_used_during_inference", False))
+            metadata["inference_inputs"] = infer_meta.get("inference_inputs")
+        comparison = compare_precoder_outputs(raw_f_f, precoder_output)
+        metadata.update(
+            {
+                "checkpoint_path": checkpoint_path,
+                "teacher_used_during_inference": bool(teacher_flag),
+                "raw_f_f_shape": [int(x) for x in raw_f_f.shape],
+                "precoder_output_f_f_shape": [int(x) for x in precoder_output.f_f.shape],
+                "raw_f_f_tensor_signature": tensor_signature(raw_f_f),
+                "precoder_output_tensor_signature": tensor_signature(precoder_output.f_f),
+                "max_abs_diff_raw_vs_precoder_f_f": comparison["max_abs_diff"],
+            }
+        )
+        method_artifacts[method] = SharedPrecoderMethodArtifacts(
+            method=method,
+            method_type=method_type,
+            raw_f_f=raw_f_f.contiguous(),
+            precoder_output=precoder_output,
+            checkpoint_path=checkpoint_path,
+            teacher_used_during_inference=bool(teacher_flag),
+            runtime_ms=float(runtime_ms),
+            metadata=metadata,
+        )
+
+    return SharedPrecoderOutputBatch(
+        csi=csi,
+        raw_h_f=native_context.h_f.contiguous(),
+        bits=native_context.bits.contiguous(),
+        symbols=native_context.stream_symbols.contiguous(),
+        resource_grid=native_context.resource_grid,
+        stream_management=native_context.stream_management,
+        h_full=native_context.h_full.contiguous(),
+        rx_noise_grid=native_context.context_meta.get("shared_rx_noise_grid"),
+        noise_var=float(native_context.noise_var),
+        snr_db=float(native_context.snr_db),
+        seed=int(seed),
+        selected_ofdm_symbol=int(csi.selected_ofdm_symbol),
+        effective_subcarrier_indices=[int(x) for x in csi.effective_subcarrier_indices],
+        receiver_config=receiver_config,
+        method_artifacts=method_artifacts,
+        skipped_methods=skipped_methods,
+        metadata={
+            "seed": int(seed),
+            "batch_size": int(batch_size),
+            "snr_db": float(snr_db),
+            "original_sionna_h_shape": [int(x) for x in native_context.h_full.shape],
+            "extracted_h_f_shape": [int(x) for x in native_context.h_f.shape],
+        },
+        native_context=native_context,
     )

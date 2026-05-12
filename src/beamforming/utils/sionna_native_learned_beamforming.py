@@ -20,6 +20,7 @@ from beamforming.utils.sionna_native_beamforming_chain import (
     describe_tensor,
     extract_effective_channel_from_sionna,
     map_project_streams_to_sionna_rg,
+    summarize_receiver_config,
     sionna_rx_to_project_symbols,
     validate_sionna_receiver_shapes,
 )
@@ -326,6 +327,29 @@ def build_native_receiver_context(
         device=device,
         context_meta=dict(channel_bundle.bundle_meta),
     )
+
+
+def summarize_native_receiver_context(context: NativeReceiverContext) -> dict[str, Any]:
+    """Return a serializable summary for same-batch equivalence checks."""
+
+    csi = context.csi
+    selected_ofdm_symbol = csi.selected_ofdm_symbol if csi is not None else None
+    effective_subcarrier_indices = csi.effective_subcarrier_indices if csi is not None else None
+    return {
+        "noise_var": float(context.noise_var),
+        "snr_db": float(context.snr_db),
+        "bits_shape": [int(x) for x in context.bits.shape],
+        "stream_symbols_shape": [int(x) for x in context.stream_symbols.shape],
+        "h_f_shape": [int(x) for x in context.h_f.shape],
+        "h_full_shape": [int(x) for x in context.h_full.shape],
+        "receiver_config": summarize_receiver_config(
+            context.resource_grid,
+            context.stream_management,
+            selected_ofdm_symbol=selected_ofdm_symbol,
+            effective_subcarrier_indices=effective_subcarrier_indices,
+        ),
+        "shared_rx_noise_grid_present": context.context_meta.get("shared_rx_noise_grid") is not None,
+    }
 
 
 def run_native_receiver_with_precoder(

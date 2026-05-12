@@ -230,6 +230,39 @@ def build_pilot_aware_multiuser_resource_grid(
     return resource_grid, stream_management, meta
 
 
+def summarize_receiver_config(
+    resource_grid: Any,
+    stream_management: Any,
+    *,
+    selected_ofdm_symbol: int | None = None,
+    effective_subcarrier_indices: list[int] | None = None,
+) -> dict[str, Any]:
+    """Return a compact serializable summary of the native receiver configuration."""
+
+    detection_desired = getattr(stream_management, "detection_desired_ind", [])
+    return {
+        "resource_grid_num_ofdm_symbols": int(resource_grid.num_ofdm_symbols),
+        "resource_grid_fft_size": int(resource_grid.fft_size),
+        "resource_grid_num_data_symbols": int(resource_grid.num_data_symbols),
+        "resource_grid_num_pilot_symbols": int(resource_grid.num_pilot_symbols),
+        "resource_grid_num_streams_per_tx": int(resource_grid.num_streams_per_tx),
+        "resource_grid_num_tx": int(resource_grid.num_tx),
+        "effective_subcarrier_indices": [
+            int(x)
+            for x in (
+                effective_subcarrier_indices
+                if effective_subcarrier_indices is not None
+                else resource_grid.effective_subcarrier_ind
+            )
+        ],
+        "selected_ofdm_symbol": int(selected_ofdm_symbol) if selected_ofdm_symbol is not None else None,
+        "stream_management_num_rx": int(stream_management.num_rx),
+        "stream_management_num_tx": int(stream_management.num_tx),
+        "stream_management_num_streams_per_tx": int(stream_management.num_streams_per_tx),
+        "stream_management_num_desired_streams": int(len(detection_desired)),
+    }
+
+
 def apply_precoder_to_resource_grid(stream_symbols: torch.Tensor, precoder_f: torch.Tensor) -> torch.Tensor:
     """Apply per-subcarrier precoding.
 
