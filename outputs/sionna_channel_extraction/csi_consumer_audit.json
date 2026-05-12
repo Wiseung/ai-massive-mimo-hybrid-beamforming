@@ -1,0 +1,165 @@
+{
+  "audit": [
+    {
+      "file": "src/beamforming/utils/sionna_native_beamforming_chain.py",
+      "function_or_script": "compute_project_precoder_per_subcarrier",
+      "current_input_type": "both",
+      "should_support_csi": true,
+      "migration_priority": "high",
+      "recommended_change": "Use as_project_h_f() internally so analytic precoders accept ExtractedCSI and raw H_f.",
+      "backwards_compatibility_required": true
+    },
+    {
+      "file": "src/beamforming/utils/sionna_native_learned_beamforming.py",
+      "function_or_script": "infer_learned_precoder",
+      "current_input_type": "both",
+      "should_support_csi": true,
+      "migration_priority": "high",
+      "recommended_change": "Normalize inputs through as_project_h_f() and record CSI provenance in inference metadata.",
+      "backwards_compatibility_required": true
+    },
+    {
+      "file": "scripts/sionna_csi_backed_beamforming_chain.py",
+      "function_or_script": "main",
+      "current_input_type": "both",
+      "should_support_csi": true,
+      "migration_priority": "high",
+      "recommended_change": "Pass ExtractedCSI directly into analytic and learned consumers; keep summary fields for provenance.",
+      "backwards_compatibility_required": true
+    },
+    {
+      "file": "scripts/sionna_native_channel_beamforming_chain.py",
+      "function_or_script": "main",
+      "current_input_type": "both",
+      "should_support_csi": true,
+      "migration_priority": "high",
+      "recommended_change": "Prefer context.csi when available and only keep raw H_f as fallback for legacy path.",
+      "backwards_compatibility_required": true
+    },
+    {
+      "file": "scripts/sionna_native_ofdm_learned_beamforming_chain.py",
+      "function_or_script": "main",
+      "current_input_type": "both",
+      "should_support_csi": true,
+      "migration_priority": "medium",
+      "recommended_change": "CSI-backed path is wired in; keep summary provenance fields and raw fallback for backward compatibility.",
+      "backwards_compatibility_required": true
+    },
+    {
+      "file": "scripts/validate_csi_same_batch_equivalence.py",
+      "function_or_script": "main",
+      "current_input_type": "both",
+      "should_support_csi": true,
+      "migration_priority": "medium",
+      "recommended_change": "Use one shared ExtractedCSI object and compare raw fallback vs CSI-backed consumers under one realization.",
+      "backwards_compatibility_required": true
+    },
+    {
+      "file": "scripts/audit_sionna_csi_interface.py",
+      "function_or_script": "main",
+      "current_input_type": "both",
+      "should_support_csi": true,
+      "migration_priority": "medium",
+      "recommended_change": "Audit consumer calls using ExtractedCSI directly and summarize provenance completeness.",
+      "backwards_compatibility_required": true
+    },
+    {
+      "file": "scripts/benchmark_sionna_extracted_h_consistency.py",
+      "function_or_script": "main",
+      "current_input_type": "both",
+      "should_support_csi": true,
+      "migration_priority": "medium",
+      "recommended_change": "Benchmark now prefers context.csi when available; preserve quick/limited wording and raw fallback.",
+      "backwards_compatibility_required": true
+    },
+    {
+      "file": "scripts/sionna_extract_channel_hf_demo.py",
+      "function_or_script": "main",
+      "current_input_type": "both",
+      "should_support_csi": true,
+      "migration_priority": "medium",
+      "recommended_change": "Prefer CSI summary in artifacts instead of direct tensor-only reporting.",
+      "backwards_compatibility_required": true
+    },
+    {
+      "file": "scripts/run_sionna_native_learned_chain_minibench.py",
+      "function_or_script": "main",
+      "current_input_type": "both",
+      "should_support_csi": true,
+      "migration_priority": "low",
+      "recommended_change": "Keep optional minibench aligned with ExtractedCSI-first input summary while preserving raw fallback.",
+      "backwards_compatibility_required": true
+    },
+    {
+      "file": "scripts/sionna_native_ofdm_beamforming_chain.py",
+      "function_or_script": "main",
+      "current_input_type": "raw_h_f",
+      "should_support_csi": false,
+      "migration_priority": "low",
+      "recommended_change": "Legacy v0.4-era project-assisted script; optional future cleanup if this path is revived.",
+      "backwards_compatibility_required": true
+    },
+    {
+      "file": "tests/test_csi_interface.py",
+      "function_or_script": "CSI base tests",
+      "current_input_type": "ExtractedCSI",
+      "should_support_csi": true,
+      "migration_priority": "low",
+      "recommended_change": "Keep schema tests and extend adapters in dedicated adapter test file.",
+      "backwards_compatibility_required": false
+    },
+    {
+      "file": "tests/test_sionna_channel_extraction_optional.py",
+      "function_or_script": "optional Sionna script tests",
+      "current_input_type": "unknown",
+      "should_support_csi": true,
+      "migration_priority": "medium",
+      "recommended_change": "Cover audit/demo/comparison scripts that should now surface CSI-backed behavior.",
+      "backwards_compatibility_required": true
+    },
+    {
+      "file": "README.md",
+      "function_or_script": "command examples and branch status",
+      "current_input_type": "both",
+      "should_support_csi": true,
+      "migration_priority": "medium",
+      "recommended_change": "Document ExtractedCSI-first path and raw H_f fallback boundaries.",
+      "backwards_compatibility_required": true
+    },
+    {
+      "file": "docs/sionna_native_channel_extraction.md",
+      "function_or_script": "CSI interface documentation",
+      "current_input_type": "both",
+      "should_support_csi": true,
+      "migration_priority": "medium",
+      "recommended_change": "Add consumer-unification status table and clarify remaining raw fallback consumers.",
+      "backwards_compatibility_required": true
+    }
+  ],
+  "total_consumers_audited": 15,
+  "raw_only_high_priority_paths": 0,
+  "already_support_both": 12,
+  "raw_only_key_paths": [],
+  "already_support_csi_paths": [
+    "src/beamforming/utils/sionna_native_beamforming_chain.py::compute_project_precoder_per_subcarrier",
+    "src/beamforming/utils/sionna_native_learned_beamforming.py::infer_learned_precoder",
+    "scripts/sionna_csi_backed_beamforming_chain.py::main",
+    "scripts/sionna_native_channel_beamforming_chain.py::main",
+    "scripts/sionna_native_ofdm_learned_beamforming_chain.py::main",
+    "scripts/validate_csi_same_batch_equivalence.py::main",
+    "scripts/audit_sionna_csi_interface.py::main",
+    "scripts/benchmark_sionna_extracted_h_consistency.py::main",
+    "scripts/sionna_extract_channel_hf_demo.py::main",
+    "scripts/run_sionna_native_learned_chain_minibench.py::main",
+    "tests/test_csi_interface.py::CSI base tests",
+    "README.md::command examples and branch status",
+    "docs/sionna_native_channel_extraction.md::CSI interface documentation"
+  ],
+  "priority_migration_targets": [
+    "src/beamforming/utils/sionna_native_beamforming_chain.py::compute_project_precoder_per_subcarrier",
+    "src/beamforming/utils/sionna_native_learned_beamforming.py::infer_learned_precoder",
+    "scripts/sionna_csi_backed_beamforming_chain.py::main",
+    "scripts/sionna_native_channel_beamforming_chain.py::main"
+  ],
+  "csi_value_weakened_by_unified_gaps": false
+}

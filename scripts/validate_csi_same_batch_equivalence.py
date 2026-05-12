@@ -13,7 +13,7 @@ import torch
 
 add_src_to_path()
 
-from beamforming.utils.csi_interface import tensor_signature
+from beamforming.utils.csi_interface import summarize_csi_input, tensor_signature
 from beamforming.utils.seed import set_seed
 from beamforming.utils.sionna_env import collect_sionna_env_info
 from beamforming.utils.sionna_native_beamforming_chain import compute_project_precoder_per_subcarrier
@@ -139,7 +139,7 @@ def main() -> None:
         runtime_ms = 0.0
         if method_type == "analytic":
             raw_precoder = compute_project_precoder_per_subcarrier(method.removeprefix("project_"), raw_context.h_f, raw_context.noise_var)
-            csi_precoder = compute_project_precoder_per_subcarrier(method.removeprefix("project_"), csi_context.csi.to_project_h_f(), csi_context.noise_var)
+            csi_precoder = compute_project_precoder_per_subcarrier(method.removeprefix("project_"), csi_context.csi, csi_context.noise_var)
         else:
             ckpt = default_checkpoint_path(method, repo_root)
             if not ckpt.exists():
@@ -147,7 +147,7 @@ def main() -> None:
             bundle = load_learned_beamformer_checkpoint(ckpt, device, method_name=method)
             snr_tensor = torch.full((raw_context.h_f.size(0),), raw_context.snr_db, dtype=torch.float32, device=device)
             raw_precoder, infer_meta, runtime_ms = infer_learned_precoder(bundle, raw_context.h_f, snr_tensor, native_receiver_path=True)
-            csi_precoder, _, _ = infer_learned_precoder(bundle, csi_context.csi.to_project_h_f(), snr_tensor, native_receiver_path=True)
+            csi_precoder, _, _ = infer_learned_precoder(bundle, csi_context.csi, snr_tensor, native_receiver_path=True)
             checkpoint_path = str(ckpt)
             teacher_flag = bool(infer_meta["teacher_used_during_inference"])
 
@@ -191,6 +191,8 @@ def main() -> None:
                 "same_bits_used": tensor_signature(raw_context.bits) == tensor_signature(csi_context.bits),
                 "same_noise_config_used": raw_context.noise_var == csi_context.noise_var and tensor_signature(raw_context.context_meta.get("shared_rx_noise_grid")) == tensor_signature(csi_context.context_meta.get("shared_rx_noise_grid")),
                 "same_receiver_config_used": raw_context.resource_grid.num_ofdm_symbols == csi_context.resource_grid.num_ofdm_symbols and raw_context.resource_grid.fft_size == csi_context.resource_grid.fft_size,
+                "raw_input_type": summarize_csi_input(raw_context.h_f)["input_type"],
+                "csi_input_type": summarize_csi_input(csi_context.csi)["input_type"] if csi_context.csi is not None else None,
             }
         )
 

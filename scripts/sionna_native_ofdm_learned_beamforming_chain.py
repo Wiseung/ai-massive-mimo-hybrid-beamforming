@@ -13,6 +13,7 @@ import torch
 
 add_src_to_path()
 
+from beamforming.utils.csi_interface import summarize_csi_input
 from beamforming.utils.sionna_env import collect_sionna_env_info
 from beamforming.utils.sionna_native_beamforming_chain import compute_project_precoder_per_subcarrier, evaluate_ofdm_beamforming_outputs, time_function
 from beamforming.utils.sionna_native_chain import write_json, write_markdown
@@ -100,6 +101,12 @@ def main() -> None:
         "used_sionna_equalizer": False,
         "used_sionna_demapper": False,
         "shape_trace_path": None,
+        "csi_interface_used": False,
+        "input_type": "raw_h_f",
+        "project_h_f_assisted": True,
+        "extracted_h_f_used": False,
+        "full_native_only": False,
+        "csi_summary": None,
         "notes": [],
         "metrics": [],
     }
@@ -118,8 +125,15 @@ def main() -> None:
         snr_db=10.0,
         device=device,
     )
+    csi_input = context.csi if context.csi is not None else context.h_f
+    input_summary = summarize_csi_input(csi_input)
     summary["used_sionna_resource_grid"] = True
-    summary["notes"].append("Receiver chain is a real Sionna-native path, but precoder/H_f remains project-assisted.")
+    summary["csi_interface_used"] = bool(input_summary["csi_interface_used"])
+    summary["input_type"] = input_summary["input_type"]
+    summary["project_h_f_assisted"] = bool(context.context_meta.get("project_h_f_assisted", True))
+    summary["extracted_h_f_used"] = bool(context.context_meta.get("extracted_h_f_used", False))
+    summary["csi_summary"] = context.context_meta.get("csi_summary")
+    summary["notes"].append("Receiver chain is a real Sionna-native path; this script now accepts ExtractedCSI when available while keeping raw H_f fallback.")
     summary["notes"].append("This is still a synthetic/channel-level benchmark, not a full native-only or production e2e system.")
 
     methods = [
@@ -139,7 +153,7 @@ def main() -> None:
             teacher_flag = False
             checkpoint_path = None
         elif method.startswith("project_"):
-            precoder_f, runtime_ms = time_function(compute_project_precoder_per_subcarrier, method.removeprefix("project_"), context.h_f, context.noise_var)
+            precoder_f, runtime_ms = time_function(compute_project_precoder_per_subcarrier, method.removeprefix("project_"), csi_input, context.noise_var)
             teacher_flag = False
             checkpoint_path = None
         else:
@@ -172,7 +186,7 @@ def main() -> None:
                 continue
             bundle = load_learned_beamformer_checkpoint(ckpt, device, method_name=method)
             snr_tensor = torch.full((context.h_f.size(0),), context.snr_db, dtype=torch.float32, device=device)
-            precoder_f, infer_meta, runtime_ms = infer_learned_precoder(bundle, context.h_f, snr_tensor, native_receiver_path=True)
+            precoder_f, infer_meta, runtime_ms = infer_learned_precoder(bundle, csi_input, snr_tensor, native_receiver_path=True)
             teacher_flag = bool(infer_meta["teacher_used_during_inference"])
             checkpoint_path = str(ckpt)
 
@@ -193,6 +207,11 @@ def main() -> None:
         else:
             summary["methods_fallback_only"].append(method)
         summary["native_receiver_attempted"] = True
+        native_result["csi_interface_used"] = bool(input_summary["csi_interface_used"])
+        native_result["input_type"] = input_summary["input_type"]
+        native_result["project_h_f_assisted"] = bool(context.context_meta.get("project_h_f_assisted", True))
+        native_result["extracted_h_f_used"] = bool(context.context_meta.get("extracted_h_f_used", False))
+        native_result["full_native_only"] = False
         rows.append(native_result)
 
     if args.trace_shapes:

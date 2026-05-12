@@ -1,0 +1,21 @@
+{
+  "status": "ok",
+  "sionna_import_ok": true,
+  "sionna_version": "2.0.1",
+  "csi_object_created": true,
+  "all_consumers_accept_csi": true,
+  "raw_only_high_priority_paths": 0,
+  "no_new_fallback_introduced": true,
+  "native_receiver_success": true,
+  "teacher_used_during_inference": false,
+  "strict_equivalence_claim_allowed": false,
+  "full_native_only": false,
+  "sionna_rt_used": false,
+  "ray_tracing_used": false,
+  "fiveg_full_stack_used": false,
+  "notes": [
+    "This is a reviewer-oriented minimal reproduction check for CSI consumer unification.",
+    "It does not download data and does not train any model.",
+    "Unified-vs-baseline comparison semantics remain cross-run only; this minimal path is not a strict equivalence test."
+  ]
+}

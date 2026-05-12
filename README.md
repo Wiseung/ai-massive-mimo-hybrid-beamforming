@@ -417,7 +417,8 @@ Current post-`v0.4.0` next-step focus:
 - do not reinterpret this work as a full native-only benchmark unless channel, precoder, and receiver paths are all consistently native
 
 Published status: `v0.5.0` for the optional Sionna-native channel-extraction bridge.
-Current branch status: `v0.6.0` candidate for the provenance-aware CSI interface on top of that bridge.
+Published status: `v0.6.0` for the provenance-aware CSI interface on top of that bridge.
+Current branch status: `v0.7.0` candidate for CSI consumer unification across analytic, learned, native-chain, and comparison paths.
 
 Current channel-extraction branch result:
 
@@ -483,6 +484,45 @@ Compact CSI result table:
 | same-batch equivalence | `passed` | raw extracted-H and CSI-backed paths are numerically consistent under shared realization |
 | previous mismatch root cause | `cross_run_comparison_without_shared_realization` | earlier mismatch was cross-run, not CSI-interface bug evidence |
 
+Current CSI consumer-unification status:
+
+- `ExtractedCSI` is now the preferred input interface for key analytic and learned consumers
+- `compute_project_precoder_per_subcarrier(...)` accepts `ExtractedCSI`, raw `H_f`, and dict inputs with `h_f`
+- `infer_learned_precoder(...)` accepts `ExtractedCSI` directly and records CSI provenance in inference metadata
+- the unified CSI consumer demo reuses one shared `ExtractedCSI` object across analytic, learned, and native-receiver consumers
+- raw `H_f` remains as a backward-compatible fallback for older scripts and tests
+- this improves provenance clarity and consumer consistency, but still does not make the system full native-only
+
+Compact CSI consumer-unification table:
+
+| Item | Current result | Interpretation |
+| --- | --- | --- |
+| total consumers audited | `15` | coverage now includes analytic, learned, native-chain, comparison, tests, and docs paths |
+| raw-only high-priority paths | `0` | no key consumer remains blocked on raw-only `H_f` |
+| already support both | `12` | most important consumers accept `ExtractedCSI` and keep raw fallback |
+| all consumers accept CSI | `true` | unified demo runs all current key methods from one shared CSI object |
+| no new fallback introduced | `true` | CSI consumer unification did not add new fallback behavior |
+| unified vs baseline strict equivalence claim allowed | `false` | the current unified-vs-baseline artifact is cross-run only |
+| analytic consumers | `ExtractedCSI + raw fallback` | project `RZF/WMMSE` interfaces now accept standardized CSI |
+| learned consumers | `ExtractedCSI + raw fallback` | learned inference accepts CSI directly with `teacher_used_during_inference=false` |
+| unified CSI demo | `same CSI object reused` | one `ExtractedCSI` drives analytic, learned, and native receiver paths |
+| unified vs baseline comparison | `cross-run comparison only` | confirms no new fallback and consistent CSI acceptance, but should not be read as a same-batch equivalence claim |
+
+Current `v0.7.0` candidate interpretation:
+
+- `ExtractedCSI` is the preferred input interface for current key consumers
+- raw `H_f` remains a backward-compatible fallback
+- `raw_only_high_priority_paths = 0`
+- unified consumer demo reports `all_consumers_accept_csi = true`
+- unified-vs-baseline remains `comparison_type = cross_run_comparison`
+- `strict_equivalence_claim_allowed = false` for the unified-vs-baseline artifact
+- strict same-batch equivalence remains the `v0.6.0` validation path, not the `v0.7.0` cross-run comparison
+- not full native-only benchmark
+- no Sionna RT
+- no ray tracing
+- no 5G NR full stack
+- optional dependency only
+
 Current CSI-interface validation commands:
 
 ```bash
@@ -506,6 +546,18 @@ python scripts/generate_sionna_csi_interface_artifact_manifest.py \
   --out outputs/sionna_channel_extraction/csi_interface_artifact_manifest.json
 python scripts/reproduce_sionna_csi_interface_minimal.py \
   --out outputs/repro/sionna_csi_interface_minimal_summary.json
+python scripts/audit_csi_consumers.py \
+  --out outputs/sionna_channel_extraction/csi_consumer_audit.json
+python scripts/demo_unified_csi_consumers.py \
+  --out outputs/sionna_channel_extraction/unified_csi_consumers_summary.json
+python scripts/compare_unified_csi_consumers.py \
+  --baseline outputs/sionna_channel_extraction/csi_backed_beamforming_metrics.csv \
+  --unified outputs/sionna_channel_extraction/unified_csi_consumers_metrics.csv \
+  --out outputs/sionna_channel_extraction
+python scripts/generate_sionna_csi_consumer_artifact_manifest.py \
+  --out outputs/sionna_channel_extraction/csi_consumer_artifact_manifest.json
+python scripts/reproduce_sionna_csi_consumer_minimal.py \
+  --out outputs/repro/sionna_csi_consumer_minimal_summary.json
 ```
 
 Current channel-extraction validation commands:

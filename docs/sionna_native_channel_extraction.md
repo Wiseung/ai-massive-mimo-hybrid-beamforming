@@ -22,7 +22,7 @@ from Sionna-native channel tensors so the existing project precoder and learned-
 
 ## Current Status
 
-This document now tracks the published `v0.5.0` state together with the `v0.6.0` candidate branch for provenance-aware CSI interface hardening on top of the optional Sionna-native channel-extraction bridge.
+This document now tracks the published `v0.5.0` and `v0.6.0` states together with the `v0.7.0` candidate branch for CSI consumer unification on top of the optional Sionna-native channel-extraction bridge.
 
 Compact result table:
 
@@ -375,6 +375,111 @@ The current supported summary is:
 - same-batch equivalence passed
 - previous mismatch was cross-run comparison
 - CSI interface improves provenance and deterministic reuse
+- not full native-only benchmark
+- no Sionna RT
+- no ray tracing
+- no 5G NR full stack
+- optional dependency only
+
+Current consumer-unification validation commands:
+
+```bash
+python scripts/audit_csi_consumers.py \
+  --out outputs/sionna_channel_extraction/csi_consumer_audit.json
+
+python scripts/demo_unified_csi_consumers.py \
+  --out outputs/sionna_channel_extraction/unified_csi_consumers_summary.json
+
+python scripts/compare_unified_csi_consumers.py \
+  --baseline outputs/sionna_channel_extraction/csi_backed_beamforming_metrics.csv \
+  --unified outputs/sionna_channel_extraction/unified_csi_consumers_metrics.csv \
+  --out outputs/sionna_channel_extraction
+
+python scripts/generate_sionna_csi_consumer_artifact_manifest.py \
+  --out outputs/sionna_channel_extraction/csi_consumer_artifact_manifest.json
+
+python scripts/reproduce_sionna_csi_consumer_minimal.py \
+  --out outputs/repro/sionna_csi_consumer_minimal_summary.json
+```
+
+## CSI Consumer Unification Status
+
+The next interface-hardening step is to make `ExtractedCSI` the preferred input for all important `H_f=(B,Nsc,K,Nt)` consumers while keeping raw `H_f` as a backward-compatible fallback.
+
+Current audited state:
+
+- analytic precoders now accept `ExtractedCSI`, raw `H_f`, or dict inputs containing `h_f`
+- learned beamformer inference now accepts `ExtractedCSI` directly and records provenance-oriented input metadata
+- CSI-backed and native-channel-assisted beamforming scripts now summarize `input_type`, `csi_interface_used`, `project_h_f_assisted`, `extracted_h_f_used`, and `full_native_only`
+- older benchmark/minibench paths may still keep raw-`H_f` fallback behavior, but the preferred path is CSI-backed
+
+Compact unification table:
+
+| Consumer group | Current support | Notes |
+| --- | --- | --- |
+| analytic precoder consumers | `ExtractedCSI + raw fallback` | `compute_project_precoder_per_subcarrier(...)` normalizes inputs through `as_project_h_f(...)` |
+| learned beamformer consumers | `ExtractedCSI + raw fallback` | `infer_learned_precoder(...)` accepts CSI directly and keeps `teacher_used_during_inference=false` |
+| native receiver chain scripts | `CSI-first where available` | summaries now report CSI provenance fields explicitly |
+| comparison / benchmark scripts | `CSI-first with fallback retained` | same-batch equivalence remains the only valid strict-equivalence claim path |
+| docs / README command examples | `CSI-backed path preferred` | raw tensor path remains documented only as fallback / legacy compatibility |
+
+Current audit headline:
+
+- `total_consumers_audited = 15`
+- `raw_only_high_priority_paths = 0`
+- `already_support_both = 12`
+- `csi_value_weakened_by_unified_gaps = false`
+
+Current unified-consumer demo result:
+
+- `status = ok`
+- `csi_object_created = true`
+- `same_csi_object_used_for_all_methods = true`
+- `all_consumers_accept_csi = true`
+- `native_receiver_success = true`
+- `teacher_used_during_inference = false`
+- `failed_consumers = []`
+- `no_new_fallback_introduced = true`
+
+Current unified-vs-baseline interpretation:
+
+- `comparison_type = cross_run_comparison`
+- `same_seed_used = true`
+- `same_csi_tensor_signature = false`
+- `strict_equivalence_claim_allowed = false`
+- the current unified-vs-baseline artifact should not be read as a strict equivalence claim
+- strict shared-realization equivalence remains the earlier same-batch validation
+
+The supported interpretation remains unchanged:
+
+- CSI consumer unification improves provenance clarity and deterministic reuse
+- unified-vs-baseline reruns are currently cross-run comparisons and may differ numerically unless they share one realization fixture
+- it does not introduce a new claim of full native-only benchmarking
+- no Sionna RT
+- no ray tracing
+- no 5G NR full stack
+- optional dependency only
+
+## v0.7.0 Candidate Status
+
+Compact consumer-unification table:
+
+| Item | Current result | Interpretation |
+| --- | --- | --- |
+| total_consumers_audited | `15` | audit covers analytic, learned, native-chain, comparison, tests, and docs paths |
+| raw_only_high_priority_paths | `0` | no key consumer remains blocked on raw-only `H_f` |
+| already_support_both | `12` | most important consumers now accept `ExtractedCSI` and keep raw fallback |
+| all_consumers_accept_csi | `true` | unified demo shows current key paths accept one shared `ExtractedCSI` object |
+| no_new_fallback_introduced | `true` | unification did not add new fallback behavior |
+| unified-vs-baseline strict equivalence allowed | `false` | current comparison remains cross-run only |
+
+The current supported summary is:
+
+- `ExtractedCSI` is now the preferred input interface for current key consumers
+- raw `H_f` remains a backward-compatible fallback
+- high-priority raw-only gaps are zero
+- unified-vs-baseline is a cross-run comparison, not a strict equivalence test
+- provenance clarity is improved without introducing new fallback
 - not full native-only benchmark
 - no Sionna RT
 - no ray tracing

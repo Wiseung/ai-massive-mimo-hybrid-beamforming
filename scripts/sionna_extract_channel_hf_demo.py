@@ -11,6 +11,7 @@ import torch
 
 add_src_to_path()
 
+from beamforming.utils.csi_interface import as_project_h_f, summarize_csi_input
 from beamforming.utils.sionna_channel_extraction import (
     compare_extracted_h_f_with_synthetic_reference,
     extract_h_f_from_sionna_channel,
@@ -109,7 +110,7 @@ def main() -> None:
         num_bs_ant=16,
         return_csi=True,
     )
-    h_f = csi_or_h_f.to_project_h_f() if success and csi_or_h_f is not None else None
+    h_f, csi_input_meta = as_project_h_f(csi_or_h_f) if success and csi_or_h_f is not None else (None, None)
     summary["extraction_success"] = bool(success)
     summary["project_h_f_shape_compatible"] = bool(success and h_f is not None and list(h_f.shape) == [8, 16, 4, 16])
     summary["extracted_h_f_shape"] = [int(v) for v in h_f.shape] if h_f is not None else None
@@ -117,6 +118,8 @@ def main() -> None:
     summary["fallback_reason"] = fallback_reason
     summary["extraction_meta"] = meta
     summary["csi_summary"] = meta.get("csi_summary")
+    summary["input_type"] = csi_input_meta["input_type"] if csi_input_meta is not None else None
+    summary["csi_input_summary"] = summarize_csi_input(csi_or_h_f) if success and csi_or_h_f is not None else None
     summary["notes"].append(f"ResourceGrid metadata: {rg_meta}")
 
     if h_f is not None:
@@ -130,7 +133,7 @@ def main() -> None:
         }
         synthetic_ref = (torch.randn_like(h_f.real) + 1j * torch.randn_like(h_f.real)).to(torch.complex64) / torch.sqrt(torch.tensor(2.0, device=device))
         summary["synthetic_reference_comparison"] = compare_extracted_h_f_with_synthetic_reference(h_f, synthetic_ref)
-        precoder = compute_project_precoder_per_subcarrier("rzf", h_f, 0.1)
+        precoder = compute_project_precoder_per_subcarrier("rzf", csi_or_h_f, 0.1)
         signal = torch.matmul(precoder, torch.ones(8, 16, 4, 1, dtype=torch.complex64, device=device)).squeeze(-1)
         rx = torch.sum(torch.abs(torch.einsum("bskn,bsn->bsk", h_f, signal)) ** 2, dim=-1)
         summary["approximate_sum_rate_if_available"] = float(torch.mean(torch.log2(1.0 + rx / 0.1)).item())

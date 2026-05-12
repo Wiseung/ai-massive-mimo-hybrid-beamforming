@@ -10,7 +10,7 @@ from typing import Any
 import torch
 
 from beamforming.models.factory import build_model
-from beamforming.utils.csi_interface import ExtractedCSI
+from beamforming.utils.csi_interface import ExtractedCSI, as_project_h_f
 from beamforming.utils.sionna_native_beamforming_chain import (
     apply_project_precoder_to_sionna_grid,
     build_pilot_aware_multiuser_resource_grid,
@@ -130,14 +130,15 @@ def clone_native_receiver_context(
 
 def infer_learned_precoder(
     bundle: LoadedLearnedBeamformer,
-    h_f: torch.Tensor,
+    h_f: ExtractedCSI | torch.Tensor | dict[str, Any],
     snr_db: torch.Tensor,
     *,
     native_receiver_path: bool,
 ) -> tuple[torch.Tensor, dict[str, Any], float]:
+    h_f_tensor, csi_input_meta = as_project_h_f(h_f)
     start = perf_counter()
     with torch.no_grad():
-        outputs = run_model_forward(bundle.model, h_f, snr_db)
+        outputs = run_model_forward(bundle.model, h_f_tensor, snr_db)
     runtime_ms = (perf_counter() - start) * 1000.0
     precoder = outputs["precoder"]
     power = (torch.abs(precoder) ** 2).sum(dim=(-2, -1))
@@ -149,6 +150,20 @@ def infer_learned_precoder(
         "teacher_used_during_training": bool(outputs.get("teacher_used_during_training", False)),
         "uses_project_h_f_input": True,
         "native_receiver_path": bool(native_receiver_path),
+        "input_type": csi_input_meta.get("input_type"),
+        "csi_interface_used": bool(csi_input_meta.get("csi_interface_used")),
+        "project_h_f_assisted": csi_input_meta.get("project_h_f_assisted"),
+        "extracted_h_f_used": csi_input_meta.get("extracted_h_f_used"),
+        "full_native_only": csi_input_meta.get("full_native_only"),
+        "source": csi_input_meta.get("source"),
+        "source_component": csi_input_meta.get("source_component"),
+        "csi_input_summary": {
+            "input_type": csi_input_meta.get("input_type"),
+            "tensor_signature": csi_input_meta.get("tensor_signature"),
+            "validation": csi_input_meta.get("validation"),
+            "source": csi_input_meta.get("source"),
+            "source_component": csi_input_meta.get("source_component"),
+        },
         "init_method": outputs.get("init_method"),
         "num_layers": outputs.get("num_layers"),
         "power_norm": float(power.mean().item()),

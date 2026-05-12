@@ -14,6 +14,7 @@ import torch
 
 add_src_to_path()
 
+from beamforming.utils.csi_interface import summarize_csi_input
 from beamforming.utils.sionna_env import collect_sionna_env_info
 from beamforming.utils.sionna_native_beamforming_chain import (
     compute_project_precoder_per_subcarrier,
@@ -124,6 +125,8 @@ def main() -> None:
                 device=device,
                 channel_bundle=channel_bundle,
             )
+            csi_input = context.csi if context.csi is not None else context.h_f
+            input_summary = summarize_csi_input(csi_input)
             for method in methods:
                 method_type = _method_type(method)
                 native_name = _native_method_name(method)
@@ -133,7 +136,7 @@ def main() -> None:
                     precoder_f, runtime_ms = time_function(
                         compute_project_precoder_per_subcarrier,
                         native_name.removeprefix("project_"),
-                        context.h_f,
+                        csi_input,
                         context.noise_var,
                     )
                 else:
@@ -145,6 +148,8 @@ def main() -> None:
                                 "snr_db": float(snr_db),
                                 "method": method,
                                 "method_type": method_type,
+                                "input_type": input_summary["input_type"],
+                                "csi_interface_used": bool(input_summary["csi_interface_used"]),
                                 "extraction_success": False,
                                 "native_receiver_success": False,
                                 "proxy_sum_rate": float("nan"),
@@ -162,7 +167,7 @@ def main() -> None:
                     snr_tensor = torch.full((context.h_f.size(0),), float(snr_db), dtype=torch.float32, device=device)
                     precoder_f, infer_meta, runtime_ms = infer_learned_precoder(
                         bundle,
-                        context.h_f,
+                        csi_input,
                         snr_tensor,
                         native_receiver_path=True,
                     )
@@ -191,6 +196,8 @@ def main() -> None:
                         "snr_db": float(snr_db),
                         "method": method,
                         "method_type": method_type,
+                        "input_type": input_summary["input_type"],
+                        "csi_interface_used": bool(input_summary["csi_interface_used"]),
                         "extraction_success": bool(not context.context_meta.get("project_h_f_assisted", True)),
                         "native_receiver_success": bool(native_row["native_receiver_success"]),
                         "proxy_sum_rate": float(proxy["approximate_sum_rate"]),

@@ -42,6 +42,149 @@ def tensor_signature(tensor: torch.Tensor | None) -> str | None:
     return hashlib.sha256(tensor_cpu.numpy().tobytes()).hexdigest()
 
 
+def _validate_raw_project_h_f_tensor(
+    h_f: torch.Tensor,
+    *,
+    raise_on_error: bool = True,
+) -> dict[str, Any]:
+    """Validate a raw project-side ``H_f`` tensor with shape ``(B,Nsc,K,Nt)``."""
+
+    report: dict[str, Any] = {
+        "valid": False,
+        "shape": [int(x) for x in h_f.shape],
+        "dtype": str(h_f.dtype),
+        "is_complex": bool(torch.is_complex(h_f)),
+        "all_finite": False,
+        "fallback_reason": "",
+    }
+
+    def _fail(exc_type: type[Exception], reason: str) -> dict[str, Any]:
+        report["fallback_reason"] = reason
+        if raise_on_error:
+            raise exc_type(reason)
+        return report
+
+    if h_f.ndim != 4:
+        return _fail(ValueError, f"expected_rank_4_h_f_got_{h_f.ndim}")
+    if not torch.is_complex(h_f):
+        return _fail(TypeError, "h_f_is_not_complex")
+    all_finite = bool(torch.isfinite(h_f.real).all() and torch.isfinite(h_f.imag).all())
+    report["all_finite"] = all_finite
+    if not all_finite:
+        return _fail(ValueError, "h_f_contains_non_finite_values")
+    report["valid"] = True
+    return report
+
+
+def as_project_h_f(
+    input_obj: ExtractedCSI | torch.Tensor | dict[str, Any],
+    *,
+    validate: bool = True,
+) -> tuple[torch.Tensor, dict[str, Any]]:
+    """Normalize supported CSI inputs to a project ``H_f`` tensor.
+
+    Supported inputs:
+    - ``ExtractedCSI``
+    - raw complex ``torch.Tensor`` with shape ``(B,Nsc,K,Nt)``
+    - ``dict`` containing ``"h_f"``, optionally with provenance metadata
+    """
+
+    if isinstance(input_obj, ExtractedCSI):
+        h_f = input_obj.to_project_h_f() if validate else input_obj.h_f.contiguous()
+        meta = {
+            "input_type": "ExtractedCSI",
+            "csi_interface_used": True,
+            "project_h_f_assisted": bool(input_obj.project_h_f_assisted),
+            "extracted_h_f_used": bool(input_obj.extracted_h_f_used),
+            "full_native_only": bool(input_obj.full_native_only),
+            "source": input_obj.source,
+            "source_component": input_obj.source_component,
+            "validation": input_obj.validate(raise_on_error=False),
+            "tensor_signature": tensor_signature(h_f),
+        }
+        return h_f, meta
+
+    if isinstance(input_obj, dict):
+        if "h_f" not in input_obj:
+            raise KeyError("dict_input_missing_h_f")
+        h_f, child_meta = as_project_h_f(input_obj["h_f"], validate=validate)
+        meta = {
+            **child_meta,
+            "input_type": "dict_with_h_f",
+            "project_h_f_assisted": input_obj.get("project_h_f_assisted", child_meta.get("project_h_f_assisted")),
+            "extracted_h_f_used": input_obj.get("extracted_h_f_used", child_meta.get("extracted_h_f_used")),
+            "full_native_only": input_obj.get("full_native_only", child_meta.get("full_native_only")),
+            "source": input_obj.get("source", child_meta.get("source")),
+            "source_component": input_obj.get("source_component", child_meta.get("source_component")),
+            "dict_keys": sorted(str(key) for key in input_obj.keys()),
+        }
+        if "csi_interface_used" in input_obj:
+            meta["csi_interface_used"] = bool(input_obj["csi_interface_used"])
+        return h_f, meta
+
+    if isinstance(input_obj, torch.Tensor):
+        h_f = input_obj.contiguous()
+        validation = _validate_raw_project_h_f_tensor(h_f, raise_on_error=validate)
+        meta = {
+            "input_type": "raw_h_f",
+            "csi_interface_used": False,
+            "project_h_f_assisted": None,
+            "extracted_h_f_used": None,
+            "full_native_only": False,
+            "source": None,
+            "source_component": None,
+            "validation": validation,
+            "tensor_signature": tensor_signature(h_f),
+        }
+        return h_f, meta
+
+    raise TypeError(f"unsupported_csi_input_type_{type(input_obj).__name__}")
+
+
+def require_extracted_csi(input_obj: Any) -> ExtractedCSI:
+    """Require an ``ExtractedCSI`` object and raise a clear error otherwise."""
+    if not isinstance(input_obj, ExtractedCSI):
+        raise TypeError(f"expected_ExtractedCSI_input_got_{type(input_obj).__name__}")
+    return input_obj
+
+
+def summarize_csi_input(input_obj: ExtractedCSI | torch.Tensor | dict[str, Any]) -> dict[str, Any]:
+    """Return a serializable summary for a CSI input object."""
+    h_f, meta = as_project_h_f(input_obj, validate=False)
+    return {
+        "input_type": meta["input_type"],
+        "h_f_shape": [int(x) for x in h_f.shape],
+        "csi_interface_used": meta.get("csi_interface_used"),
+        "project_h_f_assisted": meta.get("project_h_f_assisted"),
+        "extracted_h_f_used": meta.get("extracted_h_f_used"),
+        "full_native_only": meta.get("full_native_only"),
+        "source": meta.get("source"),
+        "source_component": meta.get("source_component"),
+        "tensor_signature": meta.get("tensor_signature"),
+    }
+
+
+def compare_csi_inputs(
+    a: ExtractedCSI | torch.Tensor | dict[str, Any],
+    b: ExtractedCSI | torch.Tensor | dict[str, Any],
+) -> dict[str, Any]:
+    """Compare two CSI inputs for shape, signature, and provenance consistency."""
+    h_f_a, meta_a = as_project_h_f(a, validate=False)
+    h_f_b, meta_b = as_project_h_f(b, validate=False)
+    return {
+        "same_shape": list(h_f_a.shape) == list(h_f_b.shape),
+        "same_tensor_signature": tensor_signature(h_f_a) == tensor_signature(h_f_b),
+        "same_input_type": meta_a.get("input_type") == meta_b.get("input_type"),
+        "same_csi_interface_used": meta_a.get("csi_interface_used") == meta_b.get("csi_interface_used"),
+        "same_project_h_f_assisted": meta_a.get("project_h_f_assisted") == meta_b.get("project_h_f_assisted"),
+        "same_extracted_h_f_used": meta_a.get("extracted_h_f_used") == meta_b.get("extracted_h_f_used"),
+        "same_source": meta_a.get("source") == meta_b.get("source"),
+        "same_source_component": meta_a.get("source_component") == meta_b.get("source_component"),
+        "a": summarize_csi_input(a),
+        "b": summarize_csi_input(b),
+    }
+
+
 @dataclass
 class ExtractedCSI:
     """Standardized project-side CSI object with provenance metadata.
