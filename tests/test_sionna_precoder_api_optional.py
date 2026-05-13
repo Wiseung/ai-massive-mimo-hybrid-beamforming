@@ -155,3 +155,98 @@ def test_reproduce_sionna_native_precoder_minimal_runs(tmp_path: Path) -> None:
     payload = json.loads(out_path.read_text(encoding="utf-8"))
     assert payload["status"] in {"ok", "skipped"}
     assert "sionna_rzf_callable" in payload
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_validate_sionna_native_precoder_contract_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "native_precoder_contract_validation.json"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/validate_sionna_native_precoder_contract.py",
+            "--out",
+            str(out_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["status"] in {"ok", "skipped"}
+    assert "contract_valid" in payload
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_demo_sionna_native_precoder_contract_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "native_precoder_contract_demo.json"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/demo_sionna_native_precoder_contract.py",
+            "--out",
+            str(out_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["status"] in {"ok", "skipped"}
+    assert "relationship_status" in payload
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_sionna_native_precoder_contract_matrix_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "native_precoder_contract_matrix.json"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/test_sionna_native_precoder_contract_matrix.py",
+            "--out",
+            str(out_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["status"] in {"ok", "skipped"}
+    assert payload["aliasing_project_rzf_detected"] is False
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_generate_sionna_interface_rc_artifact_manifest_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "interface_rc_artifact_manifest.json"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/generate_sionna_interface_rc_artifact_manifest.py",
+            "--out",
+            str(out_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert "artifacts" in payload
+    assert any(row["interface_layer"] == "contract_hardening" for row in payload["artifacts"])
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_reproduce_sionna_interface_rc_minimal_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "sionna_interface_rc_minimal_summary.json"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/reproduce_sionna_interface_rc_minimal.py",
+            "--out",
+            str(out_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["status"] in {"ok", "skipped"}
+    assert "contract_matrix_passed" in payload

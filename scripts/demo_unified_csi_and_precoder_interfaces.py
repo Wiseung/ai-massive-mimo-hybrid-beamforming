@@ -105,6 +105,7 @@ def main() -> None:
         "sionna_rzf_available": False,
         "sionna_rzf_callable": False,
         "sionna_rzf_evaluated": False,
+        "sionna_rzf_skipped": False,
         "sionna_rzf_skipped_reason": "",
         "project_h_f_assisted": False,
         "extracted_h_f_used": True,
@@ -116,6 +117,8 @@ def main() -> None:
         "metrics": [],
     }
     if not env["sionna_import_ok"]:
+        summary["sionna_rzf_skipped"] = bool(args.include_sionna_rzf)
+        summary["sionna_rzf_skipped_reason"] = "sionna_not_installed" if args.include_sionna_rzf else ""
         write_json(out_path, summary)
         write_markdown(md_path, _md(summary))
         print(f"Saved unified CSI+PrecoderOutput summary to {out_path}")
@@ -280,8 +283,13 @@ def main() -> None:
             row["extracted_h_f_used"] = True
             row["full_native_only"] = False
             row["precoder_summary"] = summarize_precoder_input(probe["sionna_precoder_output"])
+            row["relationship_status"] = probe.get("relationship_status")
+            row["strict_equivalence_claim_allowed"] = probe.get("strict_equivalence_claim_allowed")
             rows.append(row)
+            if not bool(row["native_receiver_success"]):
+                summary["sionna_rzf_skipped_reason"] = row["fallback_reason"]
         else:
+            summary["sionna_rzf_skipped"] = True
             summary["sionna_rzf_skipped_reason"] = str(probe.get("fallback_reason", "sionna_rzf_probe_failed"))
 
     summary["metrics"] = rows

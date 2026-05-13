@@ -78,6 +78,11 @@ def main() -> None:
         "native_receiver_success_if_attempted": False,
         "fallback_used": True,
         "fallback_reason": "",
+        "sionna_rzf_skipped": False,
+        "skip_reason": "",
+        "adapter_failure_reason": "",
+        "relationship_status": "not_evaluated",
+        "strict_equivalence_claim_allowed": False,
         "probe_only": True,
         "recommended_next_step": "keep_project_side_precoder_output",
         "rows": [],
@@ -124,6 +129,11 @@ def main() -> None:
             "converted_to_precoder_output": bool(probe.get("converted_to_precoder_output")),
             "fallback_used": bool(probe.get("fallback_used", True)),
             "fallback_reason": str(probe.get("fallback_reason", "")),
+            "sionna_rzf_skipped": bool(probe.get("sionna_rzf_skipped", False)),
+            "skip_reason": str(probe.get("skip_reason", "")),
+            "adapter_failure_reason": str(probe.get("adapter_failure_reason", "")),
+            "relationship_status": str(probe.get("relationship_status", "not_evaluated")),
+            "strict_equivalence_claim_allowed": bool(probe.get("strict_equivalence_claim_allowed", False)),
             "probe_only": bool(probe.get("probe_only", True)),
             "recommended_next_step": str(probe.get("recommended_next_step", "keep_project_side_precoder_output")),
         }
@@ -165,6 +175,9 @@ def main() -> None:
         row["precoder_summary"] = summarize_precoder_input(probe["sionna_precoder_output"])
         rows.append(row)
         summary["native_receiver_success_if_attempted"] = bool(row["native_receiver_success"])
+        if not summary["native_receiver_success_if_attempted"]:
+            summary["fallback_used"] = True
+            summary["fallback_reason"] = row["fallback_reason"]
 
     summary["rows"] = rows
     if rows:

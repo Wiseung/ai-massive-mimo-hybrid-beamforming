@@ -543,6 +543,28 @@ Compact native precoder table:
 | `strict_equivalence_claim_allowed` | `false` | do not claim strict equivalence to `project_rzf` |
 | `full_native_only` | `false` | benchmark boundary remains non-native-only |
 
+Contract-aware interpretation:
+
+- the optional native method now has an explicit contract schema
+- the schema hardens:
+  - expected native input/output tensor layouts
+  - adapter-required alignment to `ExtractedCSI` and `PrecoderOutput`
+  - skip/fallback policy
+  - comparison semantics
+- the successful contract-aware path still remains:
+  - optional method bridge
+  - `close_but_different`
+  - not strict equivalent
+  - not full native-only benchmark
+
+## v1.0.0-rc1 Interface-first Overview
+
+Current RC overview:
+
+- `Sionna OFDMChannel -> ExtractedCSI -> PrecoderOutput -> native receiver path`
+- channel extraction, CSI interface, CSI consumers, precoder output, optional native precoder bridge, and contract hardening are now documented as one interface-first stack
+- this is still a release candidate for interfaces and reproducibility, not a production or full-native benchmark claim
+
 Boundary remains unchanged:
 
 - not full native-only benchmark

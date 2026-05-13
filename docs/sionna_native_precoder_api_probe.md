@@ -229,6 +229,61 @@ Compact native precoder table:
 | `strict_equivalence_claim_allowed` | `false` | no strict project_rzf equivalence claim |
 | `full_native_only` | `false` | still not a full native-only benchmark |
 
+## Native Precoder Contract
+
+The bridge is now treated as a contract-checked optional method rather than a loose probe only.
+
+Current contract points:
+
+- native Sionna input:
+  - `x = [B, num_tx, num_streams_per_tx, num_ofdm_symbols, fft_size]`
+  - `h = [B, num_rx, num_rx_ant, num_tx, num_tx_ant, num_ofdm_symbols, fft_size]`
+- project interfaces:
+  - `H_f = (B,Nsc,K,Nt)`
+  - `F_f = (B,Nsc,Nt,K)`
+- alignment rule:
+  - adapter bridge required
+  - not a direct drop-in replacement
+- semantic rule:
+  - `relationship_status = close_but_different`
+  - `strict_equivalence_claim_allowed = false`
+- identity rule:
+  - `sionna_native_precoder = true` only for the adapter-generated Sionna output object
+  - `project_side_precoder = false` for that object
+
+## Skip and Fallback Policy
+
+Current hardened rules are:
+
+- if Sionna is missing:
+  - skip `sionna_rzf_precoder`
+  - do not fail the whole demo
+  - record `reason = sionna_not_installed`
+- if `RZFPrecoder` is unavailable or not callable:
+  - skip
+  - do not alias `project_rzf` as `sionna_rzf_precoder`
+- if adapter mapping/conversion fails:
+  - skip
+  - record `adapter_failure_reason`
+- if native receiver fails after a successful conversion:
+  - keep the probe result
+  - record `native_receiver_success = false`
+  - do not claim receiver-compatible success
+
+## v1.0.0-rc1 Candidate View
+
+Current RC framing is:
+
+- interface-first bridge candidate
+- optional Sionna dependency only
+- contract-hardened optional native method
+- not a mainline native replacement
+- not full native-only
+
+End-to-end interface text chain:
+
+- `Sionna OFDMChannel -> ExtractedCSI -> PrecoderOutput -> native receiver path`
+
 ## Current boundary
 
 The supported boundary remains:

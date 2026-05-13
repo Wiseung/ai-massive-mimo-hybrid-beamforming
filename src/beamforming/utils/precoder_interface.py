@@ -203,6 +203,7 @@ def as_project_f_f(
 
     if isinstance(input_obj, PrecoderOutput):
         f_f = input_obj.to_project_f_f() if validate else input_obj.f_f.contiguous()
+        native_contract = input_obj.metadata.get("native_precoder_contract") if isinstance(input_obj.metadata, dict) else None
         meta = {
             "input_type": "PrecoderOutput",
             "precoder_interface_used": True,
@@ -216,6 +217,9 @@ def as_project_f_f(
             "power_norm": _json_safe(input_obj.power_norm),
             "validation": input_obj.validate(raise_on_error=False),
             "tensor_signature": tensor_signature(f_f),
+            "relationship_status": native_contract.get("relationship_to_project_rzf") if isinstance(native_contract, dict) else None,
+            "strict_equivalence_claim_allowed": native_contract.get("strict_equivalence_claim_allowed") if isinstance(native_contract, dict) else None,
+            "native_precoder_contract": _json_safe(native_contract),
         }
         return f_f, meta
 
@@ -286,6 +290,9 @@ def summarize_precoder_input(input_obj: PrecoderOutput | torch.Tensor | dict[str
         "power_normalized": meta.get("power_normalized"),
         "power_norm": meta.get("power_norm"),
         "tensor_signature": meta.get("tensor_signature"),
+        "relationship_status": meta.get("relationship_status"),
+        "strict_equivalence_claim_allowed": meta.get("strict_equivalence_claim_allowed"),
+        "native_precoder_contract": meta.get("native_precoder_contract"),
     }
 
 

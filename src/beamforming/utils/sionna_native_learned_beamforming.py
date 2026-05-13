@@ -381,6 +381,8 @@ def run_native_receiver_with_precoder(
         "sionna_native_precoder": precoder_meta.get("sionna_native_precoder"),
         "full_native_only": precoder_meta.get("full_native_only", False),
         "power_normalized": precoder_meta.get("power_normalized"),
+        "relationship_status": precoder_meta.get("relationship_status"),
+        "strict_equivalence_claim_allowed": precoder_meta.get("strict_equivalence_claim_allowed"),
         "native_receiver_success": False,
         "used_sionna_resource_grid": True,
         "used_sionna_channel": False,
@@ -418,6 +420,12 @@ def run_native_receiver_with_precoder(
     if tx_grid is None:
         row["fallback_stage"] = "precoder_bridge"
         row["fallback_reason"] = str(tx_meta.get("fallback_reason", "precoder_bridge_failed"))
+        meta["native_failure_stage"] = row["fallback_stage"]
+        meta["native_failure_reason"] = row["fallback_reason"]
+        return row, trace, meta
+    if context.context_meta.get("force_precoder_matrix_receiver_failure", False):
+        row["fallback_stage"] = "forced_receiver_failure"
+        row["fallback_reason"] = "forced_receiver_failure_for_contract_matrix"
         meta["native_failure_stage"] = row["fallback_stage"]
         meta["native_failure_reason"] = row["fallback_reason"]
         return row, trace, meta

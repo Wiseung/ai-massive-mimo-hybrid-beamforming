@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+import json
 import math
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -11,11 +14,201 @@ import torch
 from beamforming.utils.complex_ops import normalize_power
 from beamforming.utils.csi_interface import ExtractedCSI, as_project_h_f, summarize_csi_input, tensor_signature
 from beamforming.utils.precoder_interface import PrecoderOutput, build_precoder_output, compare_precoder_outputs
+from beamforming.utils.sionna_env import collect_sionna_env_info
 from beamforming.utils.sionna_native_beamforming_chain import compute_project_precoder_per_subcarrier, summarize_receiver_config
 from beamforming.utils.sionna_native_chain import load_component, resolve_sionna_device
 
 
 STRICT_EQUIVALENCE_TOL = 1e-6
+_RELATIONSHIP_VALUES = {"close_but_different", "strict_equivalent", "incompatible", "not_evaluated"}
+
+
+def _default_skip_policy() -> dict[str, Any]:
+    return {
+        "sionna_not_installed": "skip_method_without_failing_demo",
+        "rzf_precoder_unavailable": "skip_method_without_failing_demo",
+        "rzf_precoder_not_callable": "skip_method_without_failing_demo",
+        "adapter_failure": "skip_method_without_failing_demo",
+    }
+
+
+def _default_fallback_policy() -> dict[str, Any]:
+    return {
+        "do_not_alias_project_rzf_as_sionna_rzf_precoder": True,
+        "keep_probe_result_even_if_receiver_fails": True,
+        "receiver_failure_records_native_receiver_success_false": True,
+        "full_native_only_remains_false": True,
+    }
+
+
+@dataclass
+class SionnaNativePrecoderContract:
+    """Contract summary for the optional Sionna native precoder bridge."""
+
+    method_name: str
+    sionna_component: str
+    sionna_version: str | None
+    callable: bool
+    input_contract: dict[str, Any]
+    output_contract: dict[str, Any]
+    required_resource_grid_config: dict[str, Any]
+    required_stream_management_config: dict[str, Any]
+    expected_x_shape: list[Any]
+    expected_h_shape: list[Any]
+    expected_x_precoded_shape: list[Any]
+    converted_precoder_output_shape: list[int] | None
+    relationship_to_project_rzf: str
+    strict_equivalence_claim_allowed: bool
+    semantic_compatibility_passed: bool
+    project_side_precoder: bool
+    sionna_native_precoder: bool
+    full_native_only: bool
+    skip_policy: dict[str, Any]
+    fallback_policy: dict[str, Any]
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def validate_contract(self, *, raise_on_error: bool = True) -> dict[str, Any]:
+        report: dict[str, Any] = {
+            "valid": False,
+            "fallback_reason": "",
+        }
+
+        def _fail(exc_type: type[Exception], reason: str) -> dict[str, Any]:
+            report["fallback_reason"] = reason
+            if raise_on_error:
+                raise exc_type(reason)
+            return report
+
+        if not self.method_name:
+            return _fail(ValueError, "contract_method_name_required")
+        if not self.sionna_component:
+            return _fail(ValueError, "contract_sionna_component_required")
+        if self.relationship_to_project_rzf not in _RELATIONSHIP_VALUES:
+            return _fail(ValueError, f"unsupported_relationship_status_{self.relationship_to_project_rzf}")
+        if len(self.expected_x_shape) != 5:
+            return _fail(ValueError, "expected_x_shape_must_have_len_5")
+        if len(self.expected_h_shape) != 7:
+            return _fail(ValueError, "expected_h_shape_must_have_len_7")
+        if len(self.expected_x_precoded_shape) != 5:
+            return _fail(ValueError, "expected_x_precoded_shape_must_have_len_5")
+        for field_name, value in (
+            ("input_contract", self.input_contract),
+            ("output_contract", self.output_contract),
+            ("required_resource_grid_config", self.required_resource_grid_config),
+            ("required_stream_management_config", self.required_stream_management_config),
+            ("skip_policy", self.skip_policy),
+            ("fallback_policy", self.fallback_policy),
+        ):
+            if not isinstance(value, dict) or not value:
+                return _fail(TypeError, f"{field_name}_must_be_non_empty_dict")
+        if self.strict_equivalence_claim_allowed:
+            if self.relationship_to_project_rzf != "strict_equivalent":
+                return _fail(ValueError, "strict_equivalence_claim_requires_relationship_strict_equivalent")
+            if not self.semantic_compatibility_passed:
+                return _fail(ValueError, "strict_equivalence_claim_requires_semantic_compatibility")
+        if self.relationship_to_project_rzf == "close_but_different" and self.strict_equivalence_claim_allowed:
+            return _fail(ValueError, "close_but_different_cannot_claim_strict_equivalence")
+        if self.full_native_only:
+            return _fail(ValueError, "full_native_only_must_remain_false_for_current_bridge")
+        if self.sionna_native_precoder and self.project_side_precoder:
+            return _fail(ValueError, "sionna_native_precoder_and_project_side_precoder_cannot_both_be_true")
+        if self.project_side_precoder:
+            return _fail(ValueError, "project_side_precoder_must_be_false_for_sionna_native_precoder_contract")
+        report["valid"] = True
+        return report
+
+    def summary_dict(self) -> dict[str, Any]:
+        return {
+            "method_name": self.method_name,
+            "sionna_component": self.sionna_component,
+            "sionna_version": self.sionna_version,
+            "callable": bool(self.callable),
+            "input_contract": self.input_contract,
+            "output_contract": self.output_contract,
+            "required_resource_grid_config": self.required_resource_grid_config,
+            "required_stream_management_config": self.required_stream_management_config,
+            "expected_x_shape": list(self.expected_x_shape),
+            "expected_h_shape": list(self.expected_h_shape),
+            "expected_x_precoded_shape": list(self.expected_x_precoded_shape),
+            "converted_precoder_output_shape": self.converted_precoder_output_shape,
+            "relationship_to_project_rzf": self.relationship_to_project_rzf,
+            "strict_equivalence_claim_allowed": bool(self.strict_equivalence_claim_allowed),
+            "semantic_compatibility_passed": bool(self.semantic_compatibility_passed),
+            "project_side_precoder": bool(self.project_side_precoder),
+            "sionna_native_precoder": bool(self.sionna_native_precoder),
+            "full_native_only": bool(self.full_native_only),
+            "skip_policy": self.skip_policy,
+            "fallback_policy": self.fallback_policy,
+            "metadata": self.metadata,
+            "validation": self.validate_contract(raise_on_error=False),
+        }
+
+    def save_summary_json(self, path: str | Path) -> None:
+        out_path = Path(path)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(self.summary_dict(), indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def build_sionna_rzf_precoder_contract(
+    *,
+    sionna_version: str | None,
+    callable: bool,
+    converted_precoder_output_shape: list[int] | None,
+    relationship_to_project_rzf: str,
+    strict_equivalence_claim_allowed: bool,
+    semantic_compatibility_passed: bool,
+    project_side_precoder: bool,
+    sionna_native_precoder: bool,
+    full_native_only: bool,
+    required_resource_grid_config: dict[str, Any] | None = None,
+    required_stream_management_config: dict[str, Any] | None = None,
+    skip_policy: dict[str, Any] | None = None,
+    fallback_policy: dict[str, Any] | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> SionnaNativePrecoderContract:
+    return SionnaNativePrecoderContract(
+        method_name="sionna_rzf_precoder",
+        sionna_component="sionna.phy.ofdm.RZFPrecoder",
+        sionna_version=sionna_version,
+        callable=bool(callable),
+        input_contract={
+            "native_x": "[B, num_tx, num_streams_per_tx, num_ofdm_symbols, fft_size]",
+            "native_h": "[B, num_rx, num_rx_ant, num_tx, num_tx_ant, num_ofdm_symbols, fft_size]",
+            "project_h_f": "(B,Nsc,K,Nt)",
+            "adapter_required": True,
+            "direct_drop_in_supported": False,
+        },
+        output_contract={
+            "native_x_precoded": "[B, num_tx, num_tx_ant, num_ofdm_symbols, fft_size]",
+            "project_f_f": "(B,Nsc,Nt,K)",
+            "adapter_required": True,
+            "direct_drop_in_supported": False,
+        },
+        required_resource_grid_config=required_resource_grid_config or {
+            "num_tx": 1,
+            "pilot_pattern": None,
+            "dc_null": False,
+            "probe_only_resource_grid": True,
+        },
+        required_stream_management_config=required_stream_management_config or {
+            "rx_tx_association": "ones((K,1))",
+            "num_streams_per_tx": "K",
+            "num_tx": 1,
+        },
+        expected_x_shape=["B", "num_tx", "num_streams_per_tx", "num_ofdm_symbols", "fft_size"],
+        expected_h_shape=["B", "num_rx", "num_rx_ant", "num_tx", "num_tx_ant", "num_ofdm_symbols", "fft_size"],
+        expected_x_precoded_shape=["B", "num_tx", "num_tx_ant", "num_ofdm_symbols", "fft_size"],
+        converted_precoder_output_shape=converted_precoder_output_shape,
+        relationship_to_project_rzf=relationship_to_project_rzf,
+        strict_equivalence_claim_allowed=bool(strict_equivalence_claim_allowed),
+        semantic_compatibility_passed=bool(semantic_compatibility_passed),
+        project_side_precoder=bool(project_side_precoder),
+        sionna_native_precoder=bool(sionna_native_precoder),
+        full_native_only=bool(full_native_only),
+        skip_policy=skip_policy or _default_skip_policy(),
+        fallback_policy=fallback_policy or _default_fallback_policy(),
+        metadata=metadata or {},
+    )
 
 
 def _fallback(
@@ -177,6 +370,44 @@ def map_extracted_csi_to_sionna_precoder_inputs(
     }
 
 
+def build_sionna_rzf_skip_result(
+    *,
+    reason: str,
+    sionna_version: str | None = None,
+    callable: bool = False,
+    csi_summary: dict[str, Any] | None = None,
+    adapter_failure_reason: str | None = None,
+) -> dict[str, Any]:
+    contract = build_sionna_rzf_precoder_contract(
+        sionna_version=sionna_version,
+        callable=callable,
+        converted_precoder_output_shape=None,
+        relationship_to_project_rzf="not_evaluated",
+        strict_equivalence_claim_allowed=False,
+        semantic_compatibility_passed=False,
+        project_side_precoder=False,
+        sionna_native_precoder=False,
+        full_native_only=False,
+        metadata={
+            "skip_reason": reason,
+            "adapter_failure_reason": adapter_failure_reason,
+            "csi_summary": csi_summary,
+        },
+    )
+    return {
+        "sionna_rzf_skipped": True,
+        "sionna_rzf_available": reason not in {"sionna_not_installed", "rzf_precoder_unavailable"},
+        "sionna_rzf_callable": bool(callable),
+        "fallback_used": True,
+        "fallback_reason": reason,
+        "skip_reason": reason,
+        "adapter_failure_reason": adapter_failure_reason,
+        "strict_equivalence_claim_allowed": False,
+        "relationship_status": "not_evaluated",
+        "contract": contract.summary_dict(),
+    }
+
+
 def map_sionna_precoder_output_to_precoder_output(
     sionna_output: torch.Tensor,
     *,
@@ -249,6 +480,22 @@ def map_sionna_precoder_output_to_precoder_output(
             "fallback_reason": "",
         }
     )
+    native_contract = build_sionna_rzf_precoder_contract(
+        sionna_version=collect_sionna_env_info().get("sionna_version"),
+        callable=True,
+        converted_precoder_output_shape=[int(x) for x in normalized_f_f.shape],
+        relationship_to_project_rzf="close_but_different",
+        strict_equivalence_claim_allowed=False,
+        semantic_compatibility_passed=True,
+        project_side_precoder=False,
+        sionna_native_precoder=True,
+        full_native_only=False,
+        metadata={
+            "shape_assumptions": shape_assumptions,
+            "source_component": source_component,
+        },
+    )
+    combined_metadata["native_precoder_contract"] = native_contract.summary_dict()
     precoder = build_precoder_output(
         f_f=normalized_f_f,
         source="sionna_rzf_precoder",
@@ -338,12 +585,33 @@ def run_sionna_rzf_precoder_probe(
     *,
     project_noise_var: float,
     device: torch.device,
+    force_missing_sionna: bool = False,
+    force_rzf_unavailable: bool = False,
+    force_adapter_failure: bool = False,
 ) -> dict[str, Any]:
     """Probe Sionna ``RZFPrecoder`` on one ``ExtractedCSI`` object."""
 
+    csi_summary = csi.summary_dict()
+    sionna_version = collect_sionna_env_info().get("sionna_version")
+    if force_missing_sionna:
+        skipped = build_sionna_rzf_skip_result(
+            reason="sionna_not_installed",
+            sionna_version=sionna_version,
+            csi_summary=csi_summary,
+        )
+        return {
+            "sionna_precoder_success": False,
+            "converted_to_precoder_output": False,
+            "native_receiver_success_if_attempted": False,
+            "probe_only": True,
+            "recommended_next_step": "skip_optional_native_method",
+            "input_csi_summary": csi_summary,
+            **skipped,
+        }
+
     RZFPrecoder, _, rzf_error = load_component("RZFPrecoder")
     payload: dict[str, Any] = {
-        "sionna_rzf_available": RZFPrecoder is not None,
+        "sionna_rzf_available": RZFPrecoder is not None and not force_rzf_unavailable,
         "sionna_rzf_callable": False,
         "sionna_precoder_success": False,
         "converted_to_precoder_output": False,
@@ -351,17 +619,45 @@ def run_sionna_rzf_precoder_probe(
         "probe_only": True,
         "fallback_used": True,
         "fallback_reason": "",
+        "sionna_rzf_skipped": False,
+        "skip_reason": "",
+        "adapter_failure_reason": "",
+        "relationship_status": "not_evaluated",
+        "strict_equivalence_claim_allowed": False,
         "recommended_next_step": "keep_project_side_precoder_output",
-        "input_csi_summary": csi.summary_dict(),
+        "input_csi_summary": csi_summary,
     }
-    if RZFPrecoder is None:
-        payload["fallback_reason"] = rzf_error or "RZFPrecoder_unavailable"
+    if RZFPrecoder is None or force_rzf_unavailable:
+        reason = "rzf_precoder_unavailable" if force_rzf_unavailable or not rzf_error else rzf_error
+        skipped = build_sionna_rzf_skip_result(
+            reason=reason,
+            sionna_version=sionna_version,
+            csi_summary=csi_summary,
+        )
+        payload.update(skipped)
+        payload["recommended_next_step"] = "skip_optional_native_method"
         return payload
 
     mapped = map_extracted_csi_to_sionna_precoder_inputs(csi, device=device, alpha=float(csi.num_users * project_noise_var))
     payload["shape_mapping"] = mapped
+    if force_adapter_failure:
+        mapped = _fallback(
+            "forced_adapter_failure",
+            csi_summary=csi_summary,
+            shape_assumptions=mapped.get("shape_assumptions"),
+        )
+        payload["shape_mapping"] = mapped
     if not mapped.get("success", False):
-        payload["fallback_reason"] = str(mapped.get("fallback_reason", "mapping_failed"))
+        reason = "adapter_failure"
+        adapter_failure_reason = str(mapped.get("fallback_reason", "mapping_failed"))
+        skipped = build_sionna_rzf_skip_result(
+            reason=reason,
+            sionna_version=sionna_version,
+            callable=bool(payload["sionna_rzf_available"]),
+            csi_summary=csi_summary,
+            adapter_failure_reason=adapter_failure_reason,
+        )
+        payload.update(skipped)
         payload["recommended_next_step"] = "adapter_bridge_only"
         return payload
 
@@ -379,8 +675,15 @@ def run_sionna_rzf_precoder_probe(
         payload["sionna_output_shape"] = [int(x) for x in sionna_output.shape]
         payload["effective_channel_shape"] = [int(x) for x in h_eff.shape]
     except Exception as exc:  # pragma: no cover - optional runtime path
-        payload["fallback_reason"] = f"{type(exc).__name__}: {exc}"
-        payload["recommended_next_step"] = "adapter_bridge_only"
+        skipped = build_sionna_rzf_skip_result(
+            reason="rzf_precoder_not_callable",
+            sionna_version=sionna_version,
+            callable=False,
+            csi_summary=csi_summary,
+            adapter_failure_reason=f"{type(exc).__name__}: {exc}",
+        )
+        payload.update(skipped)
+        payload["recommended_next_step"] = "skip_optional_native_method"
         return payload
 
     converted, convert_meta = map_sionna_precoder_output_to_precoder_output(
@@ -393,7 +696,14 @@ def run_sionna_rzf_precoder_probe(
     )
     payload["conversion"] = convert_meta
     if converted is None:
-        payload["fallback_reason"] = str(convert_meta.get("fallback_reason", "conversion_failed"))
+        skipped = build_sionna_rzf_skip_result(
+            reason="adapter_failure",
+            sionna_version=sionna_version,
+            callable=True,
+            csi_summary=csi_summary,
+            adapter_failure_reason=str(convert_meta.get("fallback_reason", "conversion_failed")),
+        )
+        payload.update(skipped)
         payload["recommended_next_step"] = "adapter_bridge_only"
         return payload
 
@@ -408,11 +718,33 @@ def run_sionna_rzf_precoder_probe(
             "converted_to_precoder_output": True,
             "fallback_used": False,
             "fallback_reason": "",
+            "sionna_rzf_skipped": False,
+            "skip_reason": "",
+            "adapter_failure_reason": "",
             "sionna_precoder_output": converted,
             "comparison": comparison,
+            "relationship_status": "close_but_different",
+            "strict_equivalence_claim_allowed": False,
             "recommended_next_step": "adapter_bridge_then_optional_native_receiver_probe",
         }
     )
+    payload["contract"] = build_sionna_rzf_precoder_contract(
+        sionna_version=sionna_version,
+        callable=True,
+        converted_precoder_output_shape=[int(x) for x in converted.f_f.shape],
+        relationship_to_project_rzf="close_but_different",
+        strict_equivalence_claim_allowed=False,
+        semantic_compatibility_passed=True,
+        project_side_precoder=False,
+        sionna_native_precoder=True,
+        full_native_only=False,
+        required_resource_grid_config=mapped.get("resource_grid_meta"),
+        required_stream_management_config=mapped.get("stream_management_requirements"),
+        metadata={
+            "shape_mapping": mapped.get("shape_assumptions"),
+            "comparison": comparison,
+        },
+    ).summary_dict()
     return payload
 
 
