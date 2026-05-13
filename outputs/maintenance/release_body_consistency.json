@@ -1,0 +1,15 @@
+{
+  "status": "ok",
+  "v1_0_0_title_consistent": true,
+  "interface_first_stable_release_wording_consistent": true,
+  "reproduction_commands_present": true,
+  "artifact_paths_consistent": true,
+  "known_limitations_consistent": true,
+  "no_full_native_only_claim": true,
+  "no_mainline_native_replacement_claim": true,
+  "no_strict_project_rzf_equivalence_claim": true,
+  "no_rt_claim": true,
+  "no_ray_tracing_claim": true,
+  "no_fiveg_full_stack_claim": true,
+  "optional_sionna_dependency_wording_consistent": true
+}

@@ -1,0 +1,11 @@
+{
+  "status": "ok",
+  "all_artifacts_exist": true,
+  "generated_from_commit_present": true,
+  "release_tag_recorded": true,
+  "provenance_semantics_clear": true,
+  "all_full_native_only_false": true,
+  "all_rt_ray_5g_flags_false": true,
+  "stable_minimal_status_ok": true,
+  "ready_for_v1_0_0_final": true
+}

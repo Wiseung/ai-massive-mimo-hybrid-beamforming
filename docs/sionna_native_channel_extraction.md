@@ -571,6 +571,13 @@ Current stable release overview:
 - stable finalization adds a stable artifact manifest and a stable minimal reproduction wrapper
 - the boundary still remains non-full-native and non-production
 
+Post-`v1.0.0` maintenance:
+
+- release body consistency audit
+- artifact reproducibility audit
+- optional Sionna regression monitor
+- maintenance issue list in [docs/maintenance/post_v1_maintenance_issues.md](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/maintenance/post_v1_maintenance_issues.md)
+
 Boundary remains unchanged:
 
 - not full native-only benchmark

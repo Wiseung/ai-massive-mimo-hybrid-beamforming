@@ -294,6 +294,13 @@ Current stable release view:
   - not strict `project_rzf` equivalence
   - not full native-only
 
+Post-`v1.0.0` maintenance hooks:
+
+- release body consistency audit
+- artifact reproducibility audit
+- optional Sionna regression monitor
+- CI tightening proposal in [docs/maintenance/ci_reproducibility_tightening.md](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/maintenance/ci_reproducibility_tightening.md)
+
 ## Current boundary
 
 The supported boundary remains:
