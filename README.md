@@ -741,8 +741,14 @@ Post-`v1.0.0` maintenance status:
   - `python scripts/audit_artifact_reproducibility.py --out outputs/maintenance/artifact_reproducibility_audit.json`
 - optional Sionna regression monitor command:
   - `python scripts/run_optional_sionna_regression_monitor.py --out outputs/maintenance/optional_sionna_regression_monitor.json`
+- release tag health audit command:
+  - `python scripts/audit_release_tag_health.py --out outputs/maintenance/release_tag_health.json`
+- release health dashboard command:
+  - `python scripts/generate_release_health_dashboard.py --out outputs/maintenance/release_health_dashboard.json`
 - CI tightening proposal:
   - [ci_reproducibility_tightening.md](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/maintenance/ci_reproducibility_tightening.md)
+- security/dependency maintenance notes:
+  - [security_and_dependency_maintenance.md](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/maintenance/security_and_dependency_maintenance.md)
 
 Current `v0.4.0` candidate comparison at the validated native insertion point:
 
