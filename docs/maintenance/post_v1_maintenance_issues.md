@@ -7,6 +7,7 @@
 - release body consistency
 - CI smoke tightening
 - optional dependency monitoring
+- release health dashboard refresh
 
 ## B. Research Extensions
 

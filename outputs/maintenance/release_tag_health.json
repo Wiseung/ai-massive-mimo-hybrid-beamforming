@@ -1,0 +1,49 @@
+{
+  "status": "ok",
+  "latest_release": "v1.0.2",
+  "latest_tag_points_at_head": true,
+  "v1_0_1_historical_mismatch_explained": true,
+  "tag_release_alignment_blocker": false,
+  "publish_new_patch_needed": false,
+  "rows": [
+    {
+      "tag": "v1.0.0",
+      "tag_exists": true,
+      "release_exists": true,
+      "isDraft": false,
+      "isPrerelease": false,
+      "isLatest": false,
+      "tag_target_commit": "9b55953ef33fba4e2c37eb088493f3b68170cdab",
+      "current_head": "67c3900a70963d470557b3cdd38d6a4022b3af8e",
+      "tag_points_at_head": false,
+      "historical_release_state": true,
+      "release_body_missing": false
+    },
+    {
+      "tag": "v1.0.1",
+      "tag_exists": true,
+      "release_exists": true,
+      "isDraft": false,
+      "isPrerelease": false,
+      "isLatest": false,
+      "tag_target_commit": "d5a946ee9351f91d35ac9a10468e0f1801f134e4",
+      "current_head": "67c3900a70963d470557b3cdd38d6a4022b3af8e",
+      "tag_points_at_head": false,
+      "historical_release_state": true,
+      "release_body_missing": false
+    },
+    {
+      "tag": "v1.0.2",
+      "tag_exists": true,
+      "release_exists": true,
+      "isDraft": false,
+      "isPrerelease": false,
+      "isLatest": true,
+      "tag_target_commit": "67c3900a70963d470557b3cdd38d6a4022b3af8e",
+      "current_head": "67c3900a70963d470557b3cdd38d6a4022b3af8e",
+      "tag_points_at_head": true,
+      "historical_release_state": false,
+      "release_body_missing": false
+    }
+  ]
+}

@@ -577,6 +577,8 @@ Post-`v1.0.0` maintenance:
 - artifact reproducibility audit
 - optional Sionna regression monitor
 - maintenance issue list in [docs/maintenance/post_v1_maintenance_issues.md](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/maintenance/post_v1_maintenance_issues.md)
+- release tag health audit
+- release health dashboard
 
 Boundary remains unchanged:
 

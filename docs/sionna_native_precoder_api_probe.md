@@ -300,6 +300,7 @@ Post-`v1.0.0` maintenance hooks:
 - artifact reproducibility audit
 - optional Sionna regression monitor
 - CI tightening proposal in [docs/maintenance/ci_reproducibility_tightening.md](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/maintenance/ci_reproducibility_tightening.md)
+- release health dashboard in `outputs/maintenance/release_health_dashboard.json`
 
 ## Current boundary
 

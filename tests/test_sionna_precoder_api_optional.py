@@ -347,3 +347,40 @@ def test_run_optional_sionna_regression_monitor_runs(tmp_path: Path) -> None:
     payload = json.loads(out_path.read_text(encoding="utf-8"))
     assert payload["status"] == "ok"
     assert any(row["scenario"] == "force_sionna_missing_skip" for row in payload["scenarios"])
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_audit_release_tag_health_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "release_tag_health.json"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/audit_release_tag_health.py",
+            "--out",
+            str(out_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["status"] == "ok"
+    assert payload["latest_release"] == "v1.0.2"
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_generate_release_health_dashboard_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "release_health_dashboard.json"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/generate_release_health_dashboard.py",
+            "--out",
+            str(out_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert "overall_status" in payload
