@@ -1,6 +1,6 @@
 # Interface RC Artifact Provenance Audit
 
-- current_head: `7aa154f8e1b51622e797604c6821cdf4e5cff55a`
+- current_head: `9b55953ef33fba4e2c37eb088493f3b68170cdab`
 - release_tag: `v1.0.0-rc1`
 - all_artifacts_exist: `True`
 - all_generated_from_commit_present: `True`

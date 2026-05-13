@@ -288,3 +288,62 @@ def test_reproduce_sionna_interface_stable_minimal_runs(tmp_path: Path) -> None:
     payload = json.loads(out_path.read_text(encoding="utf-8"))
     assert payload["status"] in {"ok", "skipped"}
     assert "stable_readiness_passed" in payload
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_audit_release_body_consistency_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "release_body_consistency.json"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/audit_release_body_consistency.py",
+            "--tag",
+            "v1.0.0",
+            "--out",
+            str(out_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["status"] == "ok"
+    assert payload["v1_0_0_title_consistent"] is True
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_audit_artifact_reproducibility_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "artifact_reproducibility_audit.json"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/audit_artifact_reproducibility.py",
+            "--out",
+            str(out_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["status"] == "ok"
+    assert payload["stable_minimal_status_ok"] is True
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_run_optional_sionna_regression_monitor_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "optional_sionna_regression_monitor.json"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/run_optional_sionna_regression_monitor.py",
+            "--out",
+            str(out_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["status"] == "ok"
+    assert any(row["scenario"] == "force_sionna_missing_skip" for row in payload["scenarios"])

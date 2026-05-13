@@ -733,6 +733,17 @@ Current `v1.0.0` stable release status:
   - `python scripts/generate_sionna_interface_stable_artifact_manifest.py --out outputs/sionna_interface_stable/interface_stable_artifact_manifest.json`
   - `python scripts/reproduce_sionna_interface_stable_minimal.py --out outputs/repro/sionna_interface_stable_minimal_summary.json`
 
+Post-`v1.0.0` maintenance status:
+
+- release body consistency audit command:
+  - `python scripts/audit_release_body_consistency.py --tag v1.0.0 --out outputs/maintenance/release_body_consistency.json`
+- artifact reproducibility audit command:
+  - `python scripts/audit_artifact_reproducibility.py --out outputs/maintenance/artifact_reproducibility_audit.json`
+- optional Sionna regression monitor command:
+  - `python scripts/run_optional_sionna_regression_monitor.py --out outputs/maintenance/optional_sionna_regression_monitor.json`
+- CI tightening proposal:
+  - [ci_reproducibility_tightening.md](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/maintenance/ci_reproducibility_tightening.md)
+
 Current `v0.4.0` candidate comparison at the validated native insertion point:
 
 | Method | Native receiver success | Teacher inference | Approx sum-rate | Gap vs `project_rzf` | Gap vs `project_wmmse_iter_5` |
