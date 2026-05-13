@@ -1,0 +1,9 @@
+{
+  "pip_check_status": "passed",
+  "pip_audit_available": false,
+  "pip_audit_status": "skipped",
+  "skipped_reason": "pip_audit_not_installed",
+  "vulnerabilities_found": null,
+  "advisory": "Run manually in trusted environments only.",
+  "recommended_next_action": "no_action"
+}

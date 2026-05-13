@@ -384,3 +384,50 @@ def test_generate_release_health_dashboard_runs(tmp_path: Path) -> None:
     )
     payload = json.loads(out_path.read_text(encoding="utf-8"))
     assert "overall_status" in payload
+
+
+def test_run_local_dependency_audit_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "local_dependency_audit.json"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/run_local_dependency_audit.py",
+            "--out",
+            str(out_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert "pip_check_status" in payload
+    assert "pip_audit_available" in payload
+
+
+def test_generate_security_maintenance_dashboard_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    dep_audit = repo_root / "outputs/maintenance/local_dependency_audit.json"
+    if not dep_audit.exists():
+        subprocess.run(
+            [
+                sys.executable,
+                "scripts/run_local_dependency_audit.py",
+                "--out",
+                str(dep_audit),
+            ],
+            check=True,
+            cwd=repo_root,
+        )
+    out_path = tmp_path / "security_maintenance_dashboard.json"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/generate_security_maintenance_dashboard.py",
+            "--out",
+            str(out_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert "overall_security_maintenance_status" in payload

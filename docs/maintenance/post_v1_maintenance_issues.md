@@ -8,6 +8,7 @@
 - CI smoke tightening
 - optional dependency monitoring
 - release health dashboard refresh
+- optional security maintenance workflow refresh
 
 ## B. Research Extensions
 

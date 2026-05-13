@@ -1,0 +1,12 @@
+{
+  "overall_security_maintenance_status": "ok",
+  "release_health_status": "ok",
+  "dependency_audit_status": "not_run",
+  "codeql_workflow_present_as_example": true,
+  "dependency_review_workflow_present_as_example": true,
+  "required_ci_unchanged": true,
+  "sionna_optional_dependency_preserved": true,
+  "blockers": [],
+  "warnings": [],
+  "recommended_next_action": "no_action"
+}
