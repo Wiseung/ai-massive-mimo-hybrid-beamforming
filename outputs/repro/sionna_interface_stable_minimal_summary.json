@@ -1,0 +1,16 @@
+{
+  "status": "ok",
+  "sionna_import_ok": true,
+  "rc_minimal_status": "ok",
+  "release_consistency_passed": true,
+  "artifact_provenance_passed": true,
+  "smoke_matrix_passed": true,
+  "stable_readiness_passed": true,
+  "ready_for_v1_0_0_final": true,
+  "blocking_issues": [],
+  "nonblocking_issues": [],
+  "full_native_only": false,
+  "sionna_rt_used": false,
+  "ray_tracing_used": false,
+  "fiveg_full_stack_used": false
+}

@@ -1,0 +1,131 @@
+{
+  "status": "ok",
+  "current_head": "7aa154f8e1b51622e797604c6821cdf4e5cff55a",
+  "release_tag": "v1.0.0-rc1",
+  "all_artifacts_exist": true,
+  "all_generated_from_commit_present": true,
+  "all_full_native_only_false": true,
+  "all_rt_ray_5g_flags_false": true,
+  "artifacts": [
+    {
+      "name": "channel_extraction_artifact_manifest",
+      "path_exists": true,
+      "generated_from_commit_present": true,
+      "generated_from_commit": "916f51bdf265423908019651578cb66403497ea5",
+      "current_head": "7aa154f8e1b51622e797604c6821cdf4e5cff55a",
+      "release_tag": "v1.0.0-rc1",
+      "full_native_only": false,
+      "sionna_rt_used": false,
+      "ray_tracing_used": false,
+      "fiveg_full_stack_used": false
+    },
+    {
+      "name": "csi_interface_artifact_manifest",
+      "path_exists": true,
+      "generated_from_commit_present": true,
+      "generated_from_commit": "916f51bdf265423908019651578cb66403497ea5",
+      "current_head": "7aa154f8e1b51622e797604c6821cdf4e5cff55a",
+      "release_tag": "v1.0.0-rc1",
+      "full_native_only": false,
+      "sionna_rt_used": false,
+      "ray_tracing_used": false,
+      "fiveg_full_stack_used": false
+    },
+    {
+      "name": "csi_consumer_artifact_manifest",
+      "path_exists": true,
+      "generated_from_commit_present": true,
+      "generated_from_commit": "916f51bdf265423908019651578cb66403497ea5",
+      "current_head": "7aa154f8e1b51622e797604c6821cdf4e5cff55a",
+      "release_tag": "v1.0.0-rc1",
+      "full_native_only": false,
+      "sionna_rt_used": false,
+      "ray_tracing_used": false,
+      "fiveg_full_stack_used": false
+    },
+    {
+      "name": "precoder_output_artifact_manifest",
+      "path_exists": true,
+      "generated_from_commit_present": true,
+      "generated_from_commit": "916f51bdf265423908019651578cb66403497ea5",
+      "current_head": "7aa154f8e1b51622e797604c6821cdf4e5cff55a",
+      "release_tag": "v1.0.0-rc1",
+      "full_native_only": false,
+      "sionna_rt_used": false,
+      "ray_tracing_used": false,
+      "fiveg_full_stack_used": false
+    },
+    {
+      "name": "native_precoder_artifact_manifest",
+      "path_exists": true,
+      "generated_from_commit_present": true,
+      "generated_from_commit": "916f51bdf265423908019651578cb66403497ea5",
+      "current_head": "7aa154f8e1b51622e797604c6821cdf4e5cff55a",
+      "release_tag": "v1.0.0-rc1",
+      "full_native_only": false,
+      "sionna_rt_used": false,
+      "ray_tracing_used": false,
+      "fiveg_full_stack_used": false
+    },
+    {
+      "name": "native_precoder_contract_validation",
+      "path_exists": true,
+      "generated_from_commit_present": true,
+      "generated_from_commit": "916f51bdf265423908019651578cb66403497ea5",
+      "current_head": "7aa154f8e1b51622e797604c6821cdf4e5cff55a",
+      "release_tag": "v1.0.0-rc1",
+      "full_native_only": false,
+      "sionna_rt_used": false,
+      "ray_tracing_used": false,
+      "fiveg_full_stack_used": false
+    },
+    {
+      "name": "native_precoder_contract_demo",
+      "path_exists": true,
+      "generated_from_commit_present": true,
+      "generated_from_commit": "916f51bdf265423908019651578cb66403497ea5",
+      "current_head": "7aa154f8e1b51622e797604c6821cdf4e5cff55a",
+      "release_tag": "v1.0.0-rc1",
+      "full_native_only": false,
+      "sionna_rt_used": false,
+      "ray_tracing_used": false,
+      "fiveg_full_stack_used": false
+    },
+    {
+      "name": "native_precoder_contract_matrix",
+      "path_exists": true,
+      "generated_from_commit_present": true,
+      "generated_from_commit": "916f51bdf265423908019651578cb66403497ea5",
+      "current_head": "7aa154f8e1b51622e797604c6821cdf4e5cff55a",
+      "release_tag": "v1.0.0-rc1",
+      "full_native_only": false,
+      "sionna_rt_used": false,
+      "ray_tracing_used": false,
+      "fiveg_full_stack_used": false
+    },
+    {
+      "name": "native_precoder_minimal_reproduction",
+      "path_exists": true,
+      "generated_from_commit_present": true,
+      "generated_from_commit": "916f51bdf265423908019651578cb66403497ea5",
+      "current_head": "7aa154f8e1b51622e797604c6821cdf4e5cff55a",
+      "release_tag": "v1.0.0-rc1",
+      "full_native_only": false,
+      "sionna_rt_used": false,
+      "ray_tracing_used": false,
+      "fiveg_full_stack_used": false
+    },
+    {
+      "name": "interface_rc_minimal_reproduction",
+      "path_exists": true,
+      "generated_from_commit_present": true,
+      "generated_from_commit": "916f51bdf265423908019651578cb66403497ea5",
+      "current_head": "7aa154f8e1b51622e797604c6821cdf4e5cff55a",
+      "release_tag": "v1.0.0-rc1",
+      "full_native_only": false,
+      "sionna_rt_used": false,
+      "ray_tracing_used": false,
+      "fiveg_full_stack_used": false
+    }
+  ]
+}

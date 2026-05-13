@@ -1,0 +1,10 @@
+{
+  "ready_for_v1_0_0_final": true,
+  "blocking_issues": [],
+  "nonblocking_issues": [],
+  "documentation_issues": [],
+  "artifact_issues": [],
+  "reproduction_issues": [],
+  "recommended_next_action": "release_v1_0_0_final",
+  "final_statement": "interface-first release candidate only; not full native-only benchmark"
+}

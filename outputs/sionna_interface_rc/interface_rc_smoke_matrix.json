@@ -1,0 +1,62 @@
+{
+  "status": "ok",
+  "sionna_import_ok": true,
+  "scenarios": [
+    {
+      "scenario": "normal_sionna_available",
+      "status": "ok",
+      "sionna_import_ok": true,
+      "extracted_csi_created": true,
+      "project_precoder_output_created": true,
+      "sionna_precoder_output_created": true,
+      "native_receiver_success": true,
+      "optional_path_skipped": false,
+      "skip_reason": "",
+      "contract_valid": true,
+      "full_native_only": false,
+      "no_rt_no_ray_tracing_no_5g_flags_ok": true
+    },
+    {
+      "scenario": "force_native_precoder_skip",
+      "status": "ok",
+      "sionna_import_ok": true,
+      "extracted_csi_created": true,
+      "project_precoder_output_created": true,
+      "sionna_precoder_output_created": false,
+      "native_receiver_success": true,
+      "optional_path_skipped": true,
+      "skip_reason": "rzf_precoder_unavailable",
+      "contract_valid": true,
+      "full_native_only": false,
+      "no_rt_no_ray_tracing_no_5g_flags_ok": true
+    },
+    {
+      "scenario": "project_only_interface_chain",
+      "status": "ok",
+      "sionna_import_ok": true,
+      "extracted_csi_created": true,
+      "project_precoder_output_created": true,
+      "sionna_precoder_output_created": false,
+      "native_receiver_success": true,
+      "optional_path_skipped": true,
+      "skip_reason": "project_only_mode",
+      "contract_valid": true,
+      "full_native_only": false,
+      "no_rt_no_ray_tracing_no_5g_flags_ok": true
+    },
+    {
+      "scenario": "force_sionna_missing_optional_skip",
+      "status": "ok",
+      "sionna_import_ok": false,
+      "extracted_csi_created": false,
+      "project_precoder_output_created": false,
+      "sionna_precoder_output_created": false,
+      "native_receiver_success": false,
+      "optional_path_skipped": true,
+      "skip_reason": "sionna_not_installed",
+      "contract_valid": true,
+      "full_native_only": false,
+      "no_rt_no_ray_tracing_no_5g_flags_ok": true
+    }
+  ]
+}

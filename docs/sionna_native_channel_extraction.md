@@ -565,6 +565,12 @@ Current RC overview:
 - channel extraction, CSI interface, CSI consumers, precoder output, optional native precoder bridge, and contract hardening are now documented as one interface-first stack
 - this is still a release candidate for interfaces and reproducibility, not a production or full-native benchmark claim
 
+Current stable release overview:
+
+- `v1.0.0` keeps the same interface-first chain
+- stable finalization adds a stable artifact manifest and a stable minimal reproduction wrapper
+- the boundary still remains non-full-native and non-production
+
 Boundary remains unchanged:
 
 - not full native-only benchmark
