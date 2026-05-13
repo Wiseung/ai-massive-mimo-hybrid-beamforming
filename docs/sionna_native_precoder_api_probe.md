@@ -284,6 +284,16 @@ End-to-end interface text chain:
 
 - `Sionna OFDMChannel -> ExtractedCSI -> PrecoderOutput -> native receiver path`
 
+Current stable release view:
+
+- `v1.0.0` is the stable interface-first release
+- stable finalization reuses the RC minimal reproduction plus consistency/provenance/smoke audits
+- the stable wording still preserves:
+  - optional dependency only
+  - not a mainline native replacement
+  - not strict `project_rzf` equivalence
+  - not full native-only
+
 ## Current boundary
 
 The supported boundary remains:

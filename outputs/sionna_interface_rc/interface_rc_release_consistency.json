@@ -1,0 +1,17 @@
+{
+  "v1_0_0_rc1_naming_consistent": true,
+  "release_candidate_wording_present": true,
+  "interface_first_wording_present": true,
+  "full_native_only_false_present": true,
+  "relationship_status_present": true,
+  "strict_equivalence_false_present": true,
+  "optional_sionna_dependency_present": true,
+  "no_sionna_rt_claim": true,
+  "no_ray_tracing_claim": true,
+  "no_fiveg_full_stack_claim": true,
+  "no_mainline_native_replacement_claim": true,
+  "no_stable_learned_gt_wmmse_claim": true,
+  "reproduction_commands_present": true,
+  "artifact_paths_exist": true,
+  "status": "ok"
+}

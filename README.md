@@ -721,6 +721,18 @@ Compact release-candidate table:
 | contract validation | `passed` | native bridge contract is explicit and validated |
 | regression matrix | `passed` | skip/fallback semantics are hardened and auditable |
 
+Current `v1.0.0` stable release status:
+
+- interface-first Sionna bridge stable release
+- RC validation summary:
+  - release consistency passed
+  - artifact provenance passed
+  - smoke matrix passed
+  - `ready_for_v1_0_0_final=true`
+- stable wrapper commands:
+  - `python scripts/generate_sionna_interface_stable_artifact_manifest.py --out outputs/sionna_interface_stable/interface_stable_artifact_manifest.json`
+  - `python scripts/reproduce_sionna_interface_stable_minimal.py --out outputs/repro/sionna_interface_stable_minimal_summary.json`
+
 Current `v0.4.0` candidate comparison at the validated native insertion point:
 
 | Method | Native receiver success | Teacher inference | Approx sum-rate | Gap vs `project_rzf` | Gap vs `project_wmmse_iter_5` |

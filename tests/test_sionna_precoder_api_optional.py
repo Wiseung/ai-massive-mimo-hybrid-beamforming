@@ -250,3 +250,41 @@ def test_reproduce_sionna_interface_rc_minimal_runs(tmp_path: Path) -> None:
     payload = json.loads(out_path.read_text(encoding="utf-8"))
     assert payload["status"] in {"ok", "skipped"}
     assert "contract_matrix_passed" in payload
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_generate_sionna_interface_stable_artifact_manifest_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "interface_stable_artifact_manifest.json"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/generate_sionna_interface_stable_artifact_manifest.py",
+            "--out",
+            str(out_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert "artifacts" in payload
+    assert any(row["release_stage"] == "stable" for row in payload["artifacts"])
+
+
+@pytest.mark.skipif(not collect_sionna_env_info()["sionna_import_ok"], reason="Sionna is optional")
+def test_reproduce_sionna_interface_stable_minimal_runs(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "sionna_interface_stable_minimal_summary.json"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/reproduce_sionna_interface_stable_minimal.py",
+            "--out",
+            str(out_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["status"] in {"ok", "skipped"}
+    assert "stable_readiness_passed" in payload
