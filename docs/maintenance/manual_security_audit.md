@@ -1,12 +1,12 @@
 # Manual Security Audit
 
-## Why The Current Status Is Warning
+## Why The Current Status Can Be Warning
 
-- `pip check` passed
-- `pip-audit` is unavailable on the current machine
-- vulnerability audit coverage is therefore incomplete
+- `pip check` may pass
+- `pip-audit` may be unavailable on some machines
+- or a manual `pip-audit` run may find vulnerabilities that still require review
 
-This is a non-blocking warning, not a blocker.
+This is still a warning path by default, not an automatic blocker.
 
 ## How To Run The Manual Audit
 
@@ -36,10 +36,11 @@ python scripts/run_manual_pip_audit.py \
 - no vulnerabilities:
   - dashboard can move to `ok`
 - vulnerabilities found:
-  - review / fix
+  - keep `warning` unless a true blocker is confirmed
+  - use `recommended_next_action = review_dependency_alerts`
 - `pip-audit` unavailable:
   - keep `warning`
-  - keep `recommended_next_action = install_pip_audit_and_rerun`
+  - use `recommended_next_action = install_pip_audit_and_rerun`
 
 ## Boundary Statement
 

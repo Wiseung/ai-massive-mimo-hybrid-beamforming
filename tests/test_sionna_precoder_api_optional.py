@@ -451,6 +451,8 @@ def test_run_manual_pip_audit_graceful_warning(tmp_path: Path) -> None:
     assert "recommended_next_action" in payload
     if payload["pip_audit_available"] is False:
         assert "pip_audit_not_installed" in payload["warnings"]
+    else:
+        assert payload["audit_status"] in {"passed", "warning"}
 
 
 def test_generate_security_dashboard_consumes_manual_audit(tmp_path: Path) -> None:
@@ -481,7 +483,6 @@ def test_generate_security_dashboard_consumes_manual_audit(tmp_path: Path) -> No
     assert payload["required_ci_unchanged"] is True
     if payload["warnings"]:
         assert payload["recommended_next_action"] in {
-            "run_manual_audit",
             "review_dependency_alerts",
             "install_pip_audit_and_rerun",
         }

@@ -11,6 +11,7 @@
 - optional security maintenance workflow refresh
 - manual dependency audit refresh
 - manual pip-audit follow-up
+- review dependency audit findings before considering any patch
 
 ## B. Research Extensions
 

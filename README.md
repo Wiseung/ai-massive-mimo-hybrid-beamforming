@@ -763,8 +763,8 @@ Optional security maintenance workflow:
 - security maintenance dashboard command:
   - `python scripts/generate_security_maintenance_dashboard.py --out outputs/maintenance/security_maintenance_dashboard.json`
 - current dashboard interpretation:
-  - missing `pip-audit` is a non-blocking warning
-  - `recommended_next_action=run_manual_audit`
+  - manual `pip-audit` may still produce a non-blocking warning
+  - current recommended follow-up depends on actual audit findings
 - manual pip-audit follow-up:
   - `python scripts/run_manual_pip_audit.py --out outputs/maintenance/manual_pip_audit.json`
   - `python scripts/run_manual_pip_audit.py --out outputs/maintenance/manual_pip_audit.json --allow-install-in-venv`

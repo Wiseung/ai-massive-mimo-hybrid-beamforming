@@ -32,12 +32,16 @@
   - release health dashboard
   - optional manual security scan
 
-## Current Non-blocking Warning Interpretation
+## Current Warning Interpretation
 
 - if `pip check` passes but `pip-audit` is unavailable:
   - report a warning
   - do not report a blocker
-  - recommend `run_manual_audit`
+  - recommend `install_pip_audit_and_rerun`
+- if a manual `pip-audit` run finds issues:
+  - report a warning by default
+  - recommend `review_dependency_alerts`
+  - only escalate to blocker if a real high-risk project-impacting issue is confirmed
 
 ## Manual Follow-up
 
