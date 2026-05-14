@@ -765,6 +765,9 @@ Optional security maintenance workflow:
 - current dashboard interpretation:
   - missing `pip-audit` is a non-blocking warning
   - `recommended_next_action=run_manual_audit`
+- manual pip-audit follow-up:
+  - `python scripts/run_manual_pip_audit.py --out outputs/maintenance/manual_pip_audit.json`
+  - `python scripts/run_manual_pip_audit.py --out outputs/maintenance/manual_pip_audit.json --allow-install-in-venv`
 
 Current `v0.4.0` candidate comparison at the validated native insertion point:
 

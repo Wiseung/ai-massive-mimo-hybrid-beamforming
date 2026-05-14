@@ -48,7 +48,7 @@ def main() -> None:
     else:
         skipped_reason = "pip_audit_not_installed"
         if pip_check_code == 0:
-            recommended_next_action = "run_manual_audit"
+            recommended_next_action = "install_pip_audit_and_rerun"
     payload = {
         "pip_check_status": "passed" if pip_check_code == 0 else "failed",
         "pip_audit_available": pip_audit_available,

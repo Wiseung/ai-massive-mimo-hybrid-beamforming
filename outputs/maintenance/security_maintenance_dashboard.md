@@ -9,4 +9,4 @@
 - sionna_optional_dependency_preserved: `True`
 - blockers: `[]`
 - warnings: `['pip_audit_not_installed']`
-- recommended_next_action: `run_manual_audit`
+- recommended_next_action: `install_pip_audit_and_rerun`

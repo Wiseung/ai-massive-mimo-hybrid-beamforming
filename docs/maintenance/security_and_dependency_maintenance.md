@@ -13,6 +13,7 @@
 - release tag health audit
 - local dependency audit
 - security maintenance dashboard
+- manual pip-audit follow-up
 
 ## Future Optional Security Maintenance
 
