@@ -6,4 +6,4 @@
 - skipped_reason: `pip_audit_not_installed`
 - vulnerabilities_found: `None`
 - advisory: `Run manually in trusted environments only.`
-- recommended_next_action: `run_manual_audit`
+- recommended_next_action: `install_pip_audit_and_rerun`
