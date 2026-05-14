@@ -1,0 +1,23 @@
+name: dependency-review-example
+
+on:
+  pull_request:
+    paths:
+      - "requirements*.txt"
+      - "pyproject.toml"
+      - "setup.cfg"
+      - "setup.py"
+
+jobs:
+  dependency-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+
+# Notes:
+# - Example only; not enabled as required CI.
+# - Intended as a future optional guardrail for dependency changes.
+# - Availability may vary depending on repo/org GitHub security features.

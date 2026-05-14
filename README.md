@@ -750,6 +750,22 @@ Post-`v1.0.0` maintenance status:
 - security/dependency maintenance notes:
   - [security_and_dependency_maintenance.md](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/maintenance/security_and_dependency_maintenance.md)
 
+Optional security maintenance workflow:
+
+- workflow policy:
+  - [security_maintenance_workflow.md](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/maintenance/security_maintenance_workflow.md)
+- CodeQL example:
+  - [codeql-analysis.yml.example](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/maintenance/workflows/codeql-analysis.yml.example)
+- dependency review example:
+  - [dependency-review.yml.example](/home/developer716/workspace/ai-massive-mimo-hybrid-beamforming/docs/maintenance/workflows/dependency-review.yml.example)
+- local dependency audit command:
+  - `python scripts/run_local_dependency_audit.py --out outputs/maintenance/local_dependency_audit.json`
+- security maintenance dashboard command:
+  - `python scripts/generate_security_maintenance_dashboard.py --out outputs/maintenance/security_maintenance_dashboard.json`
+- current dashboard interpretation:
+  - missing `pip-audit` is a non-blocking warning
+  - `recommended_next_action=run_manual_audit`
+
 Current `v0.4.0` candidate comparison at the validated native insertion point:
 
 | Method | Native receiver success | Teacher inference | Approx sum-rate | Gap vs `project_rzf` | Gap vs `project_wmmse_iter_5` |
