@@ -30,3 +30,9 @@
 ## Scope Note
 
 These are maintenance recommendations only. They do not expand the `v1.0.x` scope.
+
+## Current Follow-up Interpretation
+
+- `pip check` passed
+- manual `pip-audit` can be run in a temporary venv
+- any findings should trigger review, not automatic scope expansion or release creation
