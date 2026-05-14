@@ -32,6 +32,13 @@
   - release health dashboard
   - optional manual security scan
 
+## Current Non-blocking Warning Interpretation
+
+- if `pip check` passes but `pip-audit` is unavailable:
+  - report a warning
+  - do not report a blocker
+  - recommend `run_manual_audit`
+
 ## Boundary Statement
 
 - no Sionna RT

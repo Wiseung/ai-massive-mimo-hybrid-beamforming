@@ -762,6 +762,9 @@ Optional security maintenance workflow:
   - `python scripts/run_local_dependency_audit.py --out outputs/maintenance/local_dependency_audit.json`
 - security maintenance dashboard command:
   - `python scripts/generate_security_maintenance_dashboard.py --out outputs/maintenance/security_maintenance_dashboard.json`
+- current dashboard interpretation:
+  - missing `pip-audit` is a non-blocking warning
+  - `recommended_next_action=run_manual_audit`
 
 Current `v0.4.0` candidate comparison at the validated native insertion point:
 

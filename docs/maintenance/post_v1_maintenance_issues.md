@@ -9,6 +9,7 @@
 - optional dependency monitoring
 - release health dashboard refresh
 - optional security maintenance workflow refresh
+- manual dependency audit refresh
 
 ## B. Research Extensions
 

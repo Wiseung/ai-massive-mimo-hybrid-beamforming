@@ -11,6 +11,8 @@
 - artifact reproducibility audit
 - optional Sionna regression monitor
 - release tag health audit
+- local dependency audit
+- security maintenance dashboard
 
 ## Future Optional Security Maintenance
 
