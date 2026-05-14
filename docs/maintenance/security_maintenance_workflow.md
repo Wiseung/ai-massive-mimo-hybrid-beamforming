@@ -39,6 +39,14 @@
   - do not report a blocker
   - recommend `run_manual_audit`
 
+## Manual Follow-up
+
+- existing `pip-audit` path:
+  - `python scripts/run_manual_pip_audit.py --out outputs/maintenance/manual_pip_audit.json`
+- temporary venv path:
+  - `python scripts/run_manual_pip_audit.py --out outputs/maintenance/manual_pip_audit.json --allow-install-in-venv`
+- do not pollute the project main environment
+
 ## Boundary Statement
 
 - no Sionna RT

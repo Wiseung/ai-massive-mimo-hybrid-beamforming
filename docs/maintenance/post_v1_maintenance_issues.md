@@ -10,6 +10,7 @@
 - release health dashboard refresh
 - optional security maintenance workflow refresh
 - manual dependency audit refresh
+- manual pip-audit follow-up
 
 ## B. Research Extensions
 

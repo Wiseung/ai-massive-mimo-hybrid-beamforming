@@ -431,3 +431,57 @@ def test_generate_security_maintenance_dashboard_runs(tmp_path: Path) -> None:
     )
     payload = json.loads(out_path.read_text(encoding="utf-8"))
     assert "overall_security_maintenance_status" in payload
+
+
+def test_run_manual_pip_audit_graceful_warning(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "manual_pip_audit.json"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/run_manual_pip_audit.py",
+            "--out",
+            str(out_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["manual_audit_attempted"] is True
+    assert "recommended_next_action" in payload
+    if payload["pip_audit_available"] is False:
+        assert "pip_audit_not_installed" in payload["warnings"]
+
+
+def test_generate_security_dashboard_consumes_manual_audit(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    manual_audit_path = repo_root / "outputs/maintenance/manual_pip_audit.json"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/run_manual_pip_audit.py",
+            "--out",
+            str(manual_audit_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    out_path = tmp_path / "security_maintenance_dashboard.json"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/generate_security_maintenance_dashboard.py",
+            "--out",
+            str(out_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["required_ci_unchanged"] is True
+    if payload["warnings"]:
+        assert payload["recommended_next_action"] in {
+            "run_manual_audit",
+            "review_dependency_alerts",
+            "install_pip_audit_and_rerun",
+        }
